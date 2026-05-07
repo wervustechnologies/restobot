@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { GuestProvider } from './context/GuestContext';
 import SplashScreen from './components/SplashScreen';
@@ -37,7 +37,7 @@ function CustomerApp() {
 
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<Navigate to="/admin/login" replace />} />
       <Route path="/menu" element={<MenuPage />} />
       <Route path="/wishlist/:wishlistId" element={<WishlistPage />} />
       
