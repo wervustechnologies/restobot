@@ -5,7 +5,9 @@ from functools import wraps
 from flask import request, jsonify
 from firebase_client import get_db
 
-SECRET_KEY = "restobot-super-secret-key" # In production, use env variable
+import os
+
+SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'restobot-super-secret-key-local-dev')
 
 def generate_token(user_id, restaurant_id, is_superadmin=False):
     payload = {

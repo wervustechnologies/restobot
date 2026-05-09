@@ -12,8 +12,27 @@ superadmin_bp = Blueprint('superadmin', __name__)
 
 SUPERADMIN_EMAIL = "sanalshijilkk52@gmail.com"
 
-# Simulated MFA storage
-mfa_codes = {}
+# MFA codes are stored in Firebase so they persist across all Gunicorn workers
+def store_mfa_code(email, code):
+    db_ref = get_db()
+    db_ref.child('mfa_codes').child(email.replace('.', '_')).set({
+        'code': code,
+        'expires_at': time.time() + 600  # 10 minutes
+    })
+
+def get_mfa_code(email):
+    db_ref = get_db()
+    entry = db_ref.child('mfa_codes').child(email.replace('.', '_')).get()
+    if not entry:
+        return None
+    if time.time() > entry.get('expires_at', 0):
+        db_ref.child('mfa_codes').child(email.replace('.', '_')).delete()
+        return None
+    return entry.get('code')
+
+def clear_mfa_code(email):
+    db_ref = get_db()
+    db_ref.child('mfa_codes').child(email.replace('.', '_')).delete()
 
 def send_email(target, code):
     sender = "sanalshijilkk52@gmail.com"
@@ -49,8 +68,10 @@ def login():
     # Securely verify using Bcrypt
     if bcrypt.checkpw(password.encode('utf-8'), SUPERADMIN_HASH):
         code = str(random.randint(100000, 999999))
-        mfa_codes[email] = code
-        send_email(email, code)
+        store_mfa_code(email, code)
+        success = send_email(email, code)
+        if not success:
+            return jsonify({'message': 'Failed to send MFA email. Check SMTP config.'}), 500
         return jsonify({'message': 'MFA code sent', 'email': email}), 200
     
     return jsonify({'message': 'Invalid credentials'}), 401
@@ -62,17 +83,16 @@ def verify_mfa():
     email = data.get('email')
     code = data.get('code')
     
-    if mfa_codes.get(email) == code:
-        # Clear code
-        del mfa_codes[email]
-        # Generate a special superadmin token
+    stored_code = get_mfa_code(email)
+    if stored_code and stored_code == code:
+        clear_mfa_code(email)
         token = generate_token('superadmin_id', 'all', is_superadmin=True)
         return jsonify({
             'token': token,
             'role': 'superadmin'
         }), 200
     
-    return jsonify({'message': 'Invalid MFA code'}), 401
+    return jsonify({'message': 'Invalid or expired MFA code'}), 401
 
 @superadmin_bp.route('/superadmin/create-restaurant', methods=['POST', 'OPTIONS'])
 @cross_origin()
