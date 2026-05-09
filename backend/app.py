@@ -30,7 +30,15 @@ def create_app():
     app.register_blueprint(wishlist_bp, url_prefix='/api')
     app.register_blueprint(guests_bp, url_prefix='/api')
 
-    # Apply CORS at the end to ensure it covers all blueprints
-    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True, allow_headers=["Content-Type", "Authorization"], methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
+    # CORS: allow Vercel frontend + local dev
+    # Set FRONTEND_URL env var on Render to your Vercel URL, e.g. https://restobot.vercel.app
+    frontend_url = os.environ.get('FRONTEND_URL', '*')
+    allowed_origins = [frontend_url] if frontend_url != '*' else '*'
+
+    CORS(app,
+         resources={r"/api/*": {"origins": allowed_origins}},
+         supports_credentials=True,
+         allow_headers=["Content-Type", "Authorization"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
 
     return app

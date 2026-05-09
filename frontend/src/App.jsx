@@ -13,13 +13,22 @@ import AdminLogin from './components/admin/AdminLogin';
 import AdminRegister from './components/admin/AdminRegister';
 import AdminMenuManager from './components/admin/AdminMenuManager';
 import AdminTables from './components/admin/AdminTables';
-// Admin Pages
 
 import AdminDashboard from './components/admin/AdminDashboard';
 import SuperAdminLogin from './components/superadmin/SuperAdminLogin';
 import SuperAdminDashboard from './components/superadmin/SuperAdminDashboard';
 
 import './index.css';
+
+// Smart root route: QR scans (?t=TOKEN) → LandingPage, direct visits → Admin Login
+function RootRoute() {
+  const location = window.location;
+  const params = new URLSearchParams(location.search);
+  if (params.get('t')) {
+    return <LandingPage />;
+  }
+  return <Navigate to="/admin/login" replace />;
+}
 
 function CustomerApp() {
   const navigate = useNavigate();
@@ -37,7 +46,7 @@ function CustomerApp() {
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/admin/login" replace />} />
+      <Route path="/" element={<RootRoute />} />
       <Route path="/menu" element={<MenuPage />} />
       <Route path="/wishlist/:wishlistId" element={<WishlistPage />} />
       
@@ -71,3 +80,4 @@ export default function App() {
     </AuthProvider>
   );
 }
+

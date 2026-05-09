@@ -7,6 +7,7 @@ import Swal from 'sweetalert2';
 export default function AdminTables() {
   const [tables, setTables] = useState([]);
   const [newTableNum, setNewTableNum] = useState('');
+  const [qrBaseUrl, setQrBaseUrl] = useState(() => localStorage.getItem('qr_base_url') || window.location.origin);
   const [qrCodes, setQrCodes] = useState({});
   const { token, user } = useAuth();
 
@@ -20,8 +21,8 @@ export default function AdminTables() {
     // Generate QR codes
     const codes = {};
     for (const table of data) {
-      // The QR code now points to the LANDING PAGE (Welcome Screen)
-      const url = `${window.location.origin}/?t=${table.qr_token}`;
+      // The QR code points to the LANDING PAGE with the table token
+      const url = `${qrBaseUrl}/?t=${table.qr_token}`;
       codes[table.id] = await QRCode.toDataURL(url, {
         width: 400,
         margin: 2,
@@ -36,7 +37,13 @@ export default function AdminTables() {
 
   useEffect(() => {
     fetchData();
-  }, [token]);
+  }, [token, qrBaseUrl]);
+
+  const handleBaseUrlChange = (e) => {
+    const newUrl = e.target.value;
+    setQrBaseUrl(newUrl);
+    localStorage.setItem('qr_base_url', newUrl);
+  };
 
   const handleAddTable = async (e) => {
     e.preventDefault();
@@ -92,17 +99,32 @@ export default function AdminTables() {
 
   return (
     <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40, flexWrap: 'wrap', gap: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 20 }}>
         <div>
           <h1 style={{ fontSize: 32, fontWeight: 900, marginBottom: 5 }}>Table Manager</h1>
           <p style={{ color: '#666' }}>Generate and download QR codes for your tables.</p>
         </div>
         <form onSubmit={handleAddTable} style={{ display: 'flex', gap: 10 }}>
           <input type="text" placeholder="Table Name/Number" required className="btn-outline" 
-            style={{ textAlign: 'left', background: '#F5F5F5' }}
+            style={{ textAlign: 'left', background: '#F5F5F5', minWidth: '180px' }}
             value={newTableNum} onChange={e => setNewTableNum(e.target.value)} />
           <button type="submit" className="btn-primary" style={{ whiteSpace: 'nowrap' }}>+ Add Table</button>
         </form>
+      </div>
+      
+      <div style={{ background: '#FFF', padding: '15px 20px', borderRadius: 12, marginBottom: 30, border: '1px solid #EEE', display: 'flex', alignItems: 'center', gap: 15, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: '250px' }}>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#444', marginBottom: 5 }}>
+            QR Code Base URL (Update this to your local network IP for mobile testing, e.g., http://192.168.1.x:5173)
+          </label>
+          <input 
+            type="text" 
+            className="btn-outline"
+            style={{ textAlign: 'left', background: '#F5F5F5', width: '100%', padding: '10px 15px' }}
+            value={qrBaseUrl}
+            onChange={handleBaseUrlChange}
+          />
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 25 }}>
@@ -141,3 +163,4 @@ export default function AdminTables() {
     </div>
   );
 }
+
