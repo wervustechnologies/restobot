@@ -50,18 +50,6 @@ export default function AdminLogin() {
         </div>
         <button type="submit" className="btn-primary" style={{ marginTop: 10 }}>Login</button>
       </form>
-      
-      <div style={{ marginTop: 25, textAlign: 'center' }}>
-        <p style={{ color: '#666', fontSize: 14 }}>
-          Don't have a restaurant account?{' '}
-          <span 
-            onClick={() => navigate('/admin/register')} 
-            style={{ color: '#FF6B35', fontWeight: 700, cursor: 'pointer', textDecoration: 'none' }}
-          >
-            Register Here
-          </span>
-        </p>
-      </div>
     </div>
   );
 }

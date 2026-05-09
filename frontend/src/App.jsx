@@ -10,7 +10,6 @@ import WishlistPage from './components/WishlistPage';
 // Admin Pages
 import AdminLayout from './components/admin/AdminLayout';
 import AdminLogin from './components/admin/AdminLogin';
-import AdminRegister from './components/admin/AdminRegister';
 import AdminMenuManager from './components/admin/AdminMenuManager';
 import AdminTables from './components/admin/AdminTables';
 
@@ -52,7 +51,6 @@ function CustomerApp() {
       
       {/* Admin Routes */}
       <Route path="/admin/login" element={<AdminLogin />} />
-      <Route path="/admin/register" element={<AdminRegister />} />
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<AdminDashboard />} />
         <Route path="menu" element={<AdminMenuManager />} />
