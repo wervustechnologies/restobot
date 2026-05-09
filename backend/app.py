@@ -9,6 +9,12 @@ def create_app():
     # Initialize Firebase
     init_firebase()
 
+    # CORS: allow Vercel frontend
+    frontend_url = os.environ.get('FRONTEND_URL', '*')
+    allowed_origins = [o.strip() for o in frontend_url.split(',')] if frontend_url != '*' else '*'
+    
+    CORS(app, resources={r"/*": {"origins": allowed_origins, "allow_headers": ["Content-Type", "Authorization"]}})
+
     # Register blueprints
     from routes.auth import auth_bp
     from routes.admin import admin_bp
@@ -29,22 +35,5 @@ def create_app():
     app.register_blueprint(superadmin_bp, url_prefix='/api')
     app.register_blueprint(wishlist_bp, url_prefix='/api')
     app.register_blueprint(guests_bp, url_prefix='/api')
-
-    # CORS: allow Vercel frontend
-    # FRONTEND_URL env var on Render should be your Vercel URL e.g. https://restobot-zeta.vercel.app
-    # We support multiple origins by splitting on comma if needed
-    frontend_url = os.environ.get('FRONTEND_URL', '')
-    if frontend_url:
-        allowed_origins = [o.strip() for o in frontend_url.split(',')]
-    else:
-        allowed_origins = '*'  # local dev fallback
-
-    # NOTE: supports_credentials=True + origins='*' is INVALID CORS and causes browser blocks.
-    # Since we use JWT in Authorization headers (not cookies), credentials=False is correct.
-    CORS(app,
-         resources={r"/*": {"origins": allowed_origins}},
-         supports_credentials=False,
-         allow_headers=["Content-Type", "Authorization"],
-         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
 
     return app
