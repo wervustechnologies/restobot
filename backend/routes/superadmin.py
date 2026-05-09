@@ -54,7 +54,7 @@ def send_email(target, code):
 # Bcrypt hash for 'wervus2000'
 SUPERADMIN_HASH = b'$2b$12$cuCI8t7nwl2Ol3CER8vce.uZhgU9w922jT8inRmS17ra81ttI39Ne'
 
-@superadmin_bp.route('/superadmin/login', methods=['POST', 'OPTIONS'])
+@superadmin_bp.route('/superadmin/login', methods=['POST'])
 def login():
     data = request.get_json()
     email = data.get('email')
@@ -74,7 +74,7 @@ def login():
     
     return jsonify({'message': 'Invalid credentials'}), 401
 
-@superadmin_bp.route('/superadmin/verify', methods=['POST', 'OPTIONS'])
+@superadmin_bp.route('/superadmin/verify', methods=['POST'])
 def verify_mfa():
     data = request.get_json()
     email = data.get('email')
@@ -91,7 +91,7 @@ def verify_mfa():
     
     return jsonify({'message': 'Invalid or expired MFA code'}), 401
 
-@superadmin_bp.route('/superadmin/create-restaurant', methods=['POST', 'OPTIONS'])
+@superadmin_bp.route('/superadmin/create-restaurant', methods=['POST'])
 @token_required
 def create_restaurant_admin():
     db_ref = get_db()
