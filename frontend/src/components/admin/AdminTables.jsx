@@ -12,27 +12,42 @@ export default function AdminTables() {
   const { token, user } = useAuth();
 
   const fetchData = async () => {
-    const res = await fetch(`${API_BASE_URL}/admin/tables`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    setTables(data);
-    
-    // Generate QR codes
-    const codes = {};
-    for (const table of data) {
-      // The QR code points to the LANDING PAGE with the table token
-      const url = `${qrBaseUrl}/?t=${table.qr_token}`;
-      codes[table.id] = await QRCode.toDataURL(url, {
-        width: 400,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#ffffff'
-        }
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/tables`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
+      const data = await res.json();
+      setTables(data);
+
+      // Try to get server IP to suggest a better QR Base URL
+      const infoRes = await fetch(`${API_BASE_URL}/admin/server-info`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const infoData = await infoRes.json();
+      
+      if (infoData.local_ip && infoData.local_ip !== '127.0.0.1') {
+        const currentUrl = new URL(qrBaseUrl);
+        if (currentUrl.hostname === 'localhost' || currentUrl.hostname === '127.0.0.1') {
+          const suggestedUrl = `${currentUrl.protocol}//${infoData.local_ip}:${currentUrl.port || '5173'}`;
+          setQrBaseUrl(suggestedUrl);
+          localStorage.setItem('qr_base_url', suggestedUrl);
+        }
+      }
+
+      // Generate QR codes
+      const codes = {};
+      for (const table of data) {
+        const url = `${qrBaseUrl}/?t=${table.qr_token}`;
+        codes[table.id] = await QRCode.toDataURL(url, {
+          width: 400,
+          margin: 2,
+          color: { dark: '#000000', light: '#ffffff' }
+        });
+      }
+      setQrCodes(codes);
+    } catch (error) {
+      console.error("Error fetching tables or server info:", error);
     }
-    setQrCodes(codes);
   };
 
   useEffect(() => {
@@ -80,7 +95,7 @@ export default function AdminTables() {
       cancelButtonColor: '#ccc',
       confirmButtonText: 'Yes, delete it!'
     });
-    
+
     if (result.isConfirmed) {
       await fetch(`${API_BASE_URL}/admin/tables/${id}`, {
         method: 'DELETE',
@@ -105,20 +120,20 @@ export default function AdminTables() {
           <p style={{ color: '#666' }}>Generate and download QR codes for your tables.</p>
         </div>
         <form onSubmit={handleAddTable} style={{ display: 'flex', gap: 10 }}>
-          <input type="text" placeholder="Table Name/Number" required className="btn-outline" 
+          <input type="text" placeholder="Table Name/Number" required className="btn-outline"
             style={{ textAlign: 'left', background: '#F5F5F5', minWidth: '180px' }}
             value={newTableNum} onChange={e => setNewTableNum(e.target.value)} />
           <button type="submit" className="btn-primary" style={{ whiteSpace: 'nowrap' }}>+ Add Table</button>
         </form>
       </div>
-      
+
       <div style={{ background: '#FFF', padding: '15px 20px', borderRadius: 12, marginBottom: 30, border: '1px solid #EEE', display: 'flex', alignItems: 'center', gap: 15, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: '250px' }}>
           <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#444', marginBottom: 5 }}>
             QR Code Base URL (Update this to your local network IP for mobile testing, e.g., http://192.168.1.x:5173)
           </label>
-          <input 
-            type="text" 
+          <input
+            type="text"
             className="btn-outline"
             style={{ textAlign: 'left', background: '#F5F5F5', width: '100%', padding: '10px 15px' }}
             value={qrBaseUrl}
@@ -134,7 +149,7 @@ export default function AdminTables() {
               Active
             </div>
             <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 5 }}>Table {table.table_number}</h3>
-            
+
             {qrCodes[table.id] ? (
               <div style={{ background: '#FFF', padding: 15, borderRadius: 12, margin: '20px auto', display: 'inline-block', border: '1px solid #EEE' }}>
                 <img src={qrCodes[table.id]} style={{ width: 180, height: 180, display: 'block' }} />
@@ -146,12 +161,12 @@ export default function AdminTables() {
             )}
 
             <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-              <button 
+              <button
                 onClick={() => downloadQR(table.id, table.table_number)}
                 className="btn-primary" style={{ flex: 1, padding: '10px', fontSize: 14 }}>
                 Download
               </button>
-              <button 
+              <button
                 onClick={() => handleDeleteTable(table.id)}
                 className="btn-outline" style={{ flex: 1, padding: '10px', fontSize: 14, color: '#FF4B4B', borderColor: 'rgba(255,0,0,0.2)' }}>
                 Delete

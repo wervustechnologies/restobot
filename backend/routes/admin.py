@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from firebase_client import get_db
 from auth_utils import token_required
 import uuid
+import socket
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -148,3 +149,18 @@ def delete_table(id):
         db_ref.child(f"table_tokens/{table['qr_token']}").delete()
         db_ref.child(f'restaurants/{request.restaurant_id}/tables/{id}').delete()
     return jsonify({'message': 'Table deleted'}), 200
+
+# --- Server Info ---
+@admin_bp.route('/admin/server-info', methods=['GET'])
+@token_required
+def get_server_info():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.255.255.255', 1))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = '127.0.0.1'
+    finally:
+        s.close()
+    return jsonify({'local_ip': ip}), 200

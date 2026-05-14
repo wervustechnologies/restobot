@@ -9,11 +9,19 @@ def create_app():
     # Initialize Firebase
     init_firebase()
 
-    # CORS: allow Vercel frontend
+    # CORS: allow origins from environment or all in development
     frontend_url = os.environ.get('FRONTEND_URL', '*')
-    allowed_origins = [o.strip() for o in frontend_url.split(',')] if frontend_url != '*' else '*'
+    if frontend_url == '*':
+        allowed_origins = "*"
+    else:
+        allowed_origins = [o.strip() for o in frontend_url.split(',')]
     
-    CORS(app, resources={r"/*": {"origins": allowed_origins, "allow_headers": ["Content-Type", "Authorization"]}})
+    CORS(app, resources={r"/*": {
+        "origins": allowed_origins,
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+        "supports_credentials": True
+    }})
 
     # Register blueprints
     from routes.auth import auth_bp

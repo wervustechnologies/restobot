@@ -101,7 +101,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
   const [llmLoading, setLlmLoading] = useState(false);
   const [llmHistory, setLlmHistory] = useState([]);
   const bottomRef = useRef(null);
-  
+
   const [dynamicCourses, setDynamicCourses] = useState([]);
 
   useEffect(() => { injectCSS(); }, []);
@@ -204,10 +204,10 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
       setFlow(prev => ({ ...prev, spice: o.val }));
       await askHunger(mData, diet, mainCat, o.val);
     },
-    async (id) => {
-      lockOpts(id, '__back'); userSay('Let me change the cuisine ⬅️');
-      await askCuisine(mData, diet);
-    });
+      async (id) => {
+        lockOpts(id, '__back'); userSay('Let me change the cuisine ⬅️');
+        await askCuisine(mData, diet);
+      });
   };
 
   const askHunger = async (mData, diet, mainCat, spice) => {
@@ -221,17 +221,17 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
       lockOpts(id, o.val); userSay(o.label);
       const hunger = o.val;
       setFlow(prev => ({ ...prev, hunger, selections: {} }));
-      
+
       const courses = hunger === 'light' ? [dynamicCourses[0]] :
         hunger === 'moderate' ? [dynamicCourses[0], dynamicCourses[1]].filter(Boolean) :
           dynamicCourses;
-          
+
       await runCourses(mData, diet, mainCat, spice, hunger, courses, 0, {});
     },
-    async (id) => {
-      lockOpts(id, '__back'); userSay('Change spice level ⬅️');
-      await askSpice(mData, diet, mainCat);
-    });
+      async (id) => {
+        lockOpts(id, '__back'); userSay('Change spice level ⬅️');
+        await askSpice(mData, diet, mainCat);
+      });
   };
 
   const runCourses = async (mData, diet, mainCat, spice, hunger, courses, idx, selections) => {
@@ -396,7 +396,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
 
   const totalPossibleSteps = 4 + dynamicCourses.length + 1;
   const pct = Math.round((step / totalPossibleSteps) * 100);
-  
+
   const getStepLabel = () => {
     if (step === 1) return 'Food Type';
     if (step === 2) return 'Cuisine';
@@ -512,11 +512,11 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
     <>
       {/* Floating Chef */}
       {!isOpen && !hideMascot && (
-        <div 
+        <div
           onClick={() => setIsOpen(true)}
           style={{ position: 'fixed', bottom: 0, left: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end', cursor: 'pointer', pointerEvents: 'auto', padding: '20px' }}>
           {showBubble && (
-            <div style={{ position: 'absolute', bottom: 120, left: 80, background: 'linear-gradient(135deg, #FFFFFF 0%, #FFD2B8 100%)', padding: '10px 20px', borderRadius: '20px 20px 20px 0', boxShadow: '0 10px 25px rgba(255,107,53,0.25)', border: '1px solid #FFC4A3', whiteSpace: 'nowrap', fontSize: 13, fontWeight: 800, color: '#E85A20', zIndex: 1001, display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none' }}>
+            <div style={{ position: 'absolute', bottom: 135, left: 105, background: 'linear-gradient(135deg, #FFFFFF 0%, #FFD2B8 100%)', padding: '10px 20px', borderRadius: '20px 20px 20px 0', boxShadow: '0 10px 25px rgba(255,107,53,0.25)', border: '1px solid #FFC4A3', whiteSpace: 'nowrap', fontSize: 13, fontWeight: 800, color: '#E85A20', zIndex: 1001, display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none' }}>
               Confused? Click me! 🍽️
               <div style={{ position: 'absolute', bottom: 0, left: -10, width: 0, height: 0, borderRight: '10px solid #FFFFFF', borderTop: '10px solid transparent' }} />
             </div>
