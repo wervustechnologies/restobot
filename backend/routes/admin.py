@@ -100,8 +100,9 @@ def add_item():
 def update_item(id):
     db_ref = get_db()
     data = request.get_json()
+    print(f"Updating item {id} with data: {data}")
     db_ref.child(f'restaurants/{request.restaurant_id}/items/{id}').update(data)
-    return jsonify({'message': 'Item updated'}), 200
+    return jsonify({'message': 'Item updated', 'id': id, 'data': data}), 200
 
 @admin_bp.route('/admin/items/<id>', methods=['DELETE'])
 @token_required

@@ -115,15 +115,21 @@ export default function AdminMenuManager() {
     const url = editItemId ? `${API_BASE_URL}/admin/items/${editItemId}` : `${API_BASE_URL}/admin/items`;
     const method = editItemId ? 'PUT' : 'POST';
     
-    await fetch(url, {
+    const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(newItem)
     });
     
-    closeItemForm();
-    Swal.fire({ title: 'Success!', text: editItemId ? 'Item updated successfully' : 'Item added successfully', icon: 'success', timer: 1500, showConfirmButton: false });
-    fetchData();
+    if (res.ok) {
+      closeItemForm();
+      Swal.fire({ title: 'Success!', text: editItemId ? 'Item updated successfully' : 'Item added successfully', icon: 'success', timer: 1500, showConfirmButton: false });
+      fetchData();
+    } else {
+      const err = await res.json();
+      console.error("Save failed:", err);
+      Swal.fire({ title: 'Error', text: err.error || 'Failed to save item', icon: 'error' });
+    }
   };
 
   const closeItemForm = () => {

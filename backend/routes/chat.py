@@ -131,10 +131,13 @@ def evaluate_meal():
         )
         import json
         result = json.loads(completion.choices[0].message.content)
+        print(f"AI Selection: {sel_str}")
+        print(f"AI Result: {result}")
         # Hydrate the suggested item
         if result.get('suggested_item_id'):
             matched_item = next((i for i in active_items if str(i['id']) == str(result['suggested_item_id'])), None)
             result['suggested_item'] = matched_item
+            print(f"Matched Item: {matched_item['name'] if matched_item else 'None'}")
             
         return jsonify(result), 200
     except Exception as e:
