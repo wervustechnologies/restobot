@@ -304,14 +304,22 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
       return;
     }
 
-    await botSay('Hmm, let me review your choices... 🤔', 300);
+    console.log("Evaluating meal for suggestions...", selections);
     try {
       const r = await fetch(`${API_BASE_URL}/chat/evaluate`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ restaurant_id: restaurantId, selections })
       });
+      
+      if (!r.ok) {
+        console.error("AI Evaluation failed:", await r.text());
+        throw new Error("Evaluation failed");
+      }
+
       const d = await r.json();
-      if (d.suggested_item) {
+      console.log("AI Recommendation response:", d);
+
+      if (d.suggested_item && d.suggested_item.id) {
         await botSay(d.suggestion_text, 400);
         showCards([d.suggested_item], async (dish, cardId) => {
           lockCards(cardId, dish.name); userSay(`Yes, add ${dish.name}`);

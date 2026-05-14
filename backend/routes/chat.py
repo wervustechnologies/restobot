@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from firebase_client import get_db
 from groq import Groq
 import os
+import json
 
 chat_bp = Blueprint('chat', __name__)
 
@@ -66,7 +67,6 @@ def chat():
             temperature=0.4,
             response_format={"type": "json_object"}
         )
-        import json
         ai_message = json.loads(completion.choices[0].message.content)
         return jsonify(ai_message), 200
     except Exception as e:
@@ -129,15 +129,15 @@ def evaluate_meal():
             temperature=0.4,
             response_format={"type": "json_object"}
         )
-        import json
         result = json.loads(completion.choices[0].message.content)
         print(f"AI Selection: {sel_str}")
         print(f"AI Result: {result}")
         # Hydrate the suggested item
         if result.get('suggested_item_id'):
-            matched_item = next((i for i in active_items if str(i['id']) == str(result['suggested_item_id'])), None)
+            s_id = str(result['suggested_item_id']).strip()
+            matched_item = next((i for i in active_items if str(i['id']).strip() == s_id), None)
             result['suggested_item'] = matched_item
-            print(f"Matched Item: {matched_item['name'] if matched_item else 'None'}")
+            print(f"Matched Item: {matched_item['name'] if matched_item else 'None'} for ID: {s_id}")
             
         return jsonify(result), 200
     except Exception as e:
