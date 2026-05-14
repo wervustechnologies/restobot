@@ -139,7 +139,10 @@ export default function AdminMenuManager() {
   };
 
   const handleEditClick = (item) => {
-    setNewItem(item);
+    setNewItem({
+      ...initialItemState,
+      ...item
+    });
     setEditItemId(item.id);
     setShowItemForm(true);
   };
@@ -427,16 +430,16 @@ export default function AdminMenuManager() {
                   <option value="veg">Veg</option>
                   <option value="non-veg">Non-Veg</option>
                 </select>
-                <select style={{ background: '#F5F5F5', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.spice_level}
+                <select style={{ background: '#F5F5F5', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.spice_level || 3}
                   onChange={e => setNewItem({ ...newItem, spice_level: parseInt(e.target.value) })}>
-                  <option value="1">Low {newItem.taste.charAt(0).toUpperCase() + newItem.taste.slice(1)}</option>
+                  <option value="1">Low {(newItem.taste || 'spicy').charAt(0).toUpperCase() + (newItem.taste || 'spicy').slice(1)}</option>
                   <option value="3">Medium</option>
                   <option value="5">High</option>
                 </select>
               </div>
 
               <div className="form-grid-2">
-                <select style={{ background: '#F5F5F5', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.taste}
+                <select style={{ background: '#F5F5F5', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.taste || 'spicy'}
                   onChange={e => setNewItem({ ...newItem, taste: e.target.value })}>
                   <option value="spicy">Spicy</option>
                   <option value="sweet">Sweet</option>
