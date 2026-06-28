@@ -178,7 +178,7 @@ export default function MenuPage() {
         initialMenuData={data}
         onAddToCart={addItem}
         onShowWishlist={() => setShowWishlist(true)}
-        hideMascot={cartCount > 0 || showWishlist}
+        hideMascot={showWishlist}
       />
 
       {/* Header UI */}
