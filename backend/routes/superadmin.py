@@ -35,7 +35,7 @@ def clear_mfa_code(email):
 
 def send_email(target, code):
     sender = "sanalshijilkk52@gmail.com"
-    password = "gjsh toil csma aowl" 
+    password = "rrmv iwni fumj kqnk" 
     
     msg = MIMEText(f"Your Restobot SuperAdmin Security Code is: {code}\n\nDo not share this code with anyone.")
     msg['Subject'] = 'Restobot | SuperAdmin MFA Verification'
