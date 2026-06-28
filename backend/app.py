@@ -9,12 +9,19 @@ def create_app():
     # Initialize Firebase
     init_firebase()
 
-    # CORS: allow origins from environment or all in development
-    frontend_url = os.environ.get('FRONTEND_URL', '*')
-    if frontend_url == '*':
-        allowed_origins = "*"
-    else:
-        allowed_origins = [o.strip() for o in frontend_url.split(',')]
+    # CORS: allow origins from environment or known defaults
+    frontend_url = os.environ.get('FRONTEND_URL', '')
+    allowed_origins = [o.strip() for o in frontend_url.split(',') if o.strip()] if frontend_url else []
+    
+    # Add known frontend URLs as fallbacks
+    known_origins = [
+        "https://restobot-zeta.vercel.app",
+        "http://localhost:5173",
+        "http://localhost:5174",
+    ]
+    for origin in known_origins:
+        if origin not in allowed_origins:
+            allowed_origins.append(origin)
     
     CORS(app, resources={r"/*": {
         "origins": allowed_origins,
