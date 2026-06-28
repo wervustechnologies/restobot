@@ -14,13 +14,21 @@ export default function SuperAdminLogin() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const res = await fetch(`${API_BASE_URL}/superadmin/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    if (res.ok) setStep(2);
-    else Swal.fire({ icon: 'error', title: 'Authentication Failed', text: 'Invalid credentials' });
+    try {
+      const res = await fetch(`${API_BASE_URL}/superadmin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setStep(2);
+      } else {
+        Swal.fire({ icon: 'error', title: 'Authentication Failed', text: data.message || 'Invalid credentials' });
+      }
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Connection Error', text: 'Cannot reach the server. Is the backend running?' });
+    }
     setLoading(false);
   };
 

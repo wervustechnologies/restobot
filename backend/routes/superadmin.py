@@ -35,21 +35,32 @@ def clear_mfa_code(email):
 
 def send_email(target, code):
     sender = "sanalshijilkk52@gmail.com"
-    password = "rrmv iwni fumj kqnk" 
+    password = "rrmviwnifumjkqnk"
     
     msg = MIMEText(f"Your Restobot SuperAdmin Security Code is: {code}\n\nDo not share this code with anyone.")
     msg['Subject'] = 'Restobot | SuperAdmin MFA Verification'
     msg['From'] = f"Restobot System <{sender}>"
     msg['To'] = target
 
+    # Try port 465 (SMTP_SSL) first, then port 587 (STARTTLS) as fallback
     try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15) as server:
             server.login(sender, password)
             server.sendmail(sender, target, msg.as_string())
         return True
-    except Exception as e:
-        print(f"Email Error: {e}")
-        return False
+    except Exception as e465:
+        print(f"Email Error (port 465): {e465}")
+        try:
+            with smtplib.SMTP('smtp.gmail.com', 587, timeout=15) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(sender, password)
+                server.sendmail(sender, target, msg.as_string())
+            return True
+        except Exception as e587:
+            print(f"Email Error (port 587): {e587}")
+            return False
 
 # Bcrypt hash for 'wervus2000'
 SUPERADMIN_HASH = b'$2b$12$cuCI8t7nwl2Ol3CER8vce.uZhgU9w922jT8inRmS17ra81ttI39Ne'
