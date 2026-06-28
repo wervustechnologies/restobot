@@ -22,9 +22,8 @@ def generate_token(user_id, restaurant_id, is_superadmin=False):
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        # Allow preflight requests to pass through with a 200 OK
         if request.method == 'OPTIONS':
-            return jsonify({'message': 'OK'}), 200
+            return '', 204
             
         token = None
         if 'Authorization' in request.headers:

@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS
 import os
 from firebase_client import init_firebase
@@ -23,12 +23,20 @@ def create_app():
         if origin not in allowed_origins:
             allowed_origins.append(origin)
     
-    CORS(app, resources={r"/*": {
+    CORS(app, resources={r"/api/*": {
         "origins": allowed_origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
         "supports_credentials": True
     }})
+
+    @app.after_request
+    def add_cors_headers(response):
+        origin = request.headers.get('Origin', '')
+        if origin in allowed_origins:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return response
 
     # Register blueprints
     from routes.auth import auth_bp
