@@ -40,31 +40,59 @@
       const w = canvas.width;
       const h = canvas.height;
 
-      // Sample background color from the 4 corners
-      const corners = [
-        [0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]
-      ];
-      let bgR = 0, bgG = 0, bgB = 0;
-      corners.forEach(([x, y]) => {
-        const i = (y * w + x) * 4;
-        bgR += data[i]; bgG += data[i + 1]; bgB += data[i + 2];
-      });
-      bgR = Math.round(bgR / 4);
-      bgG = Math.round(bgG / 4);
-      bgB = Math.round(bgB / 4);
+      // Flood-fill from corners to remove only connected background
+      const visited = new Uint8Array(w * h);
+      const threshold = 50;
 
-      // Compute distance from background color and set alpha with soft edge
-      const threshold = 40;
-      for (let i = 0; i < data.length; i += 4) {
+      // Sample background color from top-left corner
+      const bgIdx = 0;
+      const bgR = data[bgIdx];
+      const bgG = data[bgIdx + 1];
+      const bgB = data[bgIdx + 2];
+
+      function matchBg(x, y) {
+        const i = (y * w + x) * 4;
         const dr = data[i] - bgR;
         const dg = data[i + 1] - bgG;
         const db = data[i + 2] - bgB;
-        const dist = Math.sqrt(dr * dr + dg * dg + db * db);
-        if (dist < threshold) {
-          data[i + 3] = 0;
-        } else if (dist < threshold + 25) {
-          // Soft edge transition
-          data[i + 3] = Math.round(((dist - threshold) / 25) * 255);
+        return Math.sqrt(dr * dr + dg * dg + db * db) < threshold;
+      }
+
+      function floodFill(startX, startY) {
+        const stack = [[startX, startY]];
+        while (stack.length > 0) {
+          const [x, y] = stack.pop();
+          if (x < 0 || x >= w || y < 0 || y >= h) continue;
+          const key = y * w + x;
+          if (visited[key]) continue;
+          if (!matchBg(x, y)) continue;
+          visited[key] = 1;
+          stack.push([x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]);
+        }
+      }
+
+      // Flood-fill from all 4 corners
+      floodFill(0, 0);
+      floodFill(w - 1, 0);
+      floodFill(0, h - 1);
+      floodFill(w - 1, h - 1);
+
+      // Set alpha to 0 for visited (background) pixels, with soft edge
+      for (let i = 0; i < data.length; i += 4) {
+        const px = (i / 4) % w;
+        const py = Math.floor(i / 4 / w);
+        const key = py * w + px;
+        if (visited[key]) {
+          // Check if this pixel borders a non-visited pixel (edge)
+          const isEdge = [[-1,0],[1,0],[0,-1],[0,1]].some(([dx, dy]) => {
+            const nx = px + dx, ny = py + dy;
+            return nx >= 0 && nx < w && ny >= 0 && ny < h && !visited[ny * w + nx];
+          });
+          if (isEdge) {
+            data[i + 3] = 60; // semi-transparent edge for softness
+          } else {
+            data[i + 3] = 0;
+          }
         }
       }
       ctx.putImageData(imageData, 0, 0);
