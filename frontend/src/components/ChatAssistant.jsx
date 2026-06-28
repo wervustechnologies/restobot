@@ -525,18 +525,18 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
 
   return (
     <>
-      {/* Floating Chef */}
-      {!isOpen && !hideMascot && (
+      {/* Floating Chef — always visible */}
+      {!hideMascot && (
         <div
-          onClick={() => setIsOpen(true)}
-          style={{ position: 'fixed', bottom: 0, left: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end', cursor: 'pointer', pointerEvents: 'auto', padding: '20px' }}>
-          {showBubble && (
+          onClick={() => !isOpen && setIsOpen(true)}
+          style={{ position: 'fixed', bottom: isOpen ? 560 : 0, left: isOpen ? 10 : 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end', cursor: isOpen ? 'default' : 'pointer', pointerEvents: 'auto', padding: '20px', transition: 'bottom 0.3s, left 0.3s' }}>
+          {!isOpen && showBubble && (
             <div style={{ position: 'absolute', bottom: 135, left: 105, background: 'linear-gradient(135deg, #FFFFFF 0%, #FFD2B8 100%)', padding: '10px 20px', borderRadius: '20px 20px 20px 0', boxShadow: '0 10px 25px rgba(255,107,53,0.25)', border: '1px solid #FFC4A3', whiteSpace: 'nowrap', fontSize: 13, fontWeight: 800, color: '#E85A20', zIndex: 1001, display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none' }}>
               Confused? Click me! 🍽️
               <div style={{ position: 'absolute', bottom: 0, left: -10, width: 0, height: 0, borderRight: '10px solid #FFFFFF', borderTop: '10px solid transparent' }} />
             </div>
           )}
-          <Chef3D width={120} height={160} />
+          <Chef3D width={isOpen ? 70 : 120} height={isOpen ? 90 : 160} />
         </div>
       )}
 
