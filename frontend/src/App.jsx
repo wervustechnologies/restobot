@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { GuestProvider } from './context/GuestContext';
-import SplashScreen from './components/SplashScreen';
-import LandingPage from './components/LandingPage';
+
 import MenuPage from './components/MenuPage';
 import WishlistPage from './components/WishlistPage';
 
@@ -19,12 +18,12 @@ import SuperAdminDashboard from './components/superadmin/SuperAdminDashboard';
 
 import './index.css';
 
-// Smart root route: QR scans (?t=TOKEN) → LandingPage, direct visits → Admin Login
+// Smart root route: QR scans (?t=TOKEN) → MenuPage, direct visits → Admin Login
 function RootRoute() {
   const location = window.location;
   const params = new URLSearchParams(location.search);
   if (params.get('t')) {
-    return <LandingPage />;
+    return <MenuPage />;
   }
   return <Navigate to="/admin/login" replace />;
 }
