@@ -360,7 +360,7 @@ def get_item_properties(name):
     return {'spice_level': 2, 'heaviness': 'medium'}
 
 def get_item_type(name):
-    non_veg_keywords = ['chicken', 'beef', 'mutton', 'lamb', 'fish', 'prawn', 'egg', 'wings', 'kebab', 'tikka', 'kheema', 'meat', 'liver', 'pothu', 'kabab']
+    non_veg_keywords = ['chicken', 'beef', 'mutton', 'lamb', 'fish', 'prawn', 'egg', 'wings', 'kebab', 'tikka', 'kheema', 'meat', 'liver', 'pothu', 'kabab', 'non veg', 'non-veg']
     name_lower = name.lower()
     if 'paneer' in name_lower: return 'veg'
     for kw in non_veg_keywords:
