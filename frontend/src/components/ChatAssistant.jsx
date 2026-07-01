@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import Chef3D from './Chef3D';
 import { API_BASE_URL } from '../apiConfig';
 
 const DEFAULT_COURSE_ORDER = ['starter', 'main', 'bread', 'rice', 'dessert'];
@@ -536,7 +535,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
               <div style={{ position: 'absolute', bottom: 0, left: -10, width: 0, height: 0, borderRight: '10px solid #FFFFFF', borderTop: '10px solid transparent' }} />
             </div>
           )}
-          <Chef3D width={isOpen ? 70 : 120} height={isOpen ? 90 : 160} />
+          <img src="/kidai.png" alt="AI Assistant" style={{ width: isOpen ? 70 : 120, height: isOpen ? 90 : 160, objectFit: 'contain' }} />
         </div>
       )}
 
