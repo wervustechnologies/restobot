@@ -253,6 +253,112 @@ def parse_menu(text):
                 })
     return sections
 
+ITEM_PROPERTIES = {
+    # Turkish
+    'Turkish Nizami Chicken': {'spice_level': 3, 'heaviness': 'heavy'},
+    'Turkish Salt Baked Chicken': {'spice_level': 2, 'heaviness': 'heavy'},
+    'Turkish Pide': {'spice_level': 1, 'heaviness': 'medium'},
+    'Istanbul Rahmani Chicken Kebab': {'spice_level': 3, 'heaviness': 'medium'},
+    'Turkish Chicken Pizza': {'spice_level': 1, 'heaviness': 'medium'},
+    'Jinoori Alfaham Chicken': {'spice_level': 2, 'heaviness': 'heavy'},
+    'Beef Yemegi': {'spice_level': 3, 'heaviness': 'heavy'},
+    # Rolls
+    'Beef Kheema Roll': {'spice_level': 3, 'heaviness': 'medium'},
+    'Mutton Sheekh Roll': {'spice_level': 3, 'heaviness': 'medium'},
+    'Chicken Sheekh Roll': {'spice_level': 2, 'heaviness': 'medium'},
+    'Pepper Chicken Roll': {'spice_level': 3, 'heaviness': 'medium'},
+    'Chilli Chicken Roll': {'spice_level': 4, 'heaviness': 'medium'},
+    'Chicken Tikka Roll': {'spice_level': 2, 'heaviness': 'medium'},
+    'Garlic Chicken Roll': {'spice_level': 2, 'heaviness': 'medium'},
+    'Chilli Paneer Roll': {'spice_level': 3, 'heaviness': 'medium'},
+    # Salads
+    'Caesar Salad': {'spice_level': 1, 'heaviness': 'light'},
+    'Green Salad': {'spice_level': 1, 'heaviness': 'light'},
+    'Arabic Salad': {'spice_level': 1, 'heaviness': 'light'},
+    'Hummoos': {'spice_level': 1, 'heaviness': 'light'},
+    # Indian Curry
+    'Mutton Nihari': {'spice_level': 4, 'heaviness': 'heavy'},
+    'Mutton Brain Pepper Fry': {'spice_level': 4, 'heaviness': 'medium'},
+    'Mutton Rogan Ghosh': {'spice_level': 3, 'heaviness': 'heavy'},
+    'Mutton Pepper Fry': {'spice_level': 4, 'heaviness': 'medium'},
+    'Chicken Tikka Masala': {'spice_level': 3, 'heaviness': 'medium'},
+    'Butter Chicken': {'spice_level': 2, 'heaviness': 'medium'},
+    'Kadai Chicken': {'spice_level': 3, 'heaviness': 'medium'},
+    'Pepper Chicken Masala': {'spice_level': 4, 'heaviness': 'medium'},
+    'Dal Fry': {'spice_level': 2, 'heaviness': 'light'},
+    'Dal Thadka': {'spice_level': 2, 'heaviness': 'light'},
+    'Kadai Paneer': {'spice_level': 3, 'heaviness': 'medium'},
+    'Paneer Butter Masala': {'spice_level': 2, 'heaviness': 'medium'},
+    'Mixed Vegetable Kuruma': {'spice_level': 2, 'heaviness': 'medium'},
+    # Kerala
+    'Mutton Kurma': {'spice_level': 3, 'heaviness': 'heavy'},
+    'Chicken Kurma': {'spice_level': 2, 'heaviness': 'medium'},
+    'Mutton Liver Varattiyathu': {'spice_level': 4, 'heaviness': 'medium'},
+    'Beef Roast': {'spice_level': 3, 'heaviness': 'heavy'},
+    'Beef Fry': {'spice_level': 3, 'heaviness': 'medium'},
+    'Pothu Varattiyathu': {'spice_level': 4, 'heaviness': 'heavy'},
+    'Beef Kizhi': {'spice_level': 3, 'heaviness': 'medium'},
+    'Chicken 65': {'spice_level': 4, 'heaviness': 'medium'},
+    'Banglore Kabab': {'spice_level': 3, 'heaviness': 'medium'},
+    'Malabar Chicken Curry': {'spice_level': 3, 'heaviness': 'medium'},
+    'Ghee Rice': {'spice_level': 1, 'heaviness': 'light'},
+    # Starters
+    'Lahori Chicken': {'spice_level': 3, 'heaviness': 'medium'},
+    'Dragon Wings': {'spice_level': 4, 'heaviness': 'medium'},
+    'Beef Tikka': {'spice_level': 3, 'heaviness': 'medium'},
+    'Grilled Chicken Wings': {'spice_level': 2, 'heaviness': 'medium'},
+    'Paneer Tikka': {'spice_level': 2, 'heaviness': 'light'},
+    'Chicken Lolipop': {'spice_level': 3, 'heaviness': 'medium'},
+    'Mushroom Pepper Garlic': {'spice_level': 2, 'heaviness': 'light'},
+    'Honey Glazed Chicken': {'spice_level': 1, 'heaviness': 'medium'},
+    'French Fries': {'spice_level': 1, 'heaviness': 'light'},
+    'Stir Fry Chicken': {'spice_level': 2, 'heaviness': 'medium'},
+    'Crispy Chilly Potato': {'spice_level': 3, 'heaviness': 'light'},
+    'Lamb Chops': {'spice_level': 2, 'heaviness': 'heavy'},
+    'Beef with Broccoli': {'spice_level': 2, 'heaviness': 'medium'},
+    'Dragon Chicken': {'spice_level': 4, 'heaviness': 'medium'},
+    'Roast Beef Chilly Sauce': {'spice_level': 3, 'heaviness': 'medium'},
+    'Thai Lemon Basil Fish': {'spice_level': 2, 'heaviness': 'medium'},
+    'Singapore Chilly Whole Fish': {'spice_level': 3, 'heaviness': 'heavy'},
+    'Thai Basil Chilly Fish': {'spice_level': 3, 'heaviness': 'medium'},
+    # Soups
+    'Tom Yum Soup': {'spice_level': 3, 'heaviness': 'light'},
+    'Tom Kha Soup': {'spice_level': 2, 'heaviness': 'light'},
+    'Arabic Lamb Soup': {'spice_level': 2, 'heaviness': 'light'},
+    'Lung Fung Soup': {'spice_level': 2, 'heaviness': 'light'},
+    'Manchow Soup': {'spice_level': 3, 'heaviness': 'light'},
+    'Creamy Mushroom Soup': {'spice_level': 1, 'heaviness': 'light'},
+    'Sweet Corn Soup': {'spice_level': 1, 'heaviness': 'light'},
+    'Hots & Sour Soup': {'spice_level': 4, 'heaviness': 'light'},
+    # Noodles
+    'Butter Garlic Noodles': {'spice_level': 1, 'heaviness': 'medium'},
+    'Hotspot Special Noodles': {'spice_level': 3, 'heaviness': 'medium'},
+    'Thai Roasted Noodles': {'spice_level': 3, 'heaviness': 'medium'},
+    'Schezwan Noodles': {'spice_level': 4, 'heaviness': 'medium'},
+    'American Chopsuey': {'spice_level': 2, 'heaviness': 'medium'},
+    'Chinese Chopsuey': {'spice_level': 3, 'heaviness': 'medium'},
+    # Wok
+    'Hunan Chicken': {'spice_level': 4, 'heaviness': 'medium'},
+    'Thai Green Curry': {'spice_level': 3, 'heaviness': 'medium'},
+    'Prawns Pepper Onion': {'spice_level': 3, 'heaviness': 'medium'},
+    'Smoked Chilli Beef': {'spice_level': 4, 'heaviness': 'medium'},
+    'Thai Red Curry Beef': {'spice_level': 3, 'heaviness': 'medium'},
+    'Stir Fry Prawns': {'spice_level': 2, 'heaviness': 'medium'},
+    'Chilli Chicken with Red Yellow Bell Pepper': {'spice_level': 3, 'heaviness': 'medium'},
+    'Thai Nam Prik Sauce': {'spice_level': 4, 'heaviness': 'medium'},
+    'Kungpau Chicken': {'spice_level': 3, 'heaviness': 'medium'},
+    'Cauli Flower Choice of Sauce': {'spice_level': 2, 'heaviness': 'light'},
+    'Paneer Choice of Sauce': {'spice_level': 2, 'heaviness': 'medium'},
+    'Chicken in Hot Garlic Sauce': {'spice_level': 4, 'heaviness': 'medium'},
+}
+
+def get_item_properties(name):
+    name_lower = name.lower()
+    for key, props in ITEM_PROPERTIES.items():
+        if key.lower() in name_lower:
+            return props
+    return {'spice_level': 2, 'heaviness': 'medium'}
+
 def get_item_type(name):
     non_veg_keywords = ['chicken', 'beef', 'mutton', 'lamb', 'fish', 'prawn', 'egg', 'wings', 'kebab', 'tikka', 'kheema', 'meat', 'liver', 'pothu', 'kabab']
     name_lower = name.lower()
@@ -327,6 +433,7 @@ def seed_new_menu():
             is_signature = '(Chef Signature Dish)' in item['name'] or 'Signature' in item['name'] or '(Hotspot Signature' in item['name']
 
             print(f"Adding item: {item['name']} with image: {get_item_image(item['name'], main_name)}")
+            props = get_item_properties(item['name'])
             items_ref.push({
                 'name': item['name'],
                 'description': item['description'] or f"Delicious {item['name']} from our {section_name.lower()} selection.",
@@ -336,8 +443,8 @@ def seed_new_menu():
                 'category_id': item_cat_id,
                 'course_type': item_course_type,
                 'item_type': get_item_type(item['name']),
-                'spice_level': 3,
-                'heaviness': 'medium',
+                'spice_level': props['spice_level'],
+                'heaviness': props['heaviness'],
                 'is_enabled': True,
                 'priority': 'high' if is_signature else 'medium',
                 'is_bestseller': is_signature
