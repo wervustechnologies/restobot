@@ -152,7 +152,7 @@ ITEM_IMAGES = {
     'Mutton Rogan Ghosh': 'https://images.unsplash.com/photo-1545247181-516773cae754?auto=format&fit=crop&w=300&q=80',
     'Mutton Pepper Fry': 'https://images.unsplash.com/photo-1574484284002-952d92456975?auto=format&fit=crop&w=300&q=80',
     'Chicken Tikka Masala': 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&w=300&q=80',
-    'Butter Chicken': 'https://images.unsplash.com/photo-1603894584373-5ac82b6ae398?auto=format&fit=crop&w=300&q=80',
+    'Butter Chicken': 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&w=300&q=80',
     'Kadai Chicken': 'https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?auto=format&fit=crop&w=300&q=80',
     'Pepper Chicken Masala': 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=300&q=80',
     'Dal Fry': 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=300&q=80',
