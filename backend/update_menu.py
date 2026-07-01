@@ -123,7 +123,104 @@ Paneer Choice of Sauce (Manchurian / Chilly) — 340
 Chicken in Hot Garlic Sauce — 330
 """
 
-CATEGORY_IMAGES = {
+ITEM_IMAGES = {
+    # Turkish
+    'Turkish Nizami Chicken': 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&w=300&q=80',
+    'Turkish Salt Baked Chicken': 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?auto=format&fit=crop&w=300&q=80',
+    'Turkish Pide': 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=300&q=80',
+    'Istanbul Rahmani Chicken Kebab': 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=300&q=80',
+    'Turkish Chicken Pizza': 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=300&q=80',
+    'Jinoori Alfaham Chicken': 'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&w=300&q=80',
+    'Beef Yemegi': 'https://images.unsplash.com/photo-1574484284002-952d92456975?auto=format&fit=crop&w=300&q=80',
+    # Rolls
+    'Beef Kheema Roll': 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&w=300&q=80',
+    'Mutton Sheekh Roll': 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=300&q=80',
+    'Chicken Sheekh Roll': 'https://images.unsplash.com/photo-1509722747041-616f39b57569?auto=format&fit=crop&w=300&q=80',
+    'Pepper Chicken Roll': 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=300&q=80',
+    'Chilli Chicken Roll': 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&w=300&q=80',
+    'Chicken Tikka Roll': 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&w=300&q=80',
+    'Garlic Chicken Roll': 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=300&q=80',
+    'Chilli Paneer Roll': 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=300&q=80',
+    # Salads
+    'Caesar Salad': 'https://images.unsplash.com/photo-1546793665-c74683f339c1?auto=format&fit=crop&w=300&q=80',
+    'Green Salad': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=300&q=80',
+    'Arabic Salad': 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=300&q=80',
+    'Hummoos': 'https://images.unsplash.com/photo-1577805947697-89e18249d767?auto=format&fit=crop&w=300&q=80',
+    # Indian Curry
+    'Mutton Nihari': 'https://images.unsplash.com/photo-1545247181-516773cae754?auto=format&fit=crop&w=300&q=80',
+    'Mutton Brain Pepper Fry': 'https://images.unsplash.com/photo-1574484284002-952d92456975?auto=format&fit=crop&w=300&q=80',
+    'Mutton Rogan Ghosh': 'https://images.unsplash.com/photo-1545247181-516773cae754?auto=format&fit=crop&w=300&q=80',
+    'Mutton Pepper Fry': 'https://images.unsplash.com/photo-1574484284002-952d92456975?auto=format&fit=crop&w=300&q=80',
+    'Chicken Tikka Masala': 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&w=300&q=80',
+    'Butter Chicken': 'https://images.unsplash.com/photo-1603894584373-5ac82b6ae398?auto=format&fit=crop&w=300&q=80',
+    'Kadai Chicken': 'https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?auto=format&fit=crop&w=300&q=80',
+    'Pepper Chicken Masala': 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=300&q=80',
+    'Dal Fry': 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=300&q=80',
+    'Dal Thadka': 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=300&q=80',
+    'Kadai Paneer': 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=300&q=80',
+    'Paneer Butter Masala': 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=300&q=80',
+    'Mixed Vegetable Kuruma': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=300&q=80',
+    # Kerala
+    'Mutton Kurma': 'https://images.unsplash.com/photo-1545247181-516773cae754?auto=format&fit=crop&w=300&q=80',
+    'Chicken Kurma': 'https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?auto=format&fit=crop&w=300&q=80',
+    'Mutton Liver Varattiyathu': 'https://images.unsplash.com/photo-1574484284002-952d92456975?auto=format&fit=crop&w=300&q=80',
+    'Beef Roast': 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=300&q=80',
+    'Beef Fry': 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=300&q=80',
+    'Pothu Varattiyathu': 'https://images.unsplash.com/photo-1574484284002-952d92456975?auto=format&fit=crop&w=300&q=80',
+    'Beef Kizhi': 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=300&q=80',
+    'Chicken 65': 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=300&q=80',
+    'Banglore Kabab': 'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&w=300&q=80',
+    'Malabar Chicken Curry': 'https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?auto=format&fit=crop&w=300&q=80',
+    'Ghee Rice': 'https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=300&q=80',
+    # Starters
+    'Lahori Chicken': 'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&w=300&q=80',
+    'Dragon Wings': 'https://images.unsplash.com/photo-1527477396000-e27163b481c2?auto=format&fit=crop&w=300&q=80',
+    'Beef Tikka': 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=300&q=80',
+    'Grilled Chicken Wings': 'https://images.unsplash.com/photo-1527477396000-e27163b481c2?auto=format&fit=crop&w=300&q=80',
+    'Paneer Tikka': 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=300&q=80',
+    'Chicken Lolipop': 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=300&q=80',
+    'Mushroom Pepper Garlic': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=300&q=80',
+    'Honey Glazed Chicken': 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=300&q=80',
+    'French Fries': 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=300&q=80',
+    'Stir Fry Chicken': 'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=300&q=80',
+    'Crispy Chilly Potato': 'https://images.unsplash.com/photo-1518977676601-b53f82ber5f0?auto=format&fit=crop&w=300&q=80',
+    'Lamb Chops': 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=300&q=80',
+    'Beef with Broccoli': 'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=300&q=80',
+    'Dragon Chicken': 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=300&q=80',
+    'Roast Beef Chilly Sauce': 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=300&q=80',
+    'Thai Lemon Basil Fish': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a1?auto=format&fit=crop&w=300&q=80',
+    'Singapore Chilly Whole Fish': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a1?auto=format&fit=crop&w=300&q=80',
+    'Thai Basil Chilly Fish': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a1?auto=format&fit=crop&w=300&q=80',
+    # Soups
+    'Tom Yum Soup': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=300&q=80',
+    'Tom Kha Soup': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=300&q=80',
+    'Arabic Lamb Soup': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=300&q=80',
+    'Lung Fung Soup': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=300&q=80',
+    'Manchow Soup': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=300&q=80',
+    'Creamy Mushroom Soup': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=300&q=80',
+    'Sweet Corn Soup': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=300&q=80',
+    'Hots & Sour Soup': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=300&q=80',
+    # Noodles
+    'Butter Garlic Noodles': 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=300&q=80',
+    'Hotspot Special Noodles': 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=300&q=80',
+    'Thai Roasted Noodles': 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=300&q=80',
+    'Schezwan Noodles': 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=300&q=80',
+    'American Chopsuey': 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=300&q=80',
+    'Chinese Chopsuey': 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=300&q=80',
+    # Wok
+    'Hunan Chicken': 'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=300&q=80',
+    'Thai Green Curry': 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?auto=format&fit=crop&w=300&q=80',
+    'Prawns Pepper Onion': 'https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&w=300&q=80',
+    'Smoked Chilli Beef': 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=300&q=80',
+    'Thai Red Curry Beef': 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?auto=format&fit=crop&w=300&q=80',
+    'Stir Fry Prawns': 'https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&w=300&q=80',
+    'Chilli Chicken with Red Yellow Bell Pepper': 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=300&q=80',
+    'Thai Nam Prik Sauce': 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?auto=format&fit=crop&w=300&q=80',
+    'Kungpau Chicken': 'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=300&q=80',
+    'Cauli Flower Choice of Sauce': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=300&q=80',
+    'Paneer Choice of Sauce': 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=300&q=80',
+    'Chicken in Hot Garlic Sauce': 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=300&q=80',
+    # Fallback images by category
     'Turkish': 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&w=300&q=80',
     'Rolls': 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&w=300&q=80',
     'Salads': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=300&q=80',
@@ -132,7 +229,7 @@ CATEGORY_IMAGES = {
     'Starters': 'https://images.unsplash.com/photo-1541518763669-27fef04b14ea?auto=format&fit=crop&w=300&q=80',
     'Soups': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=300&q=80',
     'Noodles': 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=300&q=80',
-    'Wok': 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=300&q=80'
+    'Wok': 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=300&q=80',
 }
 
 def parse_menu(text):
@@ -163,6 +260,13 @@ def get_item_type(name):
     for kw in non_veg_keywords:
         if kw in name_lower: return 'non-veg'
     return 'veg'
+
+def get_item_image(name, main_name):
+    name_lower = name.lower()
+    for key, url in ITEM_IMAGES.items():
+        if key.lower() in name_lower:
+            return url
+    return ITEM_IMAGES.get(main_name, '')
 
 def seed_new_menu():
     db_ref = get_db()
@@ -222,12 +326,12 @@ def seed_new_menu():
 
             is_signature = '(Chef Signature Dish)' in item['name'] or 'Signature' in item['name'] or '(Hotspot Signature' in item['name']
 
-            print(f"Adding item: {item['name']} with image: {CATEGORY_IMAGES.get(main_name)}")
+            print(f"Adding item: {item['name']} with image: {get_item_image(item['name'], main_name)}")
             items_ref.push({
                 'name': item['name'],
                 'description': item['description'] or f"Delicious {item['name']} from our {section_name.lower()} selection.",
                 'price': item['price'],
-                'image_url': CATEGORY_IMAGES.get(main_name),
+                'image_url': get_item_image(item['name'], main_name),
                 'main_category_id': mc_id,
                 'category_id': item_cat_id,
                 'course_type': item_course_type,
