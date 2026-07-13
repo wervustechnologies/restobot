@@ -64,10 +64,22 @@ export default function WishlistPage() {
       });
       const data = await res.json();
       if (data.success) {
+        if (guest?.guest_id && rid) {
+          await fetch(`${API}/cart`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ restaurant_id: rid, guest_id: guest.guest_id, cart: {} })
+          });
+        }
+        localStorage.removeItem('original_cart');
         setOrderSubmitted(true);
+      } else {
+        console.error('Order failed:', data.error);
+        alert('Failed to submit order: ' + (data.error || 'Unknown error'));
       }
     } catch (err) {
       console.error('Failed to submit order:', err);
+      alert('Failed to submit order. Please try again.');
     }
     setSubmitting(false);
   };

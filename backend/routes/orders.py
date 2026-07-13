@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 import time
+import time as time_module
 from firebase_client import get_db
 from auth_utils import token_required
 
@@ -20,8 +21,10 @@ def create_order():
     qr_token = data.get('qr_token')
     guest_id = data.get('guest_id')
 
-    if not restaurant_id or not items:
-        return jsonify({'error': 'Missing required fields'}), 400
+    if not restaurant_id:
+        return jsonify({'error': 'Missing restaurant_id'}), 400
+    if not items:
+        return jsonify({'error': 'Missing items'}), 400
 
     table_number = "Unknown"
     if qr_token:
@@ -30,7 +33,7 @@ def create_order():
             table_number = table_lookup.get('table_number', "Unknown")
 
     order_data = {
-        'table_number': table_number,
+        'table_number': str(table_number),
         'items': items,
         'total_amount': total_amount,
         'guest_id': guest_id or '',
@@ -42,6 +45,9 @@ def create_order():
     }
 
     order_ref = db_ref.child(f'restaurants/{restaurant_id}/orders').push(order_data)
+
+    if guest_id:
+        db_ref.child(f'restaurants/{restaurant_id}/active_carts/{guest_id}').delete()
 
     return jsonify({'success': True, 'order_id': order_ref.key, 'order': order_data}), 201
 
