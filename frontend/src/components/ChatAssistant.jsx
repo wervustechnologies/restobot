@@ -360,7 +360,22 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
       if (onShowWishlist) setTimeout(() => onShowWishlist(), 1500);
     }
 
-    await botSay('🎉 <b>Wonderful! I have added everything to your Wishlist.</b><br><br>You can now ask me anything — ingredients, allergens, or to add more items to your wishlist!', 600);
+    await botSay('🎉 <b>Wonderful! I have added everything to your Wishlist.</b>', 600);
+    await botSay('What would you like to do next?', 400);
+    showOpts([
+      { label: '➕ Add another meal', val: 'add_more' },
+      { label: '👀 View my selections', val: 'view' },
+    ], async (o, id) => {
+      lockOpts(id, o.val);
+      if (o.val === 'add_more') {
+        userSay('Add another meal');
+        restart();
+      } else {
+        userSay('View my selections');
+        if (onShowWishlist) onShowWishlist();
+      }
+    });
+
     const context = `I'm a ${sumItem.diet} diner at ${resName}. My cuisine: ${sumItem.mainCat?.name}. Selections: ${Object.entries(sumItem.selections).map(([k, v]) => `${k}: ${v?.name}`).join(', ')}.`;
     setLlmHistory([{ role: 'user', content: context }]);
     setLlmOn(true);
@@ -509,11 +524,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
                   onClick={restart}>🔄 Start over</button>
               </>
             ) : (
-              <>
-                <div style={{ textAlign: 'center', padding: '10px 0', color: '#1DB954', fontWeight: 500 }}>✅ Confirmed!</div>
-                <button style={{ width: '100%', marginTop: 6, padding: '11px', background: '#fff', border: '1.5px solid #c05c28', color: '#c05c28', borderRadius: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
-                  onClick={restart}>➕ Add another meal</button>
-              </>
+              <div style={{ textAlign: 'center', padding: '10px 0', color: '#1DB954', fontWeight: 500 }}>✅ Confirmed!</div>
             )}
           </div>
         </div>
