@@ -93,14 +93,10 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
   const [showBubble, setShowBubble] = useState(false);
   const [menuData, setMenuData] = useState(initialMenuData || null);
   const [resName, setResName] = useState(initialMenuData?.restaurant?.name || '');
-  const [items, setItems] = useState([]);   // { type, ... }
+  const [items, setItems] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [step, setStep] = useState(0);
-  const [flow, setFlow] = useState({});   // diet, mainCat, selections
-  const [llmOn, setLlmOn] = useState(false);
-  const [freeMsg, setFreeMsg] = useState('');
-  const [llmLoading, setLlmLoading] = useState(false);
-  const [llmHistory, setLlmHistory] = useState([]);
+  const [flow, setFlow] = useState({});
   const bottomRef = useRef(null);
 
   const [dynamicCourses, setDynamicCourses] = useState([]);
@@ -282,7 +278,36 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
       lockCards(cardId, dish.name); userSay(`✓ ${dish.name}`);
       const newSel = { ...selections, [courseKey]: dish };
       setFlow(prev => ({ ...prev, selections: newSel }));
-      await runCourses(mData, diet, mainCat, spice, hunger, courses, idx + 1, newSel);
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/chat/suggest`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            restaurant_id: restaurantId,
+            current_item: dish,
+            course_type: courseKey
+          })
+        });
+        const data = await res.json();
+        if (data.suggestion) {
+          await botSay(data.message, 400);
+          showCards([data.suggestion], async (sugDish, sugId) => {
+            lockCards(sugId, sugDish.name); userSay(`✓ Add ${sugDish.name}`);
+            const updatedSel = { ...newSel, [`suggested_${courseKey}`]: sugDish };
+            setFlow(prev => ({ ...prev, selections: updatedSel }));
+            if (onAddToCart) onAddToCart(sugDish);
+            await runCourses(mData, diet, mainCat, spice, hunger, courses, idx + 1, updatedSel);
+          }, null, async (skipId) => {
+            lockCards(skipId, '__skip'); userSay('No thanks');
+            await runCourses(mData, diet, mainCat, spice, hunger, courses, idx + 1, newSel);
+          }, 'No thanks');
+        } else {
+          await runCourses(mData, diet, mainCat, spice, hunger, courses, idx + 1, newSel);
+        }
+      } catch {
+        await runCourses(mData, diet, mainCat, spice, hunger, courses, idx + 1, newSel);
+      }
     }, handleBack, handleSkip, `Skip ${info.label}`);
   };
 
@@ -375,46 +400,10 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
         if (onShowWishlist) onShowWishlist();
       }
     });
-
-    const context = `I'm a ${sumItem.diet} diner at ${resName}. My cuisine: ${sumItem.mainCat?.name}. Selections: ${Object.entries(sumItem.selections).map(([k, v]) => `${k}: ${v?.name}`).join(', ')}.`;
-    setLlmHistory([{ role: 'user', content: context }]);
-    setLlmOn(true);
-  };
-
-  const handleLlmSend = async (e) => {
-    e?.preventDefault();
-    if (!freeMsg.trim() || llmLoading) return;
-    const txt = freeMsg.trim(); setFreeMsg('');
-    const newHist = [...llmHistory, { role: 'user', content: txt }];
-    setLlmHistory(newHist);
-    push({ type: 'user', text: txt });
-    setLlmLoading(true);
-    try {
-      const r = await fetch(`${API_BASE_URL}/chat`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ restaurant_id: restaurantId, messages: newHist })
-      });
-      const d = await r.json();
-      if (d.message) {
-        push({ type: 'bot', html: d.message.replace(/\n/g, '<br>') });
-        setLlmHistory(prev => [...prev, { role: 'assistant', content: d.message }]);
-      }
-      if (d.action === 'ADD_ITEM' && d.item_id && onAddToCart) {
-        const allItems = menuData?.main_categories?.flatMap(mc => mc.categories?.flatMap(c => c.items)) || [];
-        const itemToAdd = allItems.find(i => String(i.id) === String(d.item_id));
-        if (itemToAdd) {
-          onAddToCart(itemToAdd);
-          push({ type: 'bot', html: `✅ I've added <b>${itemToAdd.name}</b> to your wishlist!` });
-          if (onShowWishlist) setTimeout(() => onShowWishlist(), 1000);
-        }
-      }
-    } catch { push({ type: 'bot', html: 'Sorry, I had a hiccup. Try again!' }); }
-    finally { setLlmLoading(false); }
   };
 
   const restart = () => {
-    setItems([]); setStep(0); setFlow({}); setLlmOn(false);
-    setLlmHistory([]); setFreeMsg('');
+    setItems([]); setStep(0); setFlow({});
     setTimeout(() => startFlowWithName(menuData, resName), 100);
   };
 
@@ -580,19 +569,9 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
           {/* Messages */}
           <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
             {items.map((item, idx) => renderItem(item, idx))}
-            {(isTyping || llmLoading) && <Typing />}
+            {isTyping && <Typing />}
             <div ref={bottomRef} />
           </div>
-
-          {/* Input */}
-          <form onSubmit={handleLlmSend} style={{ padding: '10px 12px', background: '#fff', borderTop: '1px solid #f0f0f0', display: 'flex', gap: 8, flexShrink: 0 }}>
-            <input value={freeMsg} onChange={e => setFreeMsg(e.target.value)}
-              placeholder={llmOn ? 'Ask me anything...' : 'Complete the steps above to chat freely...'}
-              disabled={!llmOn || llmLoading}
-              style={{ flex: 1, background: '#f5f5f5', border: '0.5px solid #ddd', borderRadius: 20, padding: '10px 14px', fontSize: 13, color: '#333', outline: 'none', opacity: llmOn ? 1 : 0.5 }} />
-            <button type="submit" disabled={!llmOn || llmLoading}
-              style={{ background: llmOn ? '#c05c28' : '#ccc', border: 'none', borderRadius: 20, width: 40, height: 40, color: '#fff', cursor: llmOn ? 'pointer' : 'default', fontWeight: 500, fontSize: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↑</button>
-          </form>
         </div>
       )}
     </>
