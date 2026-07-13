@@ -385,8 +385,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
       if (onShowWishlist) setTimeout(() => onShowWishlist(), 1500);
     }
 
-    await botSay('🎉 <b>Wonderful! I have added everything to your Wishlist.</b>', 600);
-    await botSay('What would you like to do next?', 400);
+    push({ type: 'bot', html: '🎉 <b>Wonderful! I have added everything to your Wishlist.</b>' });
     showOpts([
       { label: '➕ Add another meal', val: 'add_more' },
       { label: '👀 View my selections', val: 'view' },
