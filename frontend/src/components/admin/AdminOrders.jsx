@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { API_BASE_URL } from '../../apiConfig';
-import Swal from 'sweetalert2';
 
 export default function AdminOrders() {
   const [tables, setTables] = useState([]);
@@ -33,31 +32,6 @@ export default function AdminOrders() {
     const interval = setInterval(fetchTables, 10000);
     return () => clearInterval(interval);
   }, [token]);
-
-  const handleCompleteOrder = async (orderId) => {
-    const result = await Swal.fire({
-      title: 'Complete Order?',
-      text: 'Mark this order as completed',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#FF6B35',
-      cancelButtonColor: '#666',
-      confirmButtonText: 'Yes, complete it'
-    });
-
-    if (result.isConfirmed) {
-      try {
-        await fetch(`${API_BASE_URL}/orders/${orderId}/complete`, {
-          method: 'PUT',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        Swal.fire('Completed!', 'Order has been marked as completed.', 'success');
-        fetchTables();
-      } catch (err) {
-        Swal.fire('Error', 'Failed to complete order', 'error');
-      }
-    }
-  };
 
   const filteredTables = tables.filter(t => {
     if (filter === 'pending') return t.has_pending;
@@ -115,7 +89,7 @@ export default function AdminOrders() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
         {filteredTables.map(table => (
-          <TableCard key={table.table_number} table={table} onCompleteOrder={handleCompleteOrder} />
+          <TableCard key={table.table_number} table={table} />
         ))}
         {filteredTables.length === 0 && (
           <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 60, color: '#888' }}>
@@ -128,10 +102,13 @@ export default function AdminOrders() {
   );
 }
 
-function TableCard({ table, onCompleteOrder }) {
+function TableCard({ table }) {
   const [expanded, setExpanded] = useState(false);
   const hasOrders = table.has_pending;
   const isLocked = !!table.locked_by;
+
+  const completedOrders = table.orders.filter(o => o.status === 'completed');
+  const activeOrders = table.orders.filter(o => o.status !== 'completed');
 
   return (
     <div className="card" style={{
@@ -163,43 +140,61 @@ function TableCard({ table, onCompleteOrder }) {
         )}
       </div>
 
-      {hasOrders && (
+      {activeOrders.length > 0 && (
         <div style={{ background: '#FFF8F5', borderRadius: 14, padding: 16, marginBottom: 15 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 13, color: '#888', fontWeight: 600 }}>Pending Orders</span>
+            <span style={{ fontSize: 13, color: '#888', fontWeight: 600 }}>Active Orders</span>
             <span style={{ fontSize: 18, fontWeight: 900, color: '#FF6B35' }}>₹{table.total_amount}</span>
           </div>
-          {table.orders.filter(o => o.status !== 'completed').map(order => (
-            <OrderItems key={order.id} order={order} onComplete={() => onCompleteOrder(order.id)} expanded={expanded} />
+          {activeOrders.map(order => (
+            <OrderItems key={order.id} order={order} />
           ))}
         </div>
       )}
 
-      {!hasOrders && (
+      {completedOrders.length > 0 && (
+        <div style={{ background: '#F5FFF5', borderRadius: 14, padding: 16, marginBottom: 15, opacity: 0.8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 13, color: '#1DB954', fontWeight: 600 }}>Completed</span>
+          </div>
+          {completedOrders.map(order => (
+            <OrderItems key={order.id} order={order} />
+          ))}
+        </div>
+      )}
+
+      {table.orders.length === 0 && (
         <div style={{ textAlign: 'center', padding: 20, color: '#888', fontSize: 13, fontWeight: 600 }}>
-          No pending orders
+          No orders yet
         </div>
       )}
     </div>
   );
 }
 
-function OrderItems({ order, onComplete, expanded }) {
+function OrderItems({ order }) {
   const [showItems, setShowItems] = useState(false);
 
+  const statusConfig = {
+    pending: { bg: '#FFF3E0', color: '#FF6B35', label: '⏳ Pending' },
+    claimed: { bg: '#E3F2FD', color: '#2196F3', label: '👤 In Progress' },
+    completed: { bg: '#E8F5E9', color: '#1DB954', label: '✅ Completed' }
+  };
+
+  const status = statusConfig[order.status] || statusConfig.pending;
+
   return (
-    <div style={{ borderTop: '1px solid rgba(255,107,53,0.1)', paddingTop: 10, marginTop: 10 }}>
+    <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: 10, marginTop: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{
             padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
-            background: order.status === 'pending' ? '#FFF3E0' : '#E8F5E9',
-            color: order.status === 'pending' ? '#FF6B35' : '#1DB954'
+            background: status.bg, color: status.color
           }}>
-            {order.status === 'pending' ? '⏳ Pending' : order.status === 'claimed' ? '👤 Claimed' : '✅ Done'}
+            {status.label}
           </span>
           {order.claimed_by_name && (
-            <span style={{ fontSize: 11, color: '#666', marginLeft: 8, fontWeight: 600 }}>
+            <span style={{ fontSize: 11, color: '#666', fontWeight: 600 }}>
               by {order.claimed_by_name}
             </span>
           )}
@@ -224,14 +219,6 @@ function OrderItems({ order, onComplete, expanded }) {
             <span style={{ fontSize: 14, fontWeight: 700 }}>Total</span>
             <span style={{ fontSize: 16, fontWeight: 900, color: '#FF6B35' }}>₹{order.total_amount}</span>
           </div>
-          {order.status !== 'completed' && (
-            <button onClick={onComplete} style={{
-              width: '100%', marginTop: 12, padding: '12px', background: '#1DB954', color: '#FFF',
-              border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer'
-            }}>
-              ✅ Mark as Completed
-            </button>
-          )}
         </div>
       )}
     </div>
