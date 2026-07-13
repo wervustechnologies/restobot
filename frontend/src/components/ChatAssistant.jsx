@@ -388,15 +388,15 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
     push({ type: 'bot', html: '🎉 <b>Wonderful! I have added everything to your Wishlist.</b>' });
     showOpts([
       { label: '➕ Add another meal', val: 'add_more' },
-      { label: '👀 View my selections', val: 'view' },
+      { label: '❌ Close', val: 'close' },
     ], async (o, id) => {
       lockOpts(id, o.val);
       if (o.val === 'add_more') {
         userSay('Add another meal');
         restart();
       } else {
-        userSay('View my selections');
-        if (onShowWishlist) onShowWishlist();
+        userSay('Close');
+        setIsOpen(false);
       }
     });
   };
