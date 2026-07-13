@@ -125,11 +125,6 @@ export default function WishlistPage() {
         <h1 style={{ fontSize: 32, fontWeight: 900, color: '#1A1A1A', letterSpacing: '-1px' }}>My Selections</h1>
         <p style={{ color: '#FF6B35', fontWeight: 800, fontSize: 16 }}>Table {wishlist?.table_number}</p>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
-          {guest?.points > 0 && (
-            <div style={{ background: '#FF6B35', color: '#FFF', padding: '5px 15px', borderRadius: 20, fontSize: 14, fontWeight: 900 }}>
-              ⭐ {guest.points} POINTS
-            </div>
-          )}
           {guest?.guest_id && (
             <div style={{ background: '#EEE', color: '#666', padding: '5px 15px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
               Device ID: {guest.guest_id.substring(0, 8)}
