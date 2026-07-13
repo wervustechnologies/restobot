@@ -26,6 +26,9 @@ def login():
     # user_query is a dict {uid: {data}}
     user_id = list(user_query.keys())[0]
     user = user_query[user_id]
+
+    if user.get('role') == 'waiter':
+        return jsonify({'message': 'Waiters must use the Waiter Login page'}), 403
     
     if bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
         token = generate_token(user_id, user['restaurant_id'])

@@ -201,11 +201,21 @@ def get_tables_with_orders(restaurant_id):
 
     for order in orders:
         tnum = str(order.get('table_number'))
-        if tnum in table_orders:
-            table_orders[tnum]['orders'].append(order)
-            if order.get('status') in ('pending', 'claimed'):
-                table_orders[tnum]['total_amount'] += order.get('total_amount', 0)
-                table_orders[tnum]['has_pending'] = True
+        if tnum not in table_orders:
+            table_orders[tnum] = {
+                'table_number': tnum,
+                'table_id': None,
+                'locked_by': None,
+                'locked_by_name': None,
+                'locked_at': None,
+                'orders': [],
+                'total_amount': 0,
+                'has_pending': False
+            }
+        table_orders[tnum]['orders'].append(order)
+        if order.get('status') in ('pending', 'claimed'):
+            table_orders[tnum]['total_amount'] += order.get('total_amount', 0)
+            table_orders[tnum]['has_pending'] = True
 
     result = [v for v in table_orders.values()]
     result.sort(key=lambda x: int(x['table_number']) if x['table_number'].isdigit() else 0)

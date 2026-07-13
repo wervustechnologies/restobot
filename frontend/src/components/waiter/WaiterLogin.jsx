@@ -93,7 +93,7 @@ export default function WaiterLogin() {
         </div>
 
         <p style={{ textAlign: 'center', marginTop: 20, color: '#888', fontSize: 13, fontWeight: 600 }}>
-          Contact admin if you need an account
+          Are you an admin? <a href="/admin/login" style={{ color: '#FF6B35', fontWeight: 700, textDecoration: 'none' }}>Admin Login</a>
         </p>
       </div>
     </div>

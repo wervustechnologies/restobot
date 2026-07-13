@@ -50,6 +50,9 @@ export default function AdminLogin() {
         </div>
         <button type="submit" className="btn-primary" style={{ marginTop: 10 }}>Login</button>
       </form>
+      <p style={{ textAlign: 'center', marginTop: 20, color: '#888', fontSize: 13 }}>
+        Are you a waiter? <a href="/waiter/login" style={{ color: '#FF6B35', fontWeight: 700, textDecoration: 'none' }}>Waiter Login</a>
+      </p>
     </div>
   );
 }
