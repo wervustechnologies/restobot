@@ -67,19 +67,21 @@ def get_orders(restaurant_id):
 
     return jsonify(order_list), 200
 
-@orders_bp.route('/orders/<restaurant_id>/<order_id>', methods=['GET'])
+@orders_bp.route('/orders/<order_id>', methods=['GET'])
 @token_required
-def get_order(restaurant_id, order_id):
+def get_order(order_id):
     db_ref = get_db()
+    restaurant_id = request.restaurant_id
     order = db_ref.child(f'restaurants/{restaurant_id}/orders/{order_id}').get()
     if not order:
         return jsonify({'error': 'Order not found'}), 404
     return jsonify({'id': order_id, **order}), 200
 
-@orders_bp.route('/orders/<restaurant_id>/<order_id>/claim', methods=['PUT'])
+@orders_bp.route('/orders/<order_id>/claim', methods=['PUT'])
 @token_required
-def claim_order(restaurant_id, order_id):
+def claim_order(order_id):
     db_ref = get_db()
+    restaurant_id = request.restaurant_id
     data = request.get_json()
     waiter_id = data.get('waiter_id')
     waiter_name = data.get('waiter_name')
@@ -103,10 +105,11 @@ def claim_order(restaurant_id, order_id):
 
     return jsonify({'success': True, 'message': 'Order claimed successfully'}), 200
 
-@orders_bp.route('/orders/<restaurant_id>/<order_id>/complete', methods=['PUT'])
+@orders_bp.route('/orders/<order_id>/complete', methods=['PUT'])
 @token_required
-def complete_order(restaurant_id, order_id):
+def complete_order(order_id):
     db_ref = get_db()
+    restaurant_id = request.restaurant_id
 
     order = db_ref.child(f'restaurants/{restaurant_id}/orders/{order_id}').get()
     if not order:
@@ -119,10 +122,11 @@ def complete_order(restaurant_id, order_id):
 
     return jsonify({'success': True, 'message': 'Order completed'}), 200
 
-@orders_bp.route('/orders/<restaurant_id>/table/<table_number>/lock', methods=['PUT'])
+@orders_bp.route('/orders/table/<table_number>/lock', methods=['PUT'])
 @token_required
-def lock_table(restaurant_id, table_number):
+def lock_table(table_number):
     db_ref = get_db()
+    restaurant_id = request.restaurant_id
     data = request.get_json()
     waiter_id = data.get('waiter_id')
     waiter_name = data.get('waiter_name')
@@ -154,10 +158,11 @@ def lock_table(restaurant_id, table_number):
 
     return jsonify({'success': True, 'message': 'Table locked'}), 200
 
-@orders_bp.route('/orders/<restaurant_id>/table/<table_number>/unlock', methods=['PUT'])
+@orders_bp.route('/orders/table/<table_number>/unlock', methods=['PUT'])
 @token_required
-def unlock_table(restaurant_id, table_number):
+def unlock_table(table_number):
     db_ref = get_db()
+    restaurant_id = request.restaurant_id
     data = request.get_json()
     waiter_id = data.get('waiter_id')
 
@@ -183,10 +188,11 @@ def unlock_table(restaurant_id, table_number):
 
     return jsonify({'success': True, 'message': 'Table unlocked'}), 200
 
-@orders_bp.route('/orders/<restaurant_id>/tables-status', methods=['GET'])
+@orders_bp.route('/orders/tables-status', methods=['GET'])
 @token_required
-def get_tables_with_orders(restaurant_id):
+def get_tables_with_orders():
     db_ref = get_db()
+    restaurant_id = request.restaurant_id
 
     tables = format_list(db_ref.child(f'restaurants/{restaurant_id}/tables').get())
     orders = format_list(db_ref.child(f'restaurants/{restaurant_id}/orders').get())
