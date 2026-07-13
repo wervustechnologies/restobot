@@ -15,24 +15,27 @@ def get_analytics():
     db_ref = get_db()
     res_id = request.restaurant_id
     
-    wishlists_dict = db_ref.child(f'restaurants/{res_id}/wishlists').get()
-    wishlists = format_list(wishlists_dict)
+    orders_dict = db_ref.child(f'restaurants/{res_id}/orders').get()
+    orders = format_list(orders_dict)
     
-    total_revenue = sum(w.get('total_amount', 0) for w in wishlists)
-    total_wishlists = len(wishlists)
+    completed_orders = [o for o in orders if o.get('status') == 'completed']
+    pending_orders = [o for o in orders if o.get('status') in ('pending', 'claimed')]
     
-    # Daily revenue
+    total_revenue = sum(o.get('total_amount', 0) for o in completed_orders)
+    total_orders = len(orders)
+    
+    # Daily revenue (completed orders only)
     now = datetime.utcnow()
     daily_revenue = []
     for i in range(6, -1, -1):
         date = (now - timedelta(days=i)).strftime('%Y-%m-%d')
-        day_total = sum(w.get('total_amount', 0) for w in wishlists if w.get('created_at') and datetime.fromtimestamp(w['created_at']).strftime('%Y-%m-%d') == date)
+        day_total = sum(o.get('total_amount', 0) for o in completed_orders if o.get('created_at') and datetime.fromtimestamp(o['created_at']).strftime('%Y-%m-%d') == date)
         daily_revenue.append({'date': date, 'amount': day_total})
 
-    # Popular items
+    # Popular items (from all orders)
     item_counts = {}
-    for w in wishlists:
-        for item in w.get('items', []):
+    for o in orders:
+        for item in o.get('items', []):
             name = item.get('name', 'Unknown')
             item_counts[name] = item_counts.get(name, 0) + item.get('quantity', 1)
     
@@ -44,8 +47,10 @@ def get_analytics():
     
     metrics = {
         'total_revenue': total_revenue,
-        'total_orders': total_wishlists,
-        'avg_order_value': round(total_revenue / total_wishlists, 2) if total_wishlists > 0 else 0,
+        'total_orders': total_orders,
+        'pending_orders': len(pending_orders),
+        'completed_orders': len(completed_orders),
+        'avg_order_value': round(total_revenue / len(completed_orders), 2) if completed_orders else 0,
         'daily_revenue': daily_revenue,
         'popular_items': popular_items,
         'total_tables': total_tables

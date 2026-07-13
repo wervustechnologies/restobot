@@ -41,7 +41,12 @@ export default function AdminOrders() {
   });
 
   const totalPending = tables.filter(t => t.has_pending).length;
-  const totalRevenue = tables.reduce((sum, t) => sum + t.total_amount, 0);
+  const totalRevenue = tables.reduce((sum, t) => {
+    const completedAmount = t.orders
+      .filter(o => o.status === 'completed')
+      .reduce((s, o) => s + (o.total_amount || 0), 0);
+    return sum + completedAmount;
+  }, 0);
 
   if (loading) return <div style={{ height: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="loader" /></div>;
 
@@ -60,7 +65,7 @@ export default function AdminOrders() {
           <div style={{ fontSize: 28, fontWeight: 900, color: '#FF6B35' }}>{totalPending}</div>
         </div>
         <div className="card" style={{ padding: 20, borderLeft: '4px solid #1DB954' }}>
-          <div style={{ fontSize: 12, color: '#888', fontWeight: 600, textTransform: 'uppercase' }}>Total Revenue</div>
+          <div style={{ fontSize: 12, color: '#888', fontWeight: 600, textTransform: 'uppercase' }}>Completed Revenue</div>
           <div style={{ fontSize: 28, fontWeight: 900, color: '#1DB954' }}>₹{totalRevenue}</div>
         </div>
         <div className="card" style={{ padding: 20, borderLeft: '4px solid #2196F3' }}>

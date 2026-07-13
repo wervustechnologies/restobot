@@ -29,10 +29,12 @@ export default function AdminDashboard() {
       
       {/* Stats Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 40 }}>
-        <StatCard title="Potential Revenue" value={`₹${metrics.total_revenue || 0}`} color="#FF6B35" />
-        <StatCard title="Total Wishlists" value={metrics.total_orders || 0} color="#1DB954" />
-        <StatCard title="Avg. Wishlist" value={`₹${metrics.avg_order_value || 0}`} color="#2196F3" />
-        <StatCard title="Active Tables" value={metrics.total_tables || 0} color="#9C27B0" />
+        <StatCard title="Total Revenue" value={`₹${metrics.total_revenue || 0}`} color="#1DB954" />
+        <StatCard title="Completed Orders" value={metrics.completed_orders || 0} color="#1DB954" />
+        <StatCard title="Pending Orders" value={metrics.pending_orders || 0} color="#FF6B35" />
+        <StatCard title="Avg. Order Value" value={`₹${metrics.avg_order_value || 0}`} color="#2196F3" />
+        <StatCard title="Total Orders" value={metrics.total_orders || 0} color="#9C27B0" />
+        <StatCard title="Active Tables" value={metrics.total_tables || 0} color="#607D8B" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 30 }}>
