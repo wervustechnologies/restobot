@@ -12,13 +12,16 @@ export default function AdminDashboard() {
     fetch(`${API_BASE_URL}/admin/analytics`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-    .then(r => r.json())
+    .then(r => {
+      if (!r.ok) return null;
+      return r.json();
+    })
     .then(d => { setMetrics(d); setLoading(false); })
     .catch(() => setLoading(false));
   }, [token]);
 
   if (loading) return <div style={{ height: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="loader" /></div>;
-  if (!metrics) return <div style={{ padding: 40, textAlign: 'center' }}>Error loading data</div>;
+  if (!metrics) return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>Error loading data. Please try refreshing.</div>;
 
   return (
     <div>
@@ -26,9 +29,9 @@ export default function AdminDashboard() {
       
       {/* Stats Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 40 }}>
-        <StatCard title="Potential Revenue" value={`₹${metrics.total_revenue}`} color="#FF6B35" />
-        <StatCard title="Total Wishlists" value={metrics.total_orders} color="#1DB954" />
-        <StatCard title="Avg. Wishlist" value={`₹${metrics.avg_order_value}`} color="#2196F3" />
+        <StatCard title="Potential Revenue" value={`₹${metrics.total_revenue || 0}`} color="#FF6B35" />
+        <StatCard title="Total Wishlists" value={metrics.total_orders || 0} color="#1DB954" />
+        <StatCard title="Avg. Wishlist" value={`₹${metrics.avg_order_value || 0}`} color="#2196F3" />
         <StatCard title="Active Tables" value={metrics.total_tables || 0} color="#9C27B0" />
       </div>
 
@@ -37,7 +40,7 @@ export default function AdminDashboard() {
         <div className="card" style={{ padding: 25, height: 400 }}>
           <h3 style={{ marginBottom: 20, fontWeight: 800 }}>Revenue (Last 7 Days)</h3>
           <ResponsiveContainer width="100%" height="90%">
-            <LineChart data={metrics.daily_revenue}>
+            <LineChart data={metrics.daily_revenue || []}>
               <CartesianGrid strokeDasharray="3 3" stroke="#EEE" vertical={false} />
               <XAxis dataKey="date" stroke="#999" fontSize={11} />
               <YAxis stroke="#999" fontSize={11} />
@@ -51,7 +54,7 @@ export default function AdminDashboard() {
         <div className="card" style={{ padding: 25, height: 400 }}>
           <h3 style={{ marginBottom: 20, fontWeight: 800 }}>Top 5 Popular Items</h3>
           <ResponsiveContainer width="100%" height="90%">
-            <BarChart data={metrics.popular_items} layout="vertical">
+            <BarChart data={metrics.popular_items || []} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#EEE" horizontal={false} />
               <XAxis type="number" hide />
               <YAxis dataKey="name" type="category" stroke="#666" fontSize={11} width={100} />

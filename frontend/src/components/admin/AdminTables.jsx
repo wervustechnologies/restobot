@@ -16,27 +16,32 @@ export default function AdminTables() {
       const res = await fetch(`${API_BASE_URL}/admin/tables`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      if (!res.ok) {
+        setTables([]);
+        return;
+      }
       const data = await res.json();
-      setTables(data);
+      setTables(Array.isArray(data) ? data : []);
 
       // Try to get server IP to suggest a better QR Base URL
       const infoRes = await fetch(`${API_BASE_URL}/admin/server-info`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const infoData = await infoRes.json();
-      
-      if (infoData.local_ip && infoData.local_ip !== '127.0.0.1') {
-        const currentUrl = new URL(qrBaseUrl);
-        if (currentUrl.hostname === 'localhost' || currentUrl.hostname === '127.0.0.1') {
-          const suggestedUrl = `${currentUrl.protocol}//${infoData.local_ip}:${currentUrl.port || '5173'}`;
-          setQrBaseUrl(suggestedUrl);
-          localStorage.setItem('qr_base_url', suggestedUrl);
+      if (infoRes.ok) {
+        const infoData = await infoRes.json();
+        if (infoData.local_ip && infoData.local_ip !== '127.0.0.1') {
+          const currentUrl = new URL(qrBaseUrl);
+          if (currentUrl.hostname === 'localhost' || currentUrl.hostname === '127.0.0.1') {
+            const suggestedUrl = `${currentUrl.protocol}//${infoData.local_ip}:${currentUrl.port || '5173'}`;
+            setQrBaseUrl(suggestedUrl);
+            localStorage.setItem('qr_base_url', suggestedUrl);
+          }
         }
       }
 
       // Generate QR codes
       const codes = {};
-      for (const table of data) {
+      for (const table of Array.isArray(data) ? data : []) {
         const url = `${qrBaseUrl}/?t=${table.qr_token}`;
         codes[table.id] = await QRCode.toDataURL(url, {
           width: 400,
@@ -47,6 +52,7 @@ export default function AdminTables() {
       setQrCodes(codes);
     } catch (error) {
       console.error("Error fetching tables or server info:", error);
+      setTables([]);
     }
   };
 

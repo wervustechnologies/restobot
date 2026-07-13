@@ -14,10 +14,16 @@ export default function AdminOrders() {
       const res = await fetch(`${API_BASE_URL}/orders/tables-status`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      if (!res.ok) {
+        setTables([]);
+        setLoading(false);
+        return;
+      }
       const data = await res.json();
-      setTables(data);
+      setTables(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch tables:', err);
+      setTables([]);
     }
     setLoading(false);
   };
