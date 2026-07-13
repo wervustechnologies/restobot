@@ -11,10 +11,16 @@ import AdminLayout from './components/admin/AdminLayout';
 import AdminLogin from './components/admin/AdminLogin';
 import AdminMenuManager from './components/admin/AdminMenuManager';
 import AdminTables from './components/admin/AdminTables';
+import AdminOrders from './components/admin/AdminOrders';
+import AdminWaiters from './components/admin/AdminWaiters';
 
 import AdminDashboard from './components/admin/AdminDashboard';
 import SuperAdminLogin from './components/superadmin/SuperAdminLogin';
 import SuperAdminDashboard from './components/superadmin/SuperAdminDashboard';
+
+// Waiter Pages
+import WaiterLogin from './components/waiter/WaiterLogin';
+import WaiterHome from './components/waiter/WaiterHome';
 
 import './index.css';
 
@@ -52,10 +58,16 @@ function CustomerApp() {
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<AdminDashboard />} />
+        <Route path="orders" element={<AdminOrders />} />
         <Route path="menu" element={<AdminMenuManager />} />
         <Route path="tables" element={<AdminTables />} />
+        <Route path="waiters" element={<AdminWaiters />} />
         <Route path="settings" element={<div><h1>Settings</h1><p>Restaurant settings coming soon</p></div>} />
       </Route>
+
+      {/* Waiter Routes */}
+      <Route path="/waiter/login" element={<WaiterLogin />} />
+      <Route path="/waiter/home" element={<WaiterHome />} />
 
       {/* Super Admin Routes */}
       <Route path="/superadmin/login" element={<SuperAdminLogin />} />

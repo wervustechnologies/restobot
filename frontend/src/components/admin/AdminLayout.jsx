@@ -52,8 +52,10 @@ export default function AdminLayout() {
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
             <NavLink to="/admin" end style={navItemStyle} onClick={() => setMenuOpen(false)}>📊 Dashboard</NavLink>
+            <NavLink to="/admin/orders" style={navItemStyle} onClick={() => setMenuOpen(false)}>📋 Orders</NavLink>
             <NavLink to="/admin/menu" style={navItemStyle} onClick={() => setMenuOpen(false)}>🍔 Menu Manager</NavLink>
             <NavLink to="/admin/tables" style={navItemStyle} onClick={() => setMenuOpen(false)}>🪑 Table Manager</NavLink>
+            <NavLink to="/admin/waiters" style={navItemStyle} onClick={() => setMenuOpen(false)}>👨‍🍳 Waiters</NavLink>
             <NavLink to="/admin/settings" style={navItemStyle} onClick={() => setMenuOpen(false)}>⚙️ Settings</NavLink>
           </div>
 
