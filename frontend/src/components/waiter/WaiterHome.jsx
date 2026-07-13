@@ -273,7 +273,27 @@ function MyTableCard({ table, onRelease, onCompleteOrder }) {
             </div>
           ))}
 
-          <button onClick={() => onCompleteOrder(order.id)}
+          <button onClick={async () => {
+              const result = await Swal.fire({
+                title: 'Order Served?',
+                text: 'Mark this order as completed',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#1DB954',
+                cancelButtonColor: '#666',
+                confirmButtonText: 'Yes, served!'
+              });
+              if (result.isConfirmed) {
+                onCompleteOrder(order.id);
+                Swal.fire({
+                  title: 'Completed!',
+                  text: 'Order has been marked as served.',
+                  icon: 'success',
+                  timer: 1500,
+                  showConfirmButton: false
+                });
+              }
+            }}
             style={{
               width: '100%', marginTop: 12, padding: '12px', background: '#1DB954', color: '#FFF',
               border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer'
