@@ -136,7 +136,6 @@ export default function WishlistPage() {
             </div>
           )}
         </div>
-        <p style={{ color: '#000', fontSize: 13, marginTop: 15, fontWeight: 700 }}>Show this list to your waiter to place your order</p>
       </div>
       
       <div className="card" style={{ 
