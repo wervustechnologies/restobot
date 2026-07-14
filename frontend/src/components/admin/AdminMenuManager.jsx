@@ -177,7 +177,7 @@ export default function AdminMenuManager() {
         .menu-layout { display: flex; gap: 20px; flex-direction: row; }
         .menu-sidebar { width: 260px; flex-shrink: 0; }
         .menu-items-panel { flex: 1; min-width: 0; }
-        .item-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #F5F5F5; }
+        .item-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
         .item-row-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .modal-card { width: 90vw; max-width: 480px; padding: 24px; max-height: 90vh; overflow-y: auto; }
         .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -312,8 +312,8 @@ export default function AdminMenuManager() {
                 <div key={item.id} className="item-row" style={{ opacity: item.is_enabled === false ? 0.5 : 1 }}>
                   <img src={item.image_url} style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', background: '#F5F5F5', flexShrink: 0 }} />
                   <div className="item-row-info" style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, color: '#1A1A1A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {item.name} {!item.is_enabled && <span style={{ color: '#999', fontWeight: 500, fontSize: 12 }}>(Off)</span>}
+                    <div style={{ fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.name} {!item.is_enabled && <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: 12 }}>(Off)</span>}
                     </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 3 }}>
                       <span style={{ fontSize: 13, color: '#FF6B35', fontWeight: 700 }}>₹{item.price}</span>
