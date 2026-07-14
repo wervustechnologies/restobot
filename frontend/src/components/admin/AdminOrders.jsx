@@ -108,12 +108,25 @@ export default function AdminOrders() {
 }
 
 function TableCard({ table }) {
-  const [expanded, setExpanded] = useState(false);
   const hasOrders = table.has_pending;
   const isLocked = !!table.locked_by;
 
   const completedOrders = table.orders.filter(o => o.status === 'completed');
   const activeOrders = table.orders.filter(o => o.status !== 'completed');
+
+  const activeByGuest = activeOrders.reduce((acc, order) => {
+    const gid = order.guest_id || order.id;
+    if (!acc[gid]) acc[gid] = [];
+    acc[gid].push(order);
+    return acc;
+  }, {});
+
+  const completedByGuest = completedOrders.reduce((acc, order) => {
+    const gid = order.guest_id || order.id;
+    if (!acc[gid]) acc[gid] = [];
+    acc[gid].push(order);
+    return acc;
+  }, {});
 
   return (
     <div className="card" style={{
@@ -134,7 +147,7 @@ function TableCard({ table }) {
           <div>
             <h3 style={{ fontSize: 18, fontWeight: 900, margin: 0 }}>Table {table.table_number}</h3>
             <p style={{ fontSize: 12, color: '#888', margin: 0, fontWeight: 600 }}>
-              {table.orders.length} order{table.orders.length !== 1 ? 's' : ''}
+              {Object.keys(activeByGuest).length + Object.keys(completedByGuest).length} guest{Object.keys(activeByGuest).length + Object.keys(completedByGuest).length !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
@@ -145,25 +158,25 @@ function TableCard({ table }) {
         )}
       </div>
 
-      {activeOrders.length > 0 && (
+      {Object.keys(activeByGuest).length > 0 && (
         <div style={{ background: '#FFF8F5', borderRadius: 14, padding: 16, marginBottom: 15 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
             <span style={{ fontSize: 13, color: '#888', fontWeight: 600 }}>Active Orders</span>
             <span style={{ fontSize: 18, fontWeight: 900, color: '#FF6B35' }}>₹{table.total_amount}</span>
           </div>
-          {activeOrders.map(order => (
-            <OrderItems key={order.id} order={order} />
+          {Object.entries(activeByGuest).map(([gid, orders]) => (
+            <GuestOrderGroup key={gid} guestId={gid} orders={orders} />
           ))}
         </div>
       )}
 
-      {completedOrders.length > 0 && (
+      {Object.keys(completedByGuest).length > 0 && (
         <div style={{ background: '#F5FFF5', borderRadius: 14, padding: 16, marginBottom: 15, opacity: 0.8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
             <span style={{ fontSize: 13, color: '#1DB954', fontWeight: 600 }}>Completed</span>
           </div>
-          {completedOrders.map(order => (
-            <OrderItems key={order.id} order={order} />
+          {Object.entries(completedByGuest).map(([gid, orders]) => (
+            <GuestOrderGroup key={gid} guestId={gid} orders={orders} />
           ))}
         </div>
       )}
@@ -171,6 +184,78 @@ function TableCard({ table }) {
       {table.orders.length === 0 && (
         <div style={{ textAlign: 'center', padding: 20, color: '#888', fontSize: 13, fontWeight: 600 }}>
           No orders yet
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GuestOrderGroup({ guestId, orders }) {
+  const [showItems, setShowItems] = useState(false);
+
+  const mergedItems = orders.reduce((acc, order) => {
+    (order.items || []).forEach(item => {
+      const key = item.name;
+      if (!acc[key]) acc[key] = { ...item, quantity: 0, price: item.price };
+      acc[key].quantity += item.quantity;
+    });
+    return acc;
+  }, {});
+
+  const totalAmount = Object.values(mergedItems).reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const statuses = [...new Set(orders.map(o => o.status))];
+  const waiterNames = [...new Set(orders.map(o => o.claimed_by_name).filter(Boolean))];
+
+  const statusConfig = {
+    pending: { bg: '#FFF3E0', color: '#FF6B35', label: '⏳ Pending' },
+    claimed: { bg: '#E3F2FD', color: '#2196F3', label: '👤 In Progress' },
+    completed: { bg: '#E8F5E9', color: '#1DB954', label: '✅ Completed' }
+  };
+
+  const primaryStatus = statuses.includes('pending') ? 'pending' : statuses.includes('claimed') ? 'claimed' : 'completed';
+  const status = statusConfig[primaryStatus];
+
+  return (
+    <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: 10, marginTop: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+            background: status.bg, color: status.color
+          }}>
+            {status.label}
+          </span>
+          {statuses.length > 1 && (
+            <span style={{ fontSize: 10, color: '#888', fontWeight: 600 }}>
+              ({orders.length} orders)
+            </span>
+          )}
+          {waiterNames.length > 0 && (
+            <span style={{ fontSize: 11, color: '#666', fontWeight: 600 }}>
+              by {waiterNames.join(', ')}
+            </span>
+          )}
+        </div>
+        <button onClick={() => setShowItems(!showItems)}
+          style={{ background: 'none', border: 'none', color: '#FF6B35', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+          {showItems ? 'Hide' : 'View Items'}
+        </button>
+      </div>
+
+      {showItems && (
+        <div style={{ marginTop: 12, background: '#FFF', borderRadius: 10, padding: 12 }}>
+          {Object.values(mergedItems).map((item, idx) => (
+            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: idx < Object.values(mergedItems).length - 1 ? '1px solid #F5F5F5' : 'none' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A' }}>
+                {item.quantity}x {item.name}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#FF6B35' }}>₹{item.price * item.quantity}</span>
+            </div>
+          ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTop: '2px solid #F5F5F5' }}>
+            <span style={{ fontSize: 14, fontWeight: 700 }}>Total</span>
+            <span style={{ fontSize: 16, fontWeight: 900, color: '#FF6B35' }}>₹{totalAmount}</span>
+          </div>
         </div>
       )}
     </div>
