@@ -172,7 +172,7 @@ export default function MenuPage() {
   const activeCat = activeMainCatObj?.categories?.find(c => c.id === activeCategory);
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', paddingBottom: 120 }}>
+    <div style={{ width: '100%', minHeight: '100vh', paddingBottom: 120 }}>
       <ChatAssistant
         restaurantId={restaurantId || data?.restaurant?.id}
         initialMenuData={data}
@@ -314,7 +314,7 @@ export default function MenuPage() {
 
       {/* Wishlist component */}
       {cartCount > 0 && (
-        <div style={{ position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', width: 'calc(100% - 40px)', maxWidth: 440, zIndex: 100, animation: 'slideUp 0.3s ease' }}>
+        <div style={{ position: 'fixed', bottom: 20, left: 20, right: 20, zIndex: 100, animation: 'slideUp 0.3s ease' }}>
           <button onClick={() => setShowWishlist(true)} style={{ width: '100%', padding: '18px 24px', background: '#FF6B35', borderRadius: 18, color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 10px 30px rgba(255,107,53,0.4)', fontWeight: 800, border: 'none' }}>
             <span style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '4px 10px', fontSize: 13 }}>{cartCount}</span>
             <span style={{ fontSize: 16 }}>View Selections</span>
@@ -384,7 +384,7 @@ function WishlistDrawer({ items, total, onAdd, onRemove, onClose, onSave, isModi
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 200, backdropFilter: 'blur(8px)' }} />
-      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, zIndex: 201, background: '#FFF', borderRadius: '32px 32px 0 0', padding: '0 0 40px', animation: 'slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 -20px 60px rgba(0,0,0,0.1)' }}>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, width: '100%', zIndex: 201, background: '#FFF', borderRadius: '32px 32px 0 0', padding: '0 0 40px', animation: 'slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 -20px 60px rgba(0,0,0,0.1)' }}>
         <div style={{ display: 'flex', justifyContent: 'center', padding: '15px 0' }}><div style={{ width: 40, height: 5, borderRadius: 10, background: '#EEE' }} /></div>
         <div style={{ padding: '10px 24px 20px', borderBottom: '1px solid #F5F5F5' }}><h2 style={{ fontSize: 22, fontWeight: 900, color: '#1A1A1A' }}>My Selections</h2></div>
         <div style={{ overflowY: 'auto', padding: '10px 24px', flex: 1 }}>
