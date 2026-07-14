@@ -145,11 +145,19 @@ def add_table():
 @token_required
 def delete_table(id):
     db_ref = get_db()
-    table = db_ref.child(f'restaurants/{request.restaurant_id}/tables/{id}').get()
+    restaurant_id = request.restaurant_id
+    table = db_ref.child(f'restaurants/{restaurant_id}/tables/{id}').get()
     if table:
+        table_number = str(table.get('table_number'))
         db_ref.child(f"table_tokens/{table['qr_token']}").delete()
-        db_ref.child(f'restaurants/{request.restaurant_id}/tables/{id}').delete()
-    return jsonify({'message': 'Table deleted'}), 200
+        db_ref.child(f'restaurants/{restaurant_id}/tables/{id}').delete()
+
+        orders = db_ref.child(f'restaurants/{restaurant_id}/orders').get()
+        if orders:
+            for key, order in orders.items():
+                if str(order.get('table_number')) == table_number:
+                    db_ref.child(f'restaurants/{restaurant_id}/orders/{key}').delete()
+    return jsonify({'message': 'Table and related orders deleted'}), 200
 
 # --- Server Info ---
 @admin_bp.route('/admin/server-info', methods=['GET'])
