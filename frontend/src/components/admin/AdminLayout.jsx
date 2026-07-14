@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
 
   if (!user) {
     navigate('/admin/login');
@@ -25,16 +24,9 @@ export default function AdminLayout() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', flexDirection: 'column' }}>
-      {/* Mobile Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '15px 20px', background: '#FFF', borderBottom: '1px solid #EEE' }}>
-        <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: 'none', border: 'none', fontSize: 26, cursor: 'pointer', lineHeight: 1, color: '#1A1A1A' }} className="mobile-only-btn">
-          ☰
-        </button>
-      </div>
-
       <div style={{ display: 'flex', flex: 1, flexDirection: 'row', overflow: 'hidden' }} className="admin-layout-container">
         {/* Sidebar */}
-        <div className={`admin-sidebar ${menuOpen ? 'open' : ''}`} style={{ 
+        <div className="admin-sidebar" style={{
           width: 250, 
           background: '#FFF', 
           borderRight: '1px solid #EEE', 
@@ -48,12 +40,12 @@ export default function AdminLayout() {
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
-            <NavLink to="/admin" end style={navItemStyle} onClick={() => setMenuOpen(false)}>📊 Dashboard</NavLink>
-            <NavLink to="/admin/orders" style={navItemStyle} onClick={() => setMenuOpen(false)}>📋 Orders</NavLink>
-            <NavLink to="/admin/menu" style={navItemStyle} onClick={() => setMenuOpen(false)}>🍔 Menu Manager</NavLink>
-            <NavLink to="/admin/tables" style={navItemStyle} onClick={() => setMenuOpen(false)}>🪑 Table Manager</NavLink>
-            <NavLink to="/admin/waiters" style={navItemStyle} onClick={() => setMenuOpen(false)}>👨‍🍳 Waiters</NavLink>
-            <NavLink to="/admin/settings" style={navItemStyle} onClick={() => setMenuOpen(false)}>⚙️ Settings</NavLink>
+            <NavLink to="/admin" end style={navItemStyle}>📊 Dashboard</NavLink>
+            <NavLink to="/admin/orders" style={navItemStyle}>📋 Orders</NavLink>
+            <NavLink to="/admin/menu" style={navItemStyle}>🍔 Menu Manager</NavLink>
+            <NavLink to="/admin/tables" style={navItemStyle}>🪑 Table Manager</NavLink>
+            <NavLink to="/admin/waiters" style={navItemStyle}>👨‍🍳 Waiters</NavLink>
+            <NavLink to="/admin/settings" style={navItemStyle}>⚙️ Settings</NavLink>
           </div>
 
           <div style={{ borderTop: '1px solid #F5F5F5', paddingTop: 20 }}>
@@ -71,23 +63,7 @@ export default function AdminLayout() {
       
       {/* Add inline styles for the media queries since inline styling doesn't support them */}
       <style>{`
-        .mobile-only-btn { display: none !important; }
         @media (max-width: 768px) {
-          .admin-layout-container { flex-direction: column !important; position: relative; }
-          .desktop-logo { display: none !important; }
-          .mobile-only-btn { display: block !important; }
-          .admin-sidebar {
-            position: absolute;
-            left: -250px;
-            top: 0;
-            bottom: 0;
-            z-index: 1000;
-            height: 100%;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-          }
-          .admin-sidebar.open {
-            left: 0;
-          }
           .admin-main-content {
             padding: 15px !important;
           }
