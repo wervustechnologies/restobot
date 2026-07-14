@@ -7,6 +7,10 @@ export default function WaiterHome() {
   const [tables, setTables] = useState([]);
   const [loading, setLoading] = useState(true);
   const [waiter, setWaiter] = useState(null);
+  const [menuItems, setMenuItems] = useState([]);
+  const [addItemModal, setAddItemModal] = useState({ open: false, orderId: null, tableNumber: null });
+  const [selectedItem, setSelectedItem] = useState('');
+  const [itemQty, setItemQty] = useState(1);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,6 +44,54 @@ export default function WaiterHome() {
     const interval = setInterval(fetchTables, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  const fetchMenuItems = async () => {
+    const token = localStorage.getItem('waiter_token');
+    const rid = localStorage.getItem('waiter_rid');
+    if (!token || !rid) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/items`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMenuItems(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch menu items:', err);
+    }
+  };
+
+  const handleAddItem = async () => {
+    const token = localStorage.getItem('waiter_token');
+    if (!selectedItem || !addItemModal.orderId) return;
+
+    const item = menuItems.find(m => m.id === selectedItem);
+    if (!item) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/orders/${addItemModal.orderId}/add-items`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          items: [{ name: item.name, price: item.price, quantity: itemQty }]
+        })
+      });
+
+      if (res.ok) {
+        Swal.fire({ icon: 'success', title: 'Item Added!', timer: 1500, showConfirmButton: false });
+        setAddItemModal({ open: false, orderId: null, tableNumber: null });
+        setSelectedItem('');
+        setItemQty(1);
+        fetchTables();
+      }
+    } catch (err) {
+      Swal.fire('Error', 'Failed to add item', 'error');
+    }
+  };
 
   const handleClaimTable = async (tableNumber) => {
     const token = localStorage.getItem('waiter_token');
@@ -165,7 +217,7 @@ export default function WaiterHome() {
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 15 }}>
               {myTables.map(table => (
-                <MyTableCard key={table.table_number} table={table} onRelease={handleReleaseTable} onCompleteOrder={handleCompleteOrder} />
+                <MyTableCard key={table.table_number} table={table} onRelease={handleReleaseTable} onCompleteOrder={handleCompleteOrder} onAddItem={(orderId) => { fetchMenuItems(); setAddItemModal({ open: true, orderId, tableNumber: table.table_number }); }} />
               ))}
             </div>
           </div>
@@ -223,11 +275,48 @@ export default function WaiterHome() {
           </div>
         )}
       </div>
+
+      {addItemModal.open && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#FFF', borderRadius: 16, padding: 24, width: '90%', maxWidth: 400 }}>
+            <h3 style={{ fontSize: 18, fontWeight: 900, marginBottom: 16 }}>Add Item to Table {addItemModal.tableNumber}</h3>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 6 }}>Select Item</label>
+              <select value={selectedItem} onChange={e => setSelectedItem(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #DDD', fontSize: 14, fontWeight: 600 }}>
+                <option value="">-- Choose item --</option>
+                {menuItems.map(item => (
+                  <option key={item.id} value={item.id}>{item.name} - ₹{item.price}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 6 }}>Quantity</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button onClick={() => setItemQty(Math.max(1, itemQty - 1))}
+                  style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid #DDD', background: '#FFF', fontSize: 18, fontWeight: 700, cursor: 'pointer' }}>-</button>
+                <span style={{ fontSize: 18, fontWeight: 800, minWidth: 30, textAlign: 'center' }}>{itemQty}</span>
+                <button onClick={() => setItemQty(itemQty + 1)}
+                  style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid #DDD', background: '#FFF', fontSize: 18, fontWeight: 700, cursor: 'pointer' }}>+</button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => { setAddItemModal({ open: false, orderId: null, tableNumber: null }); setSelectedItem(''); setItemQty(1); }}
+                style={{ flex: 1, padding: '12px', borderRadius: 10, border: '1px solid #DDD', background: '#FFF', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleAddItem} disabled={!selectedItem}
+                style={{ flex: 1, padding: '12px', borderRadius: 10, border: 'none', background: selectedItem ? '#FF6B35' : '#DDD', color: '#FFF', fontWeight: 700, fontSize: 14, cursor: selectedItem ? 'pointer' : 'not-allowed' }}>Add Item</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function MyTableCard({ table, onRelease, onCompleteOrder }) {
+function MyTableCard({ table, onRelease, onCompleteOrder, onAddItem }) {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -256,13 +345,19 @@ function MyTableCard({ table, onRelease, onCompleteOrder }) {
       {table.orders.filter(o => o.status !== 'completed').map(order => (
         <div key={order.id} style={{ background: '#F9F9F9', borderRadius: 14, padding: 16, marginBottom: 10 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <span style={{
-              padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
-              background: order.status === 'pending' ? '#FFF3E0' : '#E8F5E9',
-              color: order.status === 'pending' ? '#FF6B35' : '#1DB954'
-            }}>
-              {order.status === 'pending' ? '⏳ New Order' : '👤 In Progress'}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{
+                padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+                background: order.status === 'pending' ? '#FFF3E0' : '#E8F5E9',
+                color: order.status === 'pending' ? '#FF6B35' : '#1DB954'
+              }}>
+                {order.status === 'pending' ? '⏳ New Order' : '👤 In Progress'}
+              </span>
+              <button onClick={() => onAddItem(order.id)}
+                style={{ width: 28, height: 28, borderRadius: 8, background: '#FF6B35', color: '#FFF', border: 'none', fontSize: 18, fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                +
+              </button>
+            </div>
             <span style={{ fontSize: 16, fontWeight: 900, color: '#FF6B35' }}>₹{order.total_amount}</span>
           </div>
 

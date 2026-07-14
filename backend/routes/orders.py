@@ -105,6 +105,33 @@ def claim_order(order_id):
 
     return jsonify({'success': True, 'message': 'Order claimed successfully'}), 200
 
+@orders_bp.route('/orders/<order_id>/add-items', methods=['PUT'])
+@token_required
+def add_items_to_order(order_id):
+    db_ref = get_db()
+    restaurant_id = request.restaurant_id
+    data = request.get_json()
+    new_items = data.get('items', [])
+
+    if not new_items:
+        return jsonify({'error': 'No items provided'}), 400
+
+    order = db_ref.child(f'restaurants/{restaurant_id}/orders/{order_id}').get()
+    if not order:
+        return jsonify({'error': 'Order not found'}), 404
+
+    existing_items = order.get('items', [])
+    existing_items.extend(new_items)
+
+    new_total = sum(item.get('price', 0) * item.get('quantity', 1) for item in existing_items)
+
+    db_ref.child(f'restaurants/{restaurant_id}/orders/{order_id}').update({
+        'items': existing_items,
+        'total_amount': new_total
+    })
+
+    return jsonify({'success': True, 'message': 'Items added', 'total_amount': new_total}), 200
+
 @orders_bp.route('/orders/<order_id>/complete', methods=['PUT'])
 @token_required
 def complete_order(order_id):
