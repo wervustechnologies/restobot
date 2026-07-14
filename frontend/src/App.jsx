@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { GuestProvider } from './context/GuestContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 import MenuPage from './components/MenuPage';
 import WishlistPage from './components/WishlistPage';
@@ -78,15 +79,17 @@ function CustomerApp() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <GuestProvider>
-          <Routes>
-            <Route path="*" element={<CustomerApp />} />
-          </Routes>
-        </GuestProvider>
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <GuestProvider>
+            <Routes>
+              <Route path="*" element={<CustomerApp />} />
+            </Routes>
+          </GuestProvider>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

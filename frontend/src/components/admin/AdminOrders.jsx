@@ -84,8 +84,8 @@ export default function AdminOrders() {
           <button key={f.key} onClick={() => setFilter(f.key)}
             style={{
               padding: '10px 20px', borderRadius: 12, fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer',
-              background: filter === f.key ? '#FF6B35' : '#F5F5F5',
-              color: filter === f.key ? '#FFF' : '#666'
+              background: filter === f.key ? '#FF6B35' : 'var(--input-bg)',
+              color: filter === f.key ? '#FFF' : 'var(--text-muted)'
             }}>
             {f.label}
           </button>
@@ -97,8 +97,7 @@ export default function AdminOrders() {
           <TableCard key={table.table_number} table={table} />
         ))}
         {filteredTables.length === 0 && (
-          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 60, color: '#888' }}>
-            <div style={{ fontSize: 48, marginBottom: 15 }}>📋</div>
+          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 60, color: 'var(--text-muted)' }}>
             <p style={{ fontSize: 16, fontWeight: 600 }}>No tables match this filter</p>
           </div>
         )}
