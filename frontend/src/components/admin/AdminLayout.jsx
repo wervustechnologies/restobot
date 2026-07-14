@@ -30,9 +30,6 @@ export default function AdminLayout() {
         <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: 'none', border: 'none', fontSize: 26, cursor: 'pointer', lineHeight: 1, color: '#1A1A1A' }} className="mobile-only-btn">
           ☰
         </button>
-        <div style={{ fontSize: 20, fontWeight: 900, color: '#FF6B35' }}>
-          RESTO<span style={{ color: '#1A1A1A' }}>BOT</span>
-        </div>
       </div>
 
       <div style={{ display: 'flex', flex: 1, flexDirection: 'row', overflow: 'hidden' }} className="admin-layout-container">
