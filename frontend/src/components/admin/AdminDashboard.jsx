@@ -44,6 +44,7 @@ export default function AdminDashboard() {
   const [activePreset, setActivePreset] = useState('7d');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [showFilter, setShowFilter] = useState(false);
 
   const fetchData = useCallback((sd, ed) => {
     setLoading(true);
@@ -64,13 +65,16 @@ export default function AdminDashboard() {
     fetchData(range.start, range.end);
   }, [fetchData]);
 
-  const handlePreset = (value) => {
-    setActivePreset(value);
-    setStartDate('');
-    setEndDate('');
-    const range = getPresetRange(value);
-    fetchData(range.start, range.end);
-  };
+  useEffect(() => {
+    if (!showFilter) return;
+    const handleClick = (e) => {
+      if (!e.target.closest('.filter-panel') && !e.target.closest('.filter-btn')) {
+        setShowFilter(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showFilter]);
 
   const handleCustomDate = () => {
     const today = new Date().toISOString().split('T')[0];
@@ -97,31 +101,79 @@ export default function AdminDashboard() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30, flexWrap: 'wrap', gap: 16 }}>
         <h1 style={{ fontWeight: 900, margin: 0 }}>Dashboard Overview</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          {PRESETS.map(p => (
-            <button key={p.value} onClick={() => handlePreset(p.value)}
-              style={{
-                padding: '8px 16px', borderRadius: 10, border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s',
-                background: activePreset === p.value ? '#FF6B35' : 'var(--surface-alt, #F5F5F5)',
-                color: activePreset === p.value ? '#FFF' : 'var(--text-muted, #666)'
-              }}>
-              {p.label}
-            </button>
-          ))}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} max={endDate || new Date().toISOString().split('T')[0]}
-              style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid var(--border, #DDD)', fontSize: 13, fontWeight: 600, color: 'var(--text, #1A1A1A)', background: 'var(--surface, #FFF)' }} />
-            <span style={{ color: '#888', fontSize: 13 }}>-</span>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} max={new Date().toISOString().split('T')[0]} min={startDate}
-              style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid var(--border, #DDD)', fontSize: 13, fontWeight: 600, color: 'var(--text, #1A1A1A)', background: 'var(--surface, #FFF)' }} />
-            <button onClick={handleCustomDate} disabled={!startDate && !endDate}
-              style={{
-                padding: '7px 14px', borderRadius: 8, border: 'none', fontWeight: 700, fontSize: 13, cursor: startDate || endDate ? 'pointer' : 'not-allowed',
-                background: startDate || endDate ? '#FF6B35' : '#CCC', color: '#FFF'
-              }}>
-              Go
-            </button>
-          </div>
+        <div style={{ position: 'relative' }}>
+          <button className="filter-btn" onClick={() => setShowFilter(!showFilter)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 12,
+              border: showFilter ? '2px solid #FF6B35' : '1px solid var(--border, #DDD)',
+              background: showFilter ? '#FFF0EA' : 'var(--surface, #FFF)',
+              color: showFilter ? '#FF6B35' : 'var(--text, #1A1A1A)',
+              fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s'
+            }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+            </svg>
+            Filter
+            {(activePreset !== '7d' || startDate || endDate) && (
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF6B35' }} />
+            )}
+          </button>
+
+          {showFilter && (
+            <div className="filter-panel" style={{
+              position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 300,
+              background: 'var(--surface, #FFF)', borderRadius: 16, boxShadow: '0 10px 40px rgba(0,0,0,0.12)',
+              border: '1px solid var(--border, #EEE)', padding: 20, zIndex: 100
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text, #1A1A1A)', marginBottom: 14 }}>Quick Duration</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+                {PRESETS.map(p => (
+                  <button key={p.value} onClick={() => { setActivePreset(p.value); setStartDate(''); setEndDate(''); }}
+                    style={{
+                      padding: '8px 14px', borderRadius: 10, border: 'none', fontWeight: 700, fontSize: 12, cursor: 'pointer', transition: 'all 0.2s',
+                      background: activePreset === p.value ? '#FF6B35' : 'var(--surface-alt, #F5F5F5)',
+                      color: activePreset === p.value ? '#FFF' : 'var(--text-muted, #666)'
+                    }}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text, #1A1A1A)', marginBottom: 12 }}>Custom Period</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted, #888)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, display: 'block' }}>From</label>
+                  <input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setActivePreset(''); }}
+                    max={endDate || new Date().toISOString().split('T')[0]}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border, #DDD)', fontSize: 13, fontWeight: 600, color: 'var(--text, #1A1A1A)', background: 'var(--surface, #FFF)', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted, #888)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, display: 'block' }}>To</label>
+                  <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setActivePreset(''); }}
+                    max={new Date().toISOString().split('T')[0]} min={startDate}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border, #DDD)', fontSize: 13, fontWeight: 600, color: 'var(--text, #1A1A1A)', background: 'var(--surface, #FFF)', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => { handleCustomDate(); setShowFilter(false); }}
+                  disabled={!startDate && !endDate && activePreset === '7d'}
+                  style={{
+                    flex: 1, padding: '10px', borderRadius: 10, border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                    background: '#FF6B35', color: '#FFF'
+                  }}>
+                  Apply
+                </button>
+                <button onClick={() => { setActivePreset('7d'); setStartDate(''); setEndDate(''); setShowFilter(false); }}
+                  style={{
+                    padding: '10px 16px', borderRadius: 10, border: '1px solid var(--border, #DDD)', fontWeight: 700, fontSize: 13,
+                    background: 'var(--surface, #FFF)', color: 'var(--text-muted, #666)', cursor: 'pointer'
+                  }}>
+                  Reset
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       
