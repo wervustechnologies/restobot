@@ -12,6 +12,7 @@ export default function WaiterHome() {
   const [addItemModal, setAddItemModal] = useState({ open: false, orderId: null, tableNumber: null });
   const [selectedItem, setSelectedItem] = useState('');
   const [itemQty, setItemQty] = useState(1);
+  const [itemSearch, setItemSearch] = useState('');
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -88,6 +89,7 @@ export default function WaiterHome() {
         setAddItemModal({ open: false, orderId: null, tableNumber: null });
         setSelectedItem('');
         setItemQty(1);
+        setItemSearch('');
         fetchTables();
       }
     } catch (err) {
@@ -288,42 +290,100 @@ export default function WaiterHome() {
         )}
       </div>
 
-      {addItemModal.open && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: '#FFF', borderRadius: 16, padding: 24, width: '90%', maxWidth: 400 }}>
-            <h3 style={{ fontSize: 18, fontWeight: 900, marginBottom: 16 }}>Add Item to Table {addItemModal.tableNumber}</h3>
+      {addItemModal.open && (() => {
+        const filteredItems = menuItems.filter(item =>
+          item.name.toLowerCase().includes(itemSearch.toLowerCase())
+        );
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+            <div style={{ background: '#FFF', borderRadius: 16, padding: 24, width: '90%', maxWidth: 400, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+              <h3 style={{ fontSize: 18, fontWeight: 900, marginBottom: 14 }}>Add Item to Table {addItemModal.tableNumber}</h3>
 
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 6 }}>Select Item</label>
-              <select value={selectedItem} onChange={e => setSelectedItem(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #DDD', fontSize: 14, fontWeight: 600 }}>
-                <option value="">-- Choose item --</option>
-                {menuItems.map(item => (
-                  <option key={item.id} value={item.id}>{item.name} - ₹{item.price}</option>
-                ))}
-              </select>
-            </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 6 }}>Select Item</label>
+                <input
+                  type="text"
+                  placeholder="Search items..."
+                  value={itemSearch}
+                  onChange={e => { setItemSearch(e.target.value); setSelectedItem(''); }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #DDD', fontSize: 14, fontWeight: 600, outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
 
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 6 }}>Quantity</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <button onClick={() => setItemQty(Math.max(1, itemQty - 1))}
-                  style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid #DDD', background: '#FFF', fontSize: 18, fontWeight: 700, cursor: 'pointer' }}>-</button>
-                <span style={{ fontSize: 18, fontWeight: 800, minWidth: 30, textAlign: 'center' }}>{itemQty}</span>
-                <button onClick={() => setItemQty(itemQty + 1)}
-                  style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid #DDD', background: '#FFF', fontSize: 18, fontWeight: 700, cursor: 'pointer' }}>+</button>
+              {itemSearch && (
+                <div style={{ flex: 1, overflowY: 'auto', maxHeight: 240, marginBottom: 14, border: '1px solid #EEE', borderRadius: 10 }}>
+                  {filteredItems.length === 0 && (
+                    <p style={{ padding: '16px 12px', color: '#999', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>No items found</p>
+                  )}
+                  {filteredItems.map(item => (
+                    <div
+                      key={item.id}
+                      onClick={() => { setSelectedItem(item.id); setItemSearch(item.name); }}
+                      style={{
+                        padding: '12px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #F5F5F5',
+                        background: selectedItem === item.id ? '#FFF0EA' : '#FFF',
+                        transition: 'background 0.15s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = selectedItem === item.id ? '#FFF0EA' : '#F9F9F9'}
+                      onMouseLeave={e => e.currentTarget.style.background = selectedItem === item.id ? '#FFF0EA' : '#FFF'}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: '#1A1A1A' }}>{item.name}</span>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: '#FF6B35' }}>₹{item.price}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!itemSearch && (
+                <div style={{ flex: 1, overflowY: 'auto', maxHeight: 240, marginBottom: 14, border: '1px solid #EEE', borderRadius: 10 }}>
+                  {menuItems.map(item => (
+                    <div
+                      key={item.id}
+                      onClick={() => { setSelectedItem(item.id); setItemSearch(item.name); }}
+                      style={{
+                        padding: '12px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #F5F5F5',
+                        background: selectedItem === item.id ? '#FFF0EA' : '#FFF',
+                        transition: 'background 0.15s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = selectedItem === item.id ? '#FFF0EA' : '#F9F9F9'}
+                      onMouseLeave={e => e.currentTarget.style.background = selectedItem === item.id ? '#FFF0EA' : '#FFF'}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: '#1A1A1A' }}>{item.name}</span>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: '#FF6B35' }}>₹{item.price}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 6 }}>Quantity</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <button onClick={() => setItemQty(Math.max(1, itemQty - 1))}
+                    style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid #DDD', background: '#FFF', fontSize: 18, fontWeight: 700, cursor: 'pointer' }}>-</button>
+                  <span style={{ fontSize: 18, fontWeight: 800, minWidth: 30, textAlign: 'center' }}>{itemQty}</span>
+                  <button onClick={() => setItemQty(itemQty + 1)}
+                    style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid #DDD', background: '#FFF', fontSize: 18, fontWeight: 700, cursor: 'pointer' }}>+</button>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => { setAddItemModal({ open: false, orderId: null, tableNumber: null }); setSelectedItem(''); setItemQty(1); setItemSearch(''); }}
+                  style={{ flex: 1, padding: '12px', borderRadius: 10, border: '1px solid #DDD', background: '#FFF', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+                <button onClick={handleAddItem} disabled={!selectedItem}
+                  style={{ flex: 1, padding: '12px', borderRadius: 10, border: 'none', background: selectedItem ? '#FF6B35' : '#DDD', color: '#FFF', fontWeight: 700, fontSize: 14, cursor: selectedItem ? 'pointer' : 'not-allowed' }}>Add Item</button>
               </div>
             </div>
-
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => { setAddItemModal({ open: false, orderId: null, tableNumber: null }); setSelectedItem(''); setItemQty(1); }}
-                style={{ flex: 1, padding: '12px', borderRadius: 10, border: '1px solid #DDD', background: '#FFF', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleAddItem} disabled={!selectedItem}
-                style={{ flex: 1, padding: '12px', borderRadius: 10, border: 'none', background: selectedItem ? '#FF6B35' : '#DDD', color: '#FFF', fontWeight: 700, fontSize: 14, cursor: selectedItem ? 'pointer' : 'not-allowed' }}>Add Item</button>
-            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
