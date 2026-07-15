@@ -15,24 +15,42 @@ def get_analytics():
     db_ref = get_db()
     res_id = request.restaurant_id
     
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
     orders_dict = db_ref.child(f'restaurants/{res_id}/orders').get()
     orders = format_list(orders_dict)
     
+    def parse_order_date(order):
+        ts = order.get('created_at')
+        if not ts:
+            return None
+        try:
+            return datetime.fromtimestamp(ts)
+        except:
+            return None
+
+    if start_date and end_date:
+        sd = datetime.strptime(start_date, '%Y-%m-%d')
+        ed = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+        orders = [o for o in orders if parse_order_date(o) and sd <= parse_order_date(o) <= ed]
+        day_count = (ed - sd).days + 1
+    else:
+        day_count = 7
+
     completed_orders = [o for o in orders if o.get('status') == 'completed']
     pending_orders = [o for o in orders if o.get('status') in ('pending', 'claimed')]
     
     total_revenue = sum(o.get('total_amount', 0) for o in completed_orders)
     total_orders = len(orders)
     
-    # Daily revenue (completed orders only)
     now = datetime.utcnow()
     daily_revenue = []
-    for i in range(6, -1, -1):
+    for i in range(day_count - 1, -1, -1):
         date = (now - timedelta(days=i)).strftime('%Y-%m-%d')
-        day_total = sum(o.get('total_amount', 0) for o in completed_orders if o.get('created_at') and datetime.fromtimestamp(o['created_at']).strftime('%Y-%m-%d') == date)
+        day_total = sum(o.get('total_amount', 0) for o in completed_orders if parse_order_date(o) and parse_order_date(o).strftime('%Y-%m-%d') == date)
         daily_revenue.append({'date': date, 'amount': day_total})
 
-    # Popular items (from all orders)
     item_counts = {}
     for o in orders:
         for item in o.get('items', []):
@@ -41,7 +59,6 @@ def get_analytics():
     
     popular_items = sorted([{'name': k, 'orders': v} for k, v in item_counts.items()], key=lambda x: x['orders'], reverse=True)[:5]
 
-    # Total Tables
     tables_dict = db_ref.child(f'restaurants/{res_id}/tables').get()
     total_tables = len(tables_dict) if tables_dict else 0
     
