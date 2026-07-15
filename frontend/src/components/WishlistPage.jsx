@@ -88,111 +88,152 @@ export default function WishlistPage() {
 
   if (orderSubmitted) {
     return (
-      <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', padding: '40px 20px', background: '#F9F9F9', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: 80, marginBottom: 20 }}>✅</div>
-        <h1 style={{ fontSize: 28, fontWeight: 900, color: '#1A1A1A', textAlign: 'center', marginBottom: 10 }}>Order Submitted!</h1>
-        <p style={{ color: '#666', fontSize: 16, textAlign: 'center', marginBottom: 10, fontWeight: 600 }}>
-          Your order for Table {wishlist?.table_number} has been sent to the kitchen.
-        </p>
-        <p style={{ color: '#FF6B35', fontSize: 14, textAlign: 'center', marginBottom: 30, fontWeight: 700 }}>
-          A waiter will be with you shortly.
-        </p>
-        <div style={{ background: '#FFF', borderRadius: 20, padding: 24, width: '100%', boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 15, paddingBottom: 15, borderBottom: '1px solid #F5F5F5' }}>
-            <span style={{ fontSize: 16, fontWeight: 700, color: '#888' }}>Table</span>
-            <span style={{ fontSize: 16, fontWeight: 900, color: '#1A1A1A' }}>{wishlist?.table_number}</span>
+      <>
+        <style>{`
+          .wishlist-page { width: 100%; min-height: 100vh; background: #F9F9F9; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 20px; }
+          .wishlist-page .order-success-icon { font-size: 64px; margin-bottom: 16px; }
+          .wishlist-page .order-success-title { font-size: 26px; font-weight: 900; color: #1A1A1A; text-align: center; margin-bottom: 8px; }
+          .wishlist-page .order-success-subtitle { color: #666; font-size: 15px; text-align: center; margin-bottom: 8px; font-weight: 600; }
+          .wishlist-page .order-success-hint { color: #FF6B35; font-size: 13px; text-align: center; margin-bottom: 24px; font-weight: 700; }
+          .wishlist-page .order-summary-card { background: #FFF; border-radius: 20px; padding: 20px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+          .wishlist-page .order-summary-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; }
+          .wishlist-page .order-summary-row:not(:last-child) { border-bottom: 1px solid #F5F5F5; margin-bottom: 12px; padding-bottom: 12px; }
+          .wishlist-page .order-summary-label { font-size: 15px; font-weight: 700; color: #888; }
+          .wishlist-page .order-summary-value { font-size: 15px; font-weight: 900; color: #1A1A1A; }
+          .wishlist-page .order-summary-total-value { font-size: 20px; font-weight: 900; color: #FF6B35; }
+          .wishlist-page .order-success-btn { margin-top: 24px; width: 100%; max-width: 400px; padding: 16px; background: #FF6B35; color: #FFF; border: none; border-radius: 16px; font-size: 16px; font-weight: 800; cursor: pointer; }
+          @media (max-width: 380px) {
+            .wishlist-page { padding: 20px 16px; }
+            .wishlist-page .order-success-icon { font-size: 52px; margin-bottom: 12px; }
+            .wishlist-page .order-success-title { font-size: 22px; }
+            .wishlist-page .order-success-subtitle { font-size: 14px; }
+            .wishlist-page .order-summary-card { padding: 16px; }
+          }
+        `}</style>
+        <div className="wishlist-page">
+          <div className="order-success-icon">✅</div>
+          <h1 className="order-success-title">Order Submitted!</h1>
+          <p className="order-success-subtitle">
+            Your order for Table {wishlist?.table_number} has been sent to the kitchen.
+          </p>
+          <p className="order-success-hint">
+            A waiter will be with you shortly.
+          </p>
+          <div className="order-summary-card">
+            <div className="order-summary-row">
+              <span className="order-summary-label">Table</span>
+              <span className="order-summary-value">{wishlist?.table_number}</span>
+            </div>
+            <div className="order-summary-row">
+              <span className="order-summary-label">Items</span>
+              <span className="order-summary-value">{wishlist?.items?.length}</span>
+            </div>
+            <div className="order-summary-row">
+              <span className="order-summary-label">Total</span>
+              <span className="order-summary-total-value">₹{wishlist?.total_amount}</span>
+            </div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 15, paddingBottom: 15, borderBottom: '1px solid #F5F5F5' }}>
-            <span style={{ fontSize: 16, fontWeight: 700, color: '#888' }}>Items</span>
-            <span style={{ fontSize: 16, fontWeight: 900, color: '#1A1A1A' }}>{wishlist?.items?.length}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 18, fontWeight: 700, color: '#888' }}>Total</span>
-            <span style={{ fontSize: 22, fontWeight: 900, color: '#FF6B35' }}>₹{wishlist?.total_amount}</span>
-          </div>
+          <button className="order-success-btn" onClick={() => navigate(`/menu?rid=${rid}&t=${qrToken}`)}>
+            Back to Menu
+          </button>
         </div>
-        <button onClick={() => navigate(`/menu?rid=${rid}&t=${qrToken}`)} style={{ marginTop: 30, width: '100%', padding: '16px', background: '#FF6B35', color: '#FFF', border: 'none', borderRadius: 16, fontSize: 16, fontWeight: 800, cursor: 'pointer' }}>
-          Back to Menu
-        </button>
-      </div>
+      </>
     );
   }
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', padding: '40px 20px', background: '#F9F9F9' }}>
-      <div style={{ textAlign: 'center', marginBottom: 40 }}>
-        <div style={{ fontSize: 60, marginBottom: 15 }}>📋</div>
-        <h1 style={{ fontSize: 32, fontWeight: 900, color: '#1A1A1A', letterSpacing: '-1px' }}>My Selections</h1>
-        <p style={{ color: '#FF6B35', fontWeight: 800, fontSize: 16 }}>Table {wishlist?.table_number}</p>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
+    <>
+      <style>{`
+        .wishlist-page { width: 100%; min-height: 100vh; background: var(--bg, #F9F9F9); padding: 24px 20px 40px; }
+        .wishlist-page .wl-header { text-align: center; margin-bottom: 28px; }
+        .wishlist-page .wl-header-icon { font-size: 52px; margin-bottom: 12px; }
+        .wishlist-page .wl-header-title { font-size: 28px; font-weight: 900; color: var(--text, #1A1A1A); letter-spacing: -1px; }
+        .wishlist-page .wl-header-table { color: #FF6B35; font-weight: 800; font-size: 15px; margin-top: 6px; }
+        .wishlist-page .wl-device-badge { background: var(--surface-alt, #EEE); color: var(--text-muted, #666); padding: 4px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; display: inline-block; margin-top: 8px; }
+        .wishlist-page .wl-card { padding: 20px; border-radius: 20px; background: var(--card-bg, #FFF); box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid var(--card-border, #EEE); }
+        .wishlist-page .wl-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 2px solid var(--border, #F5F5F5); }
+        .wishlist-page .wl-card-title { font-size: 18px; font-weight: 900; color: var(--text, #1A1A1A); }
+        .wishlist-page .wl-card-count { background: #FFF0EA; color: #FF6B35; padding: 4px 10px; border-radius: 10px; font-size: 13px; font-weight: 800; }
+        .wishlist-page .wl-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; gap: 12px; }
+        .wishlist-page .wl-item:not(:last-child) { border-bottom: 1px solid var(--border, #F5F5F5); }
+        .wishlist-page .wl-item-left { display: flex; gap: 10px; align-items: center; min-width: 0; flex: 1; }
+        .wishlist-page .wl-item-dot { width: 8px; height: 8px; border-radius: 50%; background: #FF6B35; flex-shrink: 0; }
+        .wishlist-page .wl-item-info { min-width: 0; }
+        .wishlist-page .wl-item-name { font-size: 16px; font-weight: 800; color: var(--text, #1A1A1A); display: block; }
+        .wishlist-page .wl-item-qty { font-size: 12px; color: var(--text-muted, #888); font-weight: 600; }
+        .wishlist-page .wl-item-price { font-weight: 900; font-size: 16px; color: var(--text, #1A1A1A); white-space: nowrap; }
+        .wishlist-page .wl-total-bar { display: flex; justify-content: space-between; margin-top: 20px; padding: 16px; background: linear-gradient(135deg, #FF6B35 0%, #E85A20 100%); border-radius: 16px; color: #FFF; align-items: center; }
+        .wishlist-page .wl-total-label { font-size: 16px; font-weight: 700; }
+        .wishlist-page .wl-total-value { font-size: 22px; font-weight: 900; }
+        .wishlist-page .wl-actions { margin-top: 28px; display: flex; flex-direction: column; gap: 12px; }
+        .wishlist-page .wl-btn-submit { width: 100%; padding: 16px; font-size: 15px; }
+        .wishlist-page .wl-btn-edit { width: 100%; padding: 16px; font-size: 15px; background: var(--surface, #FFF); color: #FF6B35; border: 2px solid #FF6B35; border-radius: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .wishlist-page .wl-btn-edit:hover { background: #FFF0EA; }
+        .wishlist-page .wl-btn-back { width: 100%; background: none; border: none; color: var(--text-muted, #888); font-weight: 700; font-size: 13px; cursor: pointer; padding: 8px; }
+        @media (max-width: 380px) {
+          .wishlist-page { padding: 20px 16px 32px; }
+          .wishlist-page .wl-header-icon { font-size: 44px; }
+          .wishlist-page .wl-header-title { font-size: 24px; }
+          .wishlist-page .wl-card { padding: 16px; border-radius: 16px; }
+          .wishlist-page .wl-item-name { font-size: 14px; }
+          .wishlist-page .wl-item-price { font-size: 14px; }
+          .wishlist-page .wl-total-bar { padding: 14px; }
+          .wishlist-page .wl-total-label { font-size: 14px; }
+          .wishlist-page .wl-total-value { font-size: 18px; }
+        }
+      `}</style>
+      <div className="wishlist-page">
+        <div className="wl-header">
+          <div className="wl-header-icon">📋</div>
+          <h1 className="wl-header-title">My Selections</h1>
+          <p className="wl-header-table">Table {wishlist?.table_number}</p>
           {guest?.guest_id && (
-            <div style={{ background: '#EEE', color: '#666', padding: '5px 15px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
-              Device ID: {guest.guest_id.substring(0, 8)}
-            </div>
+            <div className="wl-device-badge">Device ID: {guest.guest_id.substring(0, 8)}</div>
           )}
         </div>
-      </div>
-      
-      <div className="card" style={{ 
-        padding: 30, 
-        borderRadius: 24, 
-        background: '#FFF', 
-        boxShadow: '0 20px 50px rgba(0,0,0,0.05)',
-        border: '1px solid #EEE'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25, borderBottom: '2px solid #F5F5F5', paddingBottom: 15 }}>
-          <h3 style={{ fontSize: 20, fontWeight: 900, color: '#1A1A1A' }}>Selected Items</h3>
-          <span style={{ background: '#FFF0EA', color: '#FF6B35', padding: '4px 12px', borderRadius: 10, fontSize: 14, fontWeight: 800 }}>
-            {wishlist?.items?.length} Items
-          </span>
-        </div>
-
-        {wishlist?.items?.map((item, idx) => (
-          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 0', borderBottom: '1px solid #F5F5F5' }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF6B35' }} />
-              <div>
-                <span style={{ fontSize: 18, fontWeight: 800, color: '#1A1A1A' }}>{item.name}</span>
-                <div style={{ fontSize: 13, color: '#888', fontWeight: 600 }}>Qty: {item.quantity}</div>
-              </div>
-            </div>
-            <span style={{ fontWeight: 900, fontSize: 18, color: '#1A1A1A' }}>₹{item.price * item.quantity}</span>
+        
+        <div className="wl-card">
+          <div className="wl-card-header">
+            <h3 className="wl-card-title">Selected Items</h3>
+            <span className="wl-card-count">{wishlist?.items?.length} Items</span>
           </div>
-        ))}
 
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          marginTop: 30, 
-          padding: '20px', 
-          background: 'linear-gradient(135deg, #FF6B35 0%, #E85A20 100%)',
-          borderRadius: 18,
-          color: '#FFF'
-        }}>
-          <span style={{ fontSize: 18, fontWeight: 700 }}>Estimated Total</span>
-          <span style={{ fontSize: 24, fontWeight: 900 }}>₹{wishlist?.total_amount}</span>
+          {wishlist?.items?.map((item, idx) => (
+            <div key={idx} className="wl-item">
+              <div className="wl-item-left">
+                <div className="wl-item-dot" />
+                <div className="wl-item-info">
+                  <span className="wl-item-name">{item.name}</span>
+                  <div className="wl-item-qty">Qty: {item.quantity}</div>
+                </div>
+              </div>
+              <span className="wl-item-price">₹{item.price * item.quantity}</span>
+            </div>
+          ))}
+
+          <div className="wl-total-bar">
+            <span className="wl-total-label">Estimated Total</span>
+            <span className="wl-total-value">₹{wishlist?.total_amount}</span>
+          </div>
+        </div>
+
+        <div className="wl-actions">
+          <button 
+            onClick={handleSubmitOrder} 
+            disabled={submitting}
+            className="btn-primary wl-btn-submit" 
+            style={{ opacity: submitting ? 0.7 : 1 }}
+          >
+            {submitting ? 'Submitting...' : 'Submit Order 🍽️'}
+          </button>
+          <button className="wl-btn-edit" onClick={handleEditSelection}>
+            Edit Selection
+          </button>
+          <button className="wl-btn-back" onClick={handleEditSelection}>
+            Return to Menu
+          </button>
         </div>
       </div>
-
-      <div style={{ marginTop: 40, display: 'flex', flexDirection: 'column', gap: 15 }}>
-        <button 
-          onClick={handleSubmitOrder} 
-          disabled={submitting}
-          className="btn-primary" 
-          style={{ width: '100%', padding: '20px', fontSize: 16, opacity: submitting ? 0.7 : 1 }}
-        >
-          {submitting ? 'Submitting...' : 'Submit Order 🍽️'}
-        </button>
-        <button className="btn-primary" onClick={handleEditSelection} style={{ width: '100%', padding: '20px', fontSize: 16, background: '#FFF', color: '#FF6B35', border: '2px solid #FF6B35' }}>
-          Edit Selection
-        </button>
-        <button 
-          onClick={handleEditSelection}
-          style={{ width: '100%', background: 'none', border: 'none', color: '#888', fontWeight: 700, fontSize: 14 }}
-        >
-          Return to Menu
-        </button>
-      </div>
-    </div>
+    </>
   );
 }
