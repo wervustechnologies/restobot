@@ -73,16 +73,21 @@ export default function AdminDashboard() {
   };
 
   const handleCustomDate = () => {
-    if (!startDate || !endDate) return;
+    const today = new Date().toISOString().split('T')[0];
+    const sd = startDate || endDate || today;
+    const ed = endDate || startDate || today;
     setActivePreset('');
-    fetchData(startDate, endDate);
+    fetchData(sd, ed);
   };
 
   const getChartTitle = () => {
     if (activePreset === 'today') return 'Revenue (Today)';
     if (activePreset === '7d') return 'Revenue (Last 7 Days)';
     if (activePreset === 'month') return 'Revenue (This Month)';
-    return `Revenue (${startDate} to ${endDate})`;
+    const sd = startDate || endDate;
+    const ed = endDate || startDate;
+    if (sd === ed) return `Revenue (${sd})`;
+    return `Revenue (${sd} to ${ed})`;
   };
 
   if (loading) return <div style={{ height: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="loader" /></div>;
@@ -109,10 +114,10 @@ export default function AdminDashboard() {
             <span style={{ color: '#888', fontSize: 13 }}>-</span>
             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} max={new Date().toISOString().split('T')[0]} min={startDate}
               style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid var(--border, #DDD)', fontSize: 13, fontWeight: 600, color: 'var(--text, #1A1A1A)', background: 'var(--surface, #FFF)' }} />
-            <button onClick={handleCustomDate} disabled={!startDate || !endDate}
+            <button onClick={handleCustomDate} disabled={!startDate && !endDate}
               style={{
-                padding: '7px 14px', borderRadius: 8, border: 'none', fontWeight: 700, fontSize: 13, cursor: startDate && endDate ? 'pointer' : 'not-allowed',
-                background: startDate && endDate ? '#FF6B35' : '#CCC', color: '#FFF'
+                padding: '7px 14px', borderRadius: 8, border: 'none', fontWeight: 700, fontSize: 13, cursor: startDate || endDate ? 'pointer' : 'not-allowed',
+                background: startDate || endDate ? '#FF6B35' : '#CCC', color: '#FFF'
               }}>
               Go
             </button>
