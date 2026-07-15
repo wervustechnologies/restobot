@@ -6,7 +6,6 @@ import { API_BASE_URL } from '../../apiConfig';
 const PRESETS = [
   { label: 'Today', value: 'today' },
   { label: 'Last 7 Days', value: '7d' },
-  { label: 'Last 30 Days', value: '30d' },
   { label: 'This Month', value: 'month' },
 ];
 
@@ -22,13 +21,6 @@ function getPresetRange(value) {
     case '7d': {
       const d = new Date(now);
       d.setDate(d.getDate() - 6);
-      start = fmt(d);
-      end = fmt(now);
-      break;
-    }
-    case '30d': {
-      const d = new Date(now);
-      d.setDate(d.getDate() - 29);
       start = fmt(d);
       end = fmt(now);
       break;
@@ -89,7 +81,6 @@ export default function AdminDashboard() {
   const getChartTitle = () => {
     if (activePreset === 'today') return 'Revenue (Today)';
     if (activePreset === '7d') return 'Revenue (Last 7 Days)';
-    if (activePreset === '30d') return 'Revenue (Last 30 Days)';
     if (activePreset === 'month') return 'Revenue (This Month)';
     return `Revenue (${startDate} to ${endDate})`;
   };
