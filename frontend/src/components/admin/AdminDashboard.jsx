@@ -113,10 +113,10 @@ export default function AdminDashboard() {
             </button>
           ))}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} max={endDate || new Date().toISOString().split('T')[0]}
               style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid var(--border, #DDD)', fontSize: 13, fontWeight: 600, color: 'var(--text, #1A1A1A)', background: 'var(--surface, #FFF)' }} />
             <span style={{ color: '#888', fontSize: 13 }}>-</span>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} max={new Date().toISOString().split('T')[0]} min={startDate}
               style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid var(--border, #DDD)', fontSize: 13, fontWeight: 600, color: 'var(--text, #1A1A1A)', background: 'var(--surface, #FFF)' }} />
             <button onClick={handleCustomDate} disabled={!startDate || !endDate}
               style={{
