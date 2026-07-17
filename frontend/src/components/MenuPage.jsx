@@ -248,7 +248,8 @@ export default function MenuPage() {
         {/* Call Waiter Button */}
         <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
           <button onClick={async () => {
-            await fetch(`${API}/table/${qrToken}/call-waiter`, { method: 'POST' });
+            const res = await fetch(`${API}/table/${qrToken}/call-waiter`, { method: 'POST' });
+            if (res.ok) setLockInfo(prev => ({ ...prev, call_waiter: true, call_waiter_at: Date.now() }));
           }} style={{
             flex: 1, padding: '14px', borderRadius: 16, border: 'none',
             background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)',
