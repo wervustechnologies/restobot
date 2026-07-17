@@ -215,6 +215,29 @@ def unlock_table(table_number):
 
     return jsonify({'success': True, 'message': 'Table unlocked'}), 200
 
+@orders_bp.route('/orders/table/<table_number>/dismiss-call', methods=['PUT'])
+@token_required
+def dismiss_call(table_number):
+    db_ref = get_db()
+    restaurant_id = request.restaurant_id
+
+    tables = db_ref.child(f'restaurants/{restaurant_id}/tables').get() or {}
+    table_id = None
+    for tid, tdata in tables.items():
+        if str(tdata.get('table_number')) == str(table_number):
+            table_id = tid
+            break
+
+    if not table_id:
+        return jsonify({'error': 'Table not found'}), 404
+
+    db_ref.child(f'restaurants/{restaurant_id}/tables/{table_id}').update({
+        'call_waiter': False,
+        'call_waiter_at': None
+    })
+
+    return jsonify({'success': True, 'message': 'Call dismissed'}), 200
+
 @orders_bp.route('/orders/tables-status', methods=['GET'])
 @token_required
 def get_tables_with_orders():
@@ -233,6 +256,8 @@ def get_tables_with_orders():
             'locked_by': table.get('locked_by'),
             'locked_by_name': table.get('locked_by_name'),
             'locked_at': table.get('locked_at'),
+            'call_waiter': table.get('call_waiter', False),
+            'call_waiter_at': table.get('call_waiter_at'),
             'orders': [],
             'total_amount': 0,
             'has_pending': False

@@ -21,6 +21,7 @@ export default function MenuPage() {
   const tableNum = searchParams.get('table');
   const restaurantId = searchParams.get('rid');
   const [resolvedTableNum, setResolvedTableNum] = useState(tableNum);
+  const [lockInfo, setLockInfo] = useState(null);
   const { guest } = useGuest();
 
   // Load cart from DB
@@ -101,6 +102,21 @@ export default function MenuPage() {
       fetchMenu(restaurantId);
     }
   }, [restaurantId, qrToken, tableNum]);
+
+  useEffect(() => {
+    if (!qrToken) return;
+    const interval = setInterval(() => {
+      fetch(`${API}/table/${qrToken}/lock-status`)
+        .then(r => r.json())
+        .then(d => setLockInfo(d))
+        .catch(() => {});
+    }, 5000);
+    fetch(`${API}/table/${qrToken}/lock-status`)
+      .then(r => r.json())
+      .then(d => setLockInfo(d))
+      .catch(() => {});
+    return () => clearInterval(interval);
+  }, [qrToken]);
 
   const fetchMenu = (id) => {
     fetch(`${API}/menu/${id}`)
@@ -196,6 +212,13 @@ export default function MenuPage() {
               <span style={{ width: 8, height: 8, background: '#FFF', borderRadius: '50%', opacity: 0.6 }} />
               <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)', fontWeight: 700 }}>Table {resolvedTableNum}</p>
             </div>
+            {lockInfo?.locked_by_name && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>
+                  👨‍🍳 Being served by <b>{lockInfo.locked_by_name}</b>
+                </span>
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button onClick={() => setShowWishlist(true)} style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 18px', borderRadius: 20, color: '#FFF', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
@@ -221,6 +244,29 @@ export default function MenuPage() {
               </div>
             </div>
           </div>
+        </div>
+        {/* Call Waiter Button */}
+        <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
+          <button onClick={async () => {
+            await fetch(`${API}/table/${qrToken}/call-waiter`, { method: 'POST' });
+          }} style={{
+            flex: 1, padding: '14px', borderRadius: 16, border: 'none',
+            background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)',
+            color: '#FFF', fontWeight: 900, fontSize: 15, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+          }}>
+            <span style={{ fontSize: 20 }}>🔔</span> Call Waiter
+          </button>
+          {lockInfo?.call_waiter && (
+            <div style={{
+              padding: '10px 18px', borderRadius: 12,
+              background: 'rgba(255,215,0,0.3)', backdropFilter: 'blur(10px)',
+              color: '#FFD700', fontWeight: 800, fontSize: 13,
+              display: 'flex', alignItems: 'center', gap: 6
+            }}>
+              <span>✅</span> Notified
+            </div>
+          )}
         </div>
       </div>
 

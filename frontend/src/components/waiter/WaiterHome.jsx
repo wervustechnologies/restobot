@@ -165,6 +165,21 @@ export default function WaiterHome() {
     }
   };
 
+  const dismissCall = async (tableNumber) => {
+    const token = localStorage.getItem('waiter_token');
+    if (!token) return;
+    try {
+      await fetch(`${API_BASE_URL}/orders/table/${tableNumber}/dismiss-call`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      fetchTables();
+    } catch (err) {
+      console.error('Failed to dismiss call:', err);
+    }
+  };
+
   const handleCompleteOrder = async (orderId) => {
     const token = localStorage.getItem('waiter_token');
     if (!token) return;
@@ -195,6 +210,7 @@ export default function WaiterHome() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      <style>{`@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.7 } }`}</style>
       <div style={{
         background: 'linear-gradient(135deg, #FF6B35 0%, #E85A20 100%)',
         padding: '20px 24px',
@@ -231,7 +247,7 @@ export default function WaiterHome() {
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 15 }}>
               {myTables.map(table => (
-                <MyTableCard key={table.table_number} table={table} onRelease={handleReleaseTable} onCompleteOrder={handleCompleteOrder} onAddItem={(orderId) => { fetchMenuItems(); setAddItemModal({ open: true, orderId, tableNumber: table.table_number }); }} />
+                <MyTableCard key={table.table_number} table={table} onRelease={handleReleaseTable} onCompleteOrder={handleCompleteOrder} onAddItem={(orderId) => { fetchMenuItems(); setAddItemModal({ open: true, orderId, tableNumber: table.table_number }); }} onDismissCall={dismissCall} />
               ))}
             </div>
           </div>
@@ -388,7 +404,7 @@ export default function WaiterHome() {
   );
 }
 
-function MyTableCard({ table, onRelease, onCompleteOrder, onAddItem }) {
+function MyTableCard({ table, onRelease, onCompleteOrder, onAddItem, onDismissCall }) {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -413,6 +429,32 @@ function MyTableCard({ table, onRelease, onCompleteOrder, onAddItem }) {
           Release
         </button>
       </div>
+
+      {table.call_waiter && (
+        <div style={{
+          background: 'linear-gradient(135deg, #FFF8E1, #FFECB3)',
+          border: '2px solid #FFD54F',
+          borderRadius: 14, padding: '14px 16px', marginBottom: 15,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          animation: 'pulse 1.5s ease-in-out infinite'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 24 }}>🔔</span>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 900, color: '#E65100' }}>Customer Needs You!</div>
+              <div style={{ fontSize: 12, color: '#BF360C', fontWeight: 600 }}>Table {table.table_number} is calling</div>
+            </div>
+          </div>
+          <button onClick={() => onDismissCall(table.table_number)}
+            style={{
+              padding: '10px 18px', borderRadius: 10, border: 'none',
+              background: '#FF6B35', color: '#FFF', fontWeight: 800, fontSize: 13,
+              cursor: 'pointer'
+            }}>
+            Dismiss ✓
+          </button>
+        </div>
+      )}
 
       {table.orders.filter(o => o.status !== 'completed').map(order => (
         <div key={order.id} style={{ background: '#F9F9F9', borderRadius: 14, padding: 16, marginBottom: 10 }}>
