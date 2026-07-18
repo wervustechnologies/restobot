@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from firebase_client import get_db
+from limiter import limiter, LIMIT_AI
 
 chat_bp = Blueprint('chat', __name__)
 
@@ -8,6 +9,7 @@ def format_list(data_dict):
     return [{'id': k, **v} for k, v in data_dict.items()]
 
 @chat_bp.route('/chat/suggest', methods=['POST'])
+@limiter.limit(LIMIT_AI)
 def suggest_item():
     data = request.get_json()
     restaurant_id = data.get('restaurant_id')
@@ -64,6 +66,7 @@ def suggest_item():
     return jsonify({'suggestion': None, 'message': ''}), 200
 
 @chat_bp.route('/chat/evaluate', methods=['POST'])
+@limiter.limit(LIMIT_AI)
 def evaluate_meal():
     data = request.get_json()
     restaurant_id = data.get('restaurant_id')
