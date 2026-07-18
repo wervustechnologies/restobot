@@ -1,4 +1,57 @@
-restobot-80b61-firebase-adminsdk-fbsvc-*.json  
-__pycache__/
+# ============================================================
+# Secrets & credentials
+# ============================================================
 .env
 .env.local
+.env.*.local
+backend/.env
+frontend/.env
+firebase-credentials.json
+restobot-80b61-firebase-adminsdk-fbsvc-*.json
+
+# ============================================================
+# Python
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+backend/venv/
+venv/
+.env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ============================================================
+# Node / frontend (handles everything except Vercel/Netlify deploys)
+# ============================================================
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ============================================================
+# Logs
+# ============================================================
+logs/
+*.log
+
+# ============================================================
+# Editor & OS
+# ============================================================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*.swn
+.DS_Store
+Thumbs.db
+.kilo
