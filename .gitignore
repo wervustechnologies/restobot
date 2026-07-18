@@ -1,1 +1,4 @@
 restobot-80b61-firebase-adminsdk-fbsvc-*.json  
+__pycache__/
+.env
+.env.local

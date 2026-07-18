@@ -3,6 +3,7 @@ import time
 import time as time_module
 from firebase_client import get_db
 from auth_utils import token_required
+from limiter import limiter, LIMIT_PUBLIC_WRITE
 
 orders_bp = Blueprint('orders', __name__)
 
@@ -11,6 +12,7 @@ def format_list(data_dict):
     return [{'id': k, **v} for k, v in data_dict.items()]
 
 @orders_bp.route('/orders', methods=['POST'])
+@limiter.limit(LIMIT_PUBLIC_WRITE)
 def create_order():
     db_ref = get_db()
     data = request.get_json()
@@ -245,7 +247,12 @@ def get_tables_with_orders():
     restaurant_id = request.restaurant_id
 
     tables = format_list(db_ref.child(f'restaurants/{restaurant_id}/tables').get())
-    orders = format_list(db_ref.child(f'restaurants/{restaurant_id}/orders').get())
+    # Live status board only needs active orders. RTDB equal_to takes a single
+    # value, so issue two small indexed reads for pending + claimed instead of
+    # pulling the restaurant's full order history on every poll.
+    pending = format_list(db_ref.child(f'restaurants/{restaurant_id}/orders').order_by_child('status').equal_to('pending').get())
+    claimed = format_list(db_ref.child(f'restaurants/{restaurant_id}/orders').order_by_child('status').equal_to('claimed').get())
+    orders = pending + claimed
 
     table_orders = {}
     for table in tables:

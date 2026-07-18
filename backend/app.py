@@ -1,14 +1,17 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import os
+from limiter import limiter
+from settings import settings
 from firebase_client import init_firebase
 
 def create_app():
     app = Flask(__name__)
-    
+
     init_firebase()
 
-    frontend_url = os.environ.get('FRONTEND_URL', '')
+    limiter.init_app(app)
+
+    frontend_url = settings.frontend_url
     allowed_origins = [o.strip() for o in frontend_url.split(',') if o.strip()] if frontend_url else []
     
     known_origins = [
