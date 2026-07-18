@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 import time
 from firebase_client import get_db
+from limiter import limiter, LIMIT_PUBLIC_READ, LIMIT_PUBLIC_WRITE
 
 wishlist_bp = Blueprint('wishlist', __name__)
 
@@ -9,6 +10,7 @@ def format_list(data_dict):
     return [{'id': k, **v} for k, v in data_dict.items()]
 
 @wishlist_bp.route('/wishlist', methods=['POST'])
+@limiter.limit(LIMIT_PUBLIC_WRITE)
 def save_wishlist():
     db_ref = get_db()
     data = request.get_json()
@@ -41,6 +43,7 @@ def save_wishlist():
     return jsonify({'success': True, 'wishlist_id': wishlist_ref.key}), 201
 
 @wishlist_bp.route('/wishlist/<restaurant_id>/<wishlist_id>', methods=['GET'])
+@limiter.limit(LIMIT_PUBLIC_READ)
 def get_wishlist(restaurant_id, wishlist_id):
     db_ref = get_db()
     wishlist = db_ref.child(f'restaurants/{restaurant_id}/wishlists/{wishlist_id}').get()
@@ -49,6 +52,7 @@ def get_wishlist(restaurant_id, wishlist_id):
     return jsonify({'id': wishlist_id, **wishlist}), 200
 
 @wishlist_bp.route('/cart', methods=['POST'])
+@limiter.limit(LIMIT_PUBLIC_WRITE)
 def save_draft_cart():
     db_ref = get_db()
     data = request.get_json()
@@ -63,6 +67,7 @@ def save_draft_cart():
     return jsonify({'success': True}), 200
 
 @wishlist_bp.route('/cart/<rid>/<gid>', methods=['GET'])
+@limiter.limit(LIMIT_PUBLIC_READ)
 def get_draft_cart(rid, gid):
     db_ref = get_db()
     cart = db_ref.child(f'restaurants/{rid}/active_carts/{gid}').get()

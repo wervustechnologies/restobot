@@ -3,12 +3,14 @@ import bcrypt
 import time
 from firebase_client import get_db
 from auth_utils import generate_token, token_required
+from limiter import limiter, LIMIT_AUTH
 
 auth_bp = Blueprint('auth', __name__)
 
 # Public registration is disabled. Use SuperAdmin Panel.
 
 @auth_bp.route('/auth/login', methods=['POST'])
+@limiter.limit(LIMIT_AUTH)
 def login():
     db_ref = get_db()
     data = request.get_json()
@@ -84,10 +86,13 @@ def register_waiter():
 def list_waiters():
     db_ref = get_db()
 
-    users = db_ref.child('users').get() or {}
+    # Index on users/restaurant_id scopes the read server-side. RTDB cannot
+    # compound-query two fields, so the role filter stays in Python; the
+    # per-restaurant user set is small.
+    users = db_ref.child('users').order_by_child('restaurant_id').equal_to(request.restaurant_id).get() or {}
     waiters = []
     for uid, udata in users.items():
-        if udata.get('restaurant_id') == request.restaurant_id and udata.get('role') == 'waiter':
+        if udata.get('role') == 'waiter':
             waiters.append({
                 'id': uid,
                 'name': udata.get('name', ''),
@@ -117,6 +122,7 @@ def delete_waiter(waiter_id):
     return jsonify({'message': 'Waiter deleted'}), 200
 
 @auth_bp.route('/auth/waiter-login', methods=['POST'])
+@limiter.limit(LIMIT_AUTH)
 def waiter_login():
     db_ref = get_db()
     data = request.get_json()

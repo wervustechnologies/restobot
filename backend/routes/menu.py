@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from firebase_client import get_db
+from limiter import limiter, LIMIT_AI, LIMIT_PUBLIC_READ
 
 menu_bp = Blueprint('menu', __name__)
 
@@ -8,6 +9,7 @@ def format_list(data_dict):
     return [{'id': k, **v} for k, v in data_dict.items()]
 
 @menu_bp.route('/menu/<restaurant_id>', methods=['GET'])
+@limiter.limit(LIMIT_PUBLIC_READ)
 def get_menu(restaurant_id):
     db_ref = get_db()
     
@@ -82,6 +84,7 @@ def get_menu(restaurant_id):
     }), 200
 
 @menu_bp.route('/menu/<restaurant_id>/recommend', methods=['POST'])
+@limiter.limit(LIMIT_AI)
 def recommend_items(restaurant_id):
     db_ref = get_db()
     prefs = request.get_json()

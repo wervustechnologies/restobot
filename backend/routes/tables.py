@@ -1,10 +1,12 @@
 from flask import Blueprint, jsonify, request
 import time
 from firebase_client import get_db
+from limiter import limiter, LIMIT_PUBLIC_READ, LIMIT_PUBLIC_WRITE
 
 tables_bp = Blueprint('tables', __name__)
 
 @tables_bp.route('/table/<qr_token>', methods=['GET'])
+@limiter.limit(LIMIT_PUBLIC_READ)
 def get_table(qr_token):
     db_ref = get_db()
     
@@ -28,6 +30,7 @@ def _resolve_table(db_ref, qr_token):
     return restaurant_id, table_number, None
 
 @tables_bp.route('/table/<qr_token>/lock-status', methods=['GET'])
+@limiter.limit(LIMIT_PUBLIC_READ)
 def get_table_lock_status(qr_token):
     db_ref = get_db()
     restaurant_id, table_number, table_id = _resolve_table(db_ref, qr_token)
@@ -49,6 +52,7 @@ def get_table_lock_status(qr_token):
     }), 200
 
 @tables_bp.route('/table/<qr_token>/call-waiter', methods=['POST'])
+@limiter.limit(LIMIT_PUBLIC_WRITE)
 def call_waiter(qr_token):
     db_ref = get_db()
     restaurant_id, table_number, table_id = _resolve_table(db_ref, qr_token)

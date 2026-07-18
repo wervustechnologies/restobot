@@ -1,17 +1,16 @@
-import firebase_admin
-from firebase_admin import credentials, db
+import json
 import os
 
-_db_ref = None
+from settings import settings
 
-import json
+import firebase_admin
+from firebase_admin import credentials, db
 
 def init_firebase():
     global _db_ref
     if not firebase_admin._apps:
-        firebase_creds_json = os.environ.get('FIREBASE_CREDENTIALS')
-        if firebase_creds_json:
-            creds_dict = json.loads(firebase_creds_json)
+        if settings.firebase_credentials:
+            creds_dict = json.loads(settings.firebase_credentials)
             cred = credentials.Certificate(creds_dict)
         else:
             # Fallback to the local file for development

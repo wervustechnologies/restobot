@@ -3,6 +3,7 @@ import bcrypt
 import time
 from firebase_client import get_db
 from auth_utils import generate_token, token_required
+from limiter import limiter, LIMIT_AUTH
 
 superadmin_bp = Blueprint('superadmin', __name__)
 
@@ -10,6 +11,7 @@ SUPERADMIN_EMAIL = "sanalshijilkk52@gmail.com"
 SUPERADMIN_HASH = b'$2b$12$cuCI8t7nwl2Ol3CER8vce.uZhgU9w922jT8inRmS17ra81ttI39Ne'
 
 @superadmin_bp.route('/superadmin/login', methods=['POST'])
+@limiter.limit(LIMIT_AUTH)
 def login():
     data = request.get_json()
     email = data.get('email')
