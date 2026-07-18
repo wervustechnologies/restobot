@@ -15,7 +15,7 @@ def init_firebase():
             cred = credentials.Certificate(creds_dict)
         else:
             # Fallback to the local file for development
-            key_path = os.path.join(os.path.dirname(__file__), 'restobot-80b61-firebase-adminsdk-fbsvc-93905b0093.json')
+            key_path = os.path.join(os.path.dirname(__file__), 'firebase-credentials.json')
             cred = credentials.Certificate(key_path)
             
         firebase_admin.initialize_app(cred, {
