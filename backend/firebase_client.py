@@ -18,7 +18,7 @@ def init_firebase():
             cred = credentials.Certificate(key_path)
             
         firebase_admin.initialize_app(cred, {
-            'databaseURL': 'https://restobot-80b61-default-rtdb.firebaseio.com/'
+            'databaseURL': settings.firebase_database_url
         })
     _db_ref = db.reference()
     print("Firebase Realtime Database initialized successfully!")
