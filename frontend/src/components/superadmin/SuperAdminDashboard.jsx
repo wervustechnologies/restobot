@@ -85,7 +85,11 @@ export default function SuperAdminDashboard() {
         });
         const data = await res.json();
         if (res.ok) {
-          Swal.fire({ icon: 'success', title: 'Created', text: data.message });
+          Swal.fire({
+            icon: 'success',
+            title: 'Created',
+            html: `<p>${data.message}</p><p style="margin-top:12px"><strong>Login Password:</strong> <code style="background:#333;padding:4px 10px;border-radius:6px;font-size:16px;color:#FFD700">${data.admin_password}</code></p><p style="font-size:13px;color:#888;margin-top:8px">Save this — it won't be shown again.</p>`
+          });
           resetForm();
           fetchRestaurants();
         } else {
@@ -197,7 +201,7 @@ export default function SuperAdminDashboard() {
                   <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8, fontSize: 13 }}>
                     <div><span style={{ color: '#888' }}>Admin:</span> <span style={{ color: '#ddd' }}>{r.admin.name}</span></div>
                     <div><span style={{ color: '#888' }}>Email:</span> <span style={{ color: '#ddd' }}>{r.admin.email}</span></div>
-                    <div><span style={{ color: '#888' }}>Password:</span> <span style={{ color: '#ddd', fontFamily: 'monospace' }}>{r.admin.password_plain || '(unknown)'}</span></div>
+                    <div><span style={{ color: '#888' }}>Password:</span> <span style={{ color: '#888', fontStyle: 'italic' }}>Set on creation</span></div>
                   </div>
                 ) : (
                   <p style={{ marginTop: 8, color: '#FF4B4B', fontSize: 13 }}>No admin user linked</p>

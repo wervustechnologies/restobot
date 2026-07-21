@@ -111,6 +111,22 @@ def delete_item(id):
     db_ref.child(f'restaurants/{request.restaurant_id}/items/{id}').delete()
     return jsonify({'message': 'Item deleted'}), 200
 
+# --- Item Recommendations ---
+@admin_bp.route('/admin/items/<id>/recommendations', methods=['GET'])
+@token_required
+def get_item_recommendations(id):
+    db_ref = get_db()
+    recs = db_ref.child(f'restaurants/{request.restaurant_id}/items/{id}/recommendations').get()
+    return jsonify(recs or {'food_items': {}, 'beverages': {}}), 200
+
+@admin_bp.route('/admin/items/<id>/recommendations', methods=['PUT'])
+@token_required
+def update_item_recommendations(id):
+    db_ref = get_db()
+    data = request.get_json()
+    db_ref.child(f'restaurants/{request.restaurant_id}/items/{id}/recommendations').set(data)
+    return jsonify({'message': 'Recommendations updated'}), 200
+
 # --- Tables ---
 @admin_bp.route('/admin/tables', methods=['GET'])
 @token_required
