@@ -4,6 +4,7 @@
 
 - **backend/** — Flask API (runs on `http://localhost:5000`)
 - **frontend/** — Vite + React app (runs on `http://localhost:5173`)
+- **superadmin-frontend/** — Vite + React app for super admins (runs on `http://localhost:5174`)
 
 It sets up both environments and runs them together in one terminal, with a single
 <kbd>Ctrl+C</kbd> stopping **both** services cleanly.
@@ -34,7 +35,10 @@ python manage.py run
 Then open the frontend at **http://localhost:5173**. It talks to the API at `http://localhost:5000`
 (CORS already allows `localhost:5173` in `backend/app.py`).
 
-Press <kbd>Ctrl+C</kbd> to stop both processes.
+To run the separate Super Admin frontend, run `python manage.py run-admin` in another terminal.
+It will be available at **http://localhost:5174**.
+
+Press <kbd>Ctrl+C</kbd> to stop running processes.
 
 ---
 
@@ -44,7 +48,8 @@ Press <kbd>Ctrl+C</kbd> to stop both processes.
 | --- | --- |
 | `python manage.py setup` | Create `backend/venv` (if missing) and install `backend/requirements.txt`. Runs `npm install` in `frontend/` (only if `node_modules` is missing). Warns if `backend/.env` or the Firebase credentials are missing. |
 | `python manage.py run` | Start the backend (using the existing venv) and the frontend (`npm run dev`) together. Auto-installs missing deps on first run. <kbd>Ctrl+C</kbd> stops both. |
-| `python manage.py stop` | Terminate any running backend/frontend processes (by port 5000 / 5173). |
+| `python manage.py run-admin` | Start *only* the superadmin-frontend (`npm run dev`). Auto-installs missing deps on first run. <kbd>Ctrl+C</kbd> stops it. Note: you need to run the backend separately if you want the APIs to work. |
+| `python manage.py stop` | Terminate any running backend/frontend/superadmin processes (by port 5000 / 5173 / 5174). |
 | `python manage.py --help` | Show usage. |
 
 ---
@@ -68,5 +73,5 @@ Press <kbd>Ctrl+C</kbd> to stop both processes.
 - **Backend won't start / Firebase errors:** make sure the Firebase admin SDK json exists in
   `backend/` and `backend/.env` has `JWT_SECRET_KEY` set.
 - **Port already in use:** run `python manage.py stop`, or close the other process holding
-  ports 5000 / 5173.
+  ports 5000 / 5173 / 5174.
 - **Changes to `requirements.txt`:** re-run `python manage.py setup` to refresh the venv.
