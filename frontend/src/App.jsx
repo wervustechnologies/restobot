@@ -16,8 +16,6 @@ import AdminOrders from './components/admin/AdminOrders';
 import AdminWaiters from './components/admin/AdminWaiters';
 
 import AdminDashboard from './components/admin/AdminDashboard';
-import SuperAdminLogin from './components/superadmin/SuperAdminLogin';
-import SuperAdminDashboard from './components/superadmin/SuperAdminDashboard';
 
 // Waiter Pages
 import WaiterLogin from './components/waiter/WaiterLogin';
@@ -37,17 +35,6 @@ function RootRoute() {
 
 function CustomerApp() {
   const navigate = useNavigate();
-
-  React.useEffect(() => {
-    const handleKeys = (e) => {
-      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
-        e.preventDefault();
-        navigate('/superadmin/login');
-      }
-    };
-    window.addEventListener('keydown', handleKeys);
-    return () => window.removeEventListener('keydown', handleKeys);
-  }, [navigate]);
 
   return (
     <Routes>
@@ -69,10 +56,6 @@ function CustomerApp() {
       {/* Waiter Routes */}
       <Route path="/waiter/login" element={<WaiterLogin />} />
       <Route path="/waiter/home" element={<WaiterHome />} />
-
-      {/* Super Admin Routes */}
-      <Route path="/superadmin/login" element={<SuperAdminLogin />} />
-      <Route path="/superadmin/dashboard" element={<SuperAdminDashboard />} />
     </Routes>
   );
 }
