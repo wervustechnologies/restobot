@@ -28,12 +28,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 BACKEND = ROOT / "backend"
 FRONTEND = ROOT / "frontend"
+SUPERADMIN_FRONTEND = ROOT / "superadmin-frontend"
 
 VENV = BACKEND / "venv"
 VENV_PY = VENV / "Scripts" / "python.exe"
 
 BACKEND_PORT = 5000
 FRONTEND_PORT = 5173
+SUPERADMIN_PORT = 5174
 
 NPM = "npm.cmd" if os.name == "nt" else "npm"
 
@@ -194,6 +196,55 @@ def cmd_run(_args):
         shutdown()
 
 
+def cmd_run_admin(_args):
+    if not (SUPERADMIN_FRONTEND / "node_modules").exists():
+        info("Installing superadmin-frontend dependencies (npm install) ...")
+        subprocess.check_call([NPM, "install"], cwd=str(SUPERADMIN_FRONTEND), shell=(os.name == "nt"))
+
+    procs = []
+
+    info("Starting superadmin-frontend on http://localhost:%d ..." % SUPERADMIN_PORT)
+    admin_proc = subprocess.Popen(
+        [NPM, "run", "dev"],
+        cwd=str(SUPERADMIN_FRONTEND),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        shell=(os.name == "nt"),
+    )
+    procs.append(("superadmin-frontend", admin_proc))
+
+    threads = []
+    for name, proc in procs:
+        t = threading.Thread(target=stream_output, args=(proc, name), daemon=True)
+        t.start()
+        threads.append(t)
+
+    def shutdown(*_):
+        info("Shutting down superadmin-frontend ...")
+        for name, proc in procs:
+            if proc.poll() is None:
+                info(f"Terminating {name} (pid {proc.pid}) ...")
+                terminate_tree(proc.pid)
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, shutdown)
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, shutdown)
+
+    info("Superadmin frontend is starting. Press Ctrl+C to stop.")
+
+    try:
+        while True:
+            for name, proc in procs:
+                code = proc.poll()
+                if code is not None:
+                    warn(f"{name} exited with code {code}.")
+                    shutdown()
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        shutdown()
+
+
 def terminate_tree(pid, force=False):
     """Terminate a process and its children."""
     if os.name == "nt":
@@ -238,6 +289,11 @@ def cmd_stop(_args):
         info(f"Stopping frontend process on port {FRONTEND_PORT} (pid {pid}) ...")
         terminate_tree(pid, force=True)
         stopped_any = True
+        
+    for pid in _pids_on_port(SUPERADMIN_PORT):
+        info(f"Stopping superadmin-frontend process on port {SUPERADMIN_PORT} (pid {pid}) ...")
+        terminate_tree(pid, force=True)
+        stopped_any = True
 
     if not stopped_any:
         info("No running backend/frontend processes found.")
@@ -260,6 +316,9 @@ def main():
 
     p_run = sub.add_parser("run", help="Run backend and frontend together (Ctrl+C stops both)")
     p_run.set_defaults(func=cmd_run)
+
+    p_run_admin = sub.add_parser("run-admin", help="Run just the superadmin frontend (Ctrl+C stops)")
+    p_run_admin.set_defaults(func=cmd_run_admin)
 
     p_stop = sub.add_parser("stop", help="Terminate running backend/frontend processes")
     p_stop.set_defaults(func=cmd_stop)
