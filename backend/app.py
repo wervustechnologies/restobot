@@ -36,7 +36,7 @@ def create_app():
         pass
 
     CORS(app, resources={r"/api/*": {
-        "origins": allowed_origins,
+        "origins": "*",
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
         "supports_credentials": True
@@ -46,19 +46,19 @@ def create_app():
     def handle_preflight():
         if request.method == 'OPTIONS':
             origin = request.headers.get('Origin', '')
-            if origin in allowed_origins:
-                resp = app.make_default_options_response()
+            resp = app.make_default_options_response()
+            if origin:
                 resp.headers['Access-Control-Allow-Origin'] = origin
-                resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-                resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept'
-                resp.headers['Access-Control-Allow-Credentials'] = 'true'
-                resp.headers['Access-Control-Max-Age'] = '3600'
-                return resp
+            resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept'
+            resp.headers['Access-Control-Allow-Credentials'] = 'true'
+            resp.headers['Access-Control-Max-Age'] = '3600'
+            return resp
 
     @app.after_request
     def add_cors_headers(response):
         origin = request.headers.get('Origin', '')
-        if origin in allowed_origins:
+        if origin:
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Credentials'] = 'true'
         return response
