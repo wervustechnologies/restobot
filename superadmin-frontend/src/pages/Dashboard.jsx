@@ -23,7 +23,8 @@ export default function Dashboard() {
         return;
       }
       
-      const res = await fetch('/api/superadmin/restaurants', {
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+      const res = await fetch(`${API_BASE}/api/superadmin/restaurants`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.status === 401 || res.status === 403) {
@@ -83,9 +84,10 @@ export default function Dashboard() {
     e.preventDefault();
     const token = localStorage.getItem('superadminToken');
     
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
     const url = editingRestaurant 
-      ? `/api/superadmin/restaurant/${editingRestaurant.rid}` 
-      : '/api/superadmin/create-restaurant';
+      ? `${API_BASE}/api/superadmin/restaurant/${editingRestaurant.rid}` 
+      : `${API_BASE}/api/superadmin/create-restaurant`;
       
     const method = editingRestaurant ? 'PUT' : 'POST';
     
@@ -122,7 +124,8 @@ export default function Dashboard() {
     
     const token = localStorage.getItem('superadminToken');
     try {
-      const res = await fetch(`/api/superadmin/restaurant/${id}`, {
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+      const res = await fetch(`${API_BASE}/api/superadmin/restaurant/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

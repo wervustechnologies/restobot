@@ -84,7 +84,7 @@ def install_frontend_deps():
 def check_env_files():
     if not (BACKEND / ".env").exists():
         warn("backend/.env not found. Copy backend/.env.example to backend/.env and set jwt_secret_key.")
-    firebase = list(BACKEND.glob("restobot-*-firebase-adminsdk-*.json"))
+    firebase = list(BACKEND.glob("firebase-credentials.json"))
     if not firebase:
         warn("Firebase admin SDK credentials json not found in backend/. The backend may fail to start.")
 
