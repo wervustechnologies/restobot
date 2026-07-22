@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { API_BASE_URL } from '../apiConfig';
 
-const DEFAULT_COURSE_ORDER = ['starter', 'main', 'bread', 'rice', 'dessert'];
+const DEFAULT_COURSE_ORDER = ['starter', 'main', 'bread', 'rice', 'dessert', 'beverage'];
 
 const getCourseInfo = (ct) => {
   const labels = {
@@ -9,14 +9,16 @@ const getCourseInfo = (ct) => {
     main: 'Main Course',
     bread: 'Bread',
     rice: 'Rice',
-    dessert: 'Dessert'
+    dessert: 'Dessert',
+    beverage: 'Beverage'
   };
   const questions = {
     starter: 'Pick a <b>starter</b> to begin your meal:',
     main: 'Now choose your <b>main course</b>:',
     bread: 'Add a <b>bread</b> to go with it?',
     rice: 'Would you like a <b>rice dish</b>?',
-    dessert: 'End on a sweet note? Pick a <b>dessert</b>:'
+    dessert: 'End on a sweet note? Pick a <b>dessert</b>:',
+    beverage: 'Pick a <b>beverage</b> to go with your meal:'
   };
   const skippable = !['starter', 'main'].includes(ct.toLowerCase());
   return {

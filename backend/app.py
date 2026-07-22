@@ -1,3 +1,4 @@
+import socket
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from limiter import limiter
@@ -22,6 +23,15 @@ def create_app():
     for origin in known_origins:
         if origin not in allowed_origins:
             allowed_origins.append(origin)
+
+    try:
+        host_ip = socket.gethostbyname(socket.gethostname())
+        for port in ("5173", "5174", "5000"):
+            origin = f"http://{host_ip}:{port}"
+            if origin not in allowed_origins:
+                allowed_origins.append(origin)
+    except Exception:
+        pass
 
     CORS(app, resources={r"/api/*": {
         "origins": allowed_origins,
@@ -61,6 +71,7 @@ def create_app():
     from routes.wishlist import wishlist_bp
     from routes.guests import guests_bp
     from routes.orders import orders_bp
+    from routes.feedback import feedback_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(admin_bp, url_prefix='/api')
@@ -72,5 +83,6 @@ def create_app():
     app.register_blueprint(wishlist_bp, url_prefix='/api')
     app.register_blueprint(guests_bp, url_prefix='/api')
     app.register_blueprint(orders_bp, url_prefix='/api')
+    app.register_blueprint(feedback_bp, url_prefix='/api')
 
     return app

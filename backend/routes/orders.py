@@ -53,6 +53,15 @@ def create_order():
 
     return jsonify({'success': True, 'order_id': order_ref.key, 'order': order_data}), 201
 
+@orders_bp.route('/orders/guest/<restaurant_id>/<guest_id>', methods=['GET'])
+@limiter.limit(LIMIT_PUBLIC_WRITE)
+def get_guest_orders(restaurant_id, guest_id):
+    db_ref = get_db()
+    orders = format_list(db_ref.child(f'restaurants/{restaurant_id}/orders').get())
+    guest_orders = [o for o in orders if o.get('guest_id') == guest_id]
+    guest_orders.sort(key=lambda x: x.get('created_at', 0), reverse=True)
+    return jsonify(guest_orders), 200
+
 @orders_bp.route('/orders/<restaurant_id>', methods=['GET'])
 @token_required
 def get_orders(restaurant_id):

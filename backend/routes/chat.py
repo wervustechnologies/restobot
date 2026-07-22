@@ -28,6 +28,26 @@ def suggest_item():
     active_items = [i for i in items if i.get('is_enabled') is not False]
 
     current_id = str(current_item.get('id', ''))
+
+    # Check for admin-defined food recommendations on the current item
+    recs = res_data.get('items', {}).get(current_id, {}).get('recommendations', {})
+    food_recs = recs.get('food_items', {})
+    if food_recs:
+        candidates = []
+        for rec_id, rec_data in food_recs.items():
+            match = next((i for i in active_items if str(i.get('id', '')) == rec_id), None)
+            if match:
+                priority_score = {'high': 3, 'medium': 2, 'low': 1}.get(rec_data.get('priority', 'medium'), 2)
+                candidates.append({**match, 'score': priority_score})
+        candidates.sort(key=lambda x: x.get('score', 0), reverse=True)
+        best = candidates[0] if candidates else None
+        if best:
+            return jsonify({
+                'suggestion': best,
+                'message': f"If you liked {current_item.get('name', 'that')}, you might also enjoy our <b>{best['name']}</b>!"
+            }), 200
+
+    # Fallback: hardcoded matching logic
     current_spice = current_item.get('spice_level', 3)
     current_type = current_item.get('item_type', 'non-veg')
 
@@ -81,7 +101,6 @@ def evaluate_meal():
         return jsonify({'error': 'Restaurant not found'}), 404
 
     items = format_list(res_data.get('items'))
-    categories = format_list(res_data.get('categories'))
     active_items = [i for i in items if i.get('is_enabled') is not False]
 
     selected_items = [v for v in selections.values() if v]
@@ -89,6 +108,33 @@ def evaluate_meal():
         return jsonify({'suggestion': None, 'suggestion_text': ''}), 200
 
     selected_ids = {str(v.get('id', '')) for v in selected_items}
+
+    # Check for admin-defined beverage recommendations across all selected items
+    beverage_candidates = []
+    for v in selected_items:
+        sel_id = str(v.get('id', ''))
+        recs = res_data.get('items', {}).get(sel_id, {}).get('recommendations', {})
+        bev_recs = recs.get('beverages', {})
+        for rec_id, rec_data in bev_recs.items():
+            if rec_id in selected_ids:
+                continue
+            match = next((i for i in active_items if str(i.get('id', '')) == rec_id), None)
+            if match:
+                priority_score = {'high': 3, 'medium': 2, 'low': 1}.get(rec_data.get('priority', 'medium'), 2)
+                beverage_candidates.append({**match, 'score': priority_score})
+
+    if beverage_candidates:
+        beverage_candidates.sort(key=lambda x: x.get('score', 0), reverse=True)
+        best = beverage_candidates[0]
+        selected_names = ', '.join([v.get('name', '') for v in selected_items])
+        return jsonify({
+            'suggestion': best,
+            'suggestion_text': f"Along with {selected_names}, our <b>{best['name']}</b> would be a perfect combination!"
+        }), 200
+
+    # Fallback: hardcoded matching logic
+    categories = format_list(res_data.get('categories'))
+
     selected_types = {v.get('item_type', 'non-veg') for v in selected_items}
     preferred_type = 'non-veg' if 'non-veg' in selected_types else 'veg'
 

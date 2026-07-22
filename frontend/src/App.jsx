@@ -14,6 +14,7 @@ import AdminMenuManager from './components/admin/AdminMenuManager';
 import AdminTables from './components/admin/AdminTables';
 import AdminOrders from './components/admin/AdminOrders';
 import AdminWaiters from './components/admin/AdminWaiters';
+import AdminReviews from './components/admin/AdminReviews';
 
 import AdminDashboard from './components/admin/AdminDashboard';
 
@@ -50,6 +51,7 @@ function CustomerApp() {
         <Route path="menu" element={<AdminMenuManager />} />
         <Route path="tables" element={<AdminTables />} />
         <Route path="waiters" element={<AdminWaiters />} />
+        <Route path="reviews" element={<AdminReviews />} />
         <Route path="settings" element={<div><h1>Settings</h1><p>Restaurant settings coming soon</p></div>} />
       </Route>
 

@@ -6,6 +6,8 @@ from settings import settings
 import firebase_admin
 from firebase_admin import credentials, db
 
+_db_ref = None
+
 def init_firebase():
     global _db_ref
     if not firebase_admin._apps:
