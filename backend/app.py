@@ -12,6 +12,7 @@ def create_app():
     limiter.init_app(app)
 
     allowed_origins = [o.strip() for o in settings.allowed_origins.split(',') if o.strip()]
+    print(f"[CORS] Configured allowed_origins: {allowed_origins}")
 
     CORS(app, resources={r"/api/*": {
         "origins": allowed_origins,
@@ -27,6 +28,8 @@ def create_app():
             resp = app.make_default_options_response()
             if origin in allowed_origins:
                 resp.headers['Access-Control-Allow-Origin'] = origin
+            else:
+                print(f"[CORS] Blocked OPTIONS request from origin: {origin}")
             resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
             resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept'
             resp.headers['Access-Control-Allow-Credentials'] = 'true'
