@@ -6,6 +6,7 @@ class Settings(BaseSettings):
 
     jwt_secret_key: str
     firebase_credentials: str | None = None
+    firebase_credentials_path: str | None = None
     firebase_database_url: str = ""
     frontend_url: str = ""
 

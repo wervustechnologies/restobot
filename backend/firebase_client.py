@@ -14,11 +14,14 @@ def init_firebase():
         if settings.firebase_credentials:
             creds_dict = json.loads(settings.firebase_credentials)
             cred = credentials.Certificate(creds_dict)
+        elif settings.firebase_credentials_path:
+            key_path = settings.firebase_credentials_path
+            cred = credentials.Certificate(key_path)
         else:
-            # Fallback to the local file for development
             key_path = os.path.join(os.path.dirname(__file__), 'firebase-credentials.json')
             cred = credentials.Certificate(key_path)
             
+
         firebase_admin.initialize_app(cred, {
             'databaseURL': settings.firebase_database_url
         })
