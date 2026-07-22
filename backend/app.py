@@ -17,6 +17,8 @@ def create_app():
     
     known_origins = [
         "https://restobot-zeta.vercel.app",
+        "https://restobot-super-admin-resonance-318c.wervustechnologies.workers.dev",
+        "https://restobot-client-art-7fcd.wervustechnologies.workers.dev",
         "http://localhost:5173",
         "http://localhost:5174",
     ]
