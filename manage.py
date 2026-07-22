@@ -8,6 +8,7 @@ Usage (from the repo root):
     python manage.py setup   # create backend venv + install deps, npm install frontend
     python manage.py run     # start backend (:5000) and frontend (:5173); Ctrl+C stops both
     python manage.py stop    # terminate any running backend/frontend processes
+    python manage.py deploy-backend  # run backend only in production mode (gunicorn)
 
 Notes:
     - Windows only (uses backend/venv/Scripts/python.exe and taskkill).
@@ -196,6 +197,29 @@ def cmd_run(_args):
         shutdown()
 
 
+def cmd_run_backend(_args):
+    if not VENV_PY.exists():
+        warn("Backend venv missing; creating it and installing dependencies (first run).")
+        ensure_venv()
+        install_backend_deps()
+
+    check_env_files()
+
+    gunicorn = VENV / "Scripts" / "gunicorn.exe"
+    if not gunicorn.exists():
+        die("gunicorn not found in backend venv. Run: python manage.py setup")
+
+    info("Starting backend in production mode on http://0.0.0.0:%d ..." % BACKEND_PORT)
+    env = os.environ.copy()
+    env["FLASK_ENV"] = "production"
+    proc = subprocess.Popen(
+        [str(gunicorn), "run:app", "--bind", "0.0.0.0:%d" % BACKEND_PORT, "--workers", "2"],
+        cwd=str(BACKEND),
+        env=env,
+    )
+    proc.wait()
+
+
 def cmd_run_admin(_args):
     if not (SUPERADMIN_FRONTEND / "node_modules").exists():
         info("Installing superadmin-frontend dependencies (npm install) ...")
@@ -319,6 +343,9 @@ def main():
 
     p_run_admin = sub.add_parser("run-admin", help="Run just the superadmin frontend (Ctrl+C stops)")
     p_run_admin.set_defaults(func=cmd_run_admin)
+
+    p_deploy_backend = sub.add_parser("deploy-backend", help="Run backend in production mode only (gunicorn)")
+    p_deploy_backend.set_defaults(func=cmd_run_backend)
 
     p_stop = sub.add_parser("stop", help="Terminate running backend/frontend processes")
     p_stop.set_defaults(func=cmd_stop)
