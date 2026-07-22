@@ -78,7 +78,8 @@ def get_menu(restaurant_id):
         'restaurant': {
             'id': restaurant_id,
             'name': res_data.get('name'),
-            'address': res_data.get('address')
+            'address': res_data.get('address'),
+            'review_link': res_data.get('review_link', '')
         },
         'main_categories': main_categories
     }), 200

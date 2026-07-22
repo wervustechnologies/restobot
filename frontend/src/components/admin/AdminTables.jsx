@@ -7,7 +7,7 @@ import Swal from 'sweetalert2';
 export default function AdminTables() {
   const [tables, setTables] = useState([]);
   const [newTableNum, setNewTableNum] = useState('');
-  const [qrBaseUrl, setQrBaseUrl] = useState(() => localStorage.getItem('qr_base_url') || window.location.origin);
+  const [qrBaseUrl, setQrBaseUrl] = useState('http://10.176.17.35:5173');
   const [qrCodes, setQrCodes] = useState({});
   const { token, user } = useAuth();
 
@@ -22,22 +22,6 @@ export default function AdminTables() {
       }
       const data = await res.json();
       setTables(Array.isArray(data) ? data : []);
-
-      // Try to get server IP to suggest a better QR Base URL
-      const infoRes = await fetch(`${API_BASE_URL}/admin/server-info`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (infoRes.ok) {
-        const infoData = await infoRes.json();
-        if (infoData.local_ip && infoData.local_ip !== '127.0.0.1') {
-          const currentUrl = new URL(qrBaseUrl);
-          if (currentUrl.hostname === 'localhost' || currentUrl.hostname === '127.0.0.1') {
-            const suggestedUrl = `${currentUrl.protocol}//${infoData.local_ip}:${currentUrl.port || '5173'}`;
-            setQrBaseUrl(suggestedUrl);
-            localStorage.setItem('qr_base_url', suggestedUrl);
-          }
-        }
-      }
 
       // Generate QR codes
       const codes = {};
@@ -61,9 +45,7 @@ export default function AdminTables() {
   }, [token, qrBaseUrl]);
 
   const handleBaseUrlChange = (e) => {
-    const newUrl = e.target.value;
-    setQrBaseUrl(newUrl);
-    localStorage.setItem('qr_base_url', newUrl);
+    setQrBaseUrl(e.target.value);
   };
 
   const handleAddTable = async (e) => {

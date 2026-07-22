@@ -72,7 +72,6 @@ def register_waiter():
     user_ref = db_ref.child('users').push({
         'email': email,
         'password': hashed_pw,
-        'password_plain': password,
         'name': name,
         'restaurant_id': request.restaurant_id,
         'role': 'waiter',

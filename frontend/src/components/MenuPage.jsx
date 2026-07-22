@@ -12,6 +12,9 @@ export default function MenuPage() {
   const [hasLoadedCart, setHasLoadedCart] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [showWishlist, setShowWishlist] = useState(false);
+  const [showOrders, setShowOrders] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchParams] = useSearchParams();
@@ -146,6 +149,21 @@ export default function MenuPage() {
     }
   }, [cart, hasLoadedCart, guest, restaurantId, data]);
 
+  // Load placed orders and poll for updates
+  useEffect(() => {
+    if (!guest?.guest_id || !(restaurantId || data?.restaurant?.id)) return;
+    const rid = restaurantId || data?.restaurant?.id;
+    const fetchOrders = () => {
+      fetch(`${API}/orders/guest/${rid}/${guest.guest_id}`)
+        .then(r => r.json())
+        .then(d => setOrders(d.filter(o => o.status !== 'completed')))
+        .catch(() => {});
+    };
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 8000);
+    return () => clearInterval(interval);
+  }, [guest, restaurantId, data]);
+
   const addItem = (item) => {
     setCart(prev => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }));
   };
@@ -220,32 +238,37 @@ export default function MenuPage() {
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button onClick={() => setShowWishlist(true)} style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 18px', borderRadius: 20, color: '#FFF', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-              <span style={{ fontSize: 24 }}>🍽️</span>
-              {cartCount > 0 && <span style={{ background: '#FFF', color: '#FF6B35', borderRadius: 12, padding: '3px 8px', fontSize: 14 }}>{cartCount}</span>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {data?.restaurant?.review_link && (
+              <a href={data.restaurant.review_link} target="_blank" rel="noopener noreferrer" style={{ background: 'rgba(255,215,0,0.25)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,215,0,0.2)', padding: '10px 14px', borderRadius: 20, color: '#FFD700', fontWeight: 800, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', textDecoration: 'none' }}>
+                <span style={{ fontSize: 16 }}>⭐</span> Reviews
+              </a>
+            )}
+            <button onClick={() => setShowOrders(true)} style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 14px', borderRadius: 20, color: '#FFF', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+              <span style={{ fontSize: 18 }}>🍽️</span>
+              <span style={{ background: orders.length > 0 ? '#FFF' : 'rgba(255,255,255,0.15)', color: orders.length > 0 ? '#FF6B35' : 'rgba(255,255,255,0.6)', borderRadius: 12, padding: '3px 8px', fontSize: 13, minWidth: 22, textAlign: 'center' }}>{orders.length}</span>
             </button>
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 10,
+              gap: 8,
               background: 'rgba(255,255,255,0.2)',
               backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255,255,255,0.1)',
-              padding: '8px 14px',
+              padding: '6px 12px',
               borderRadius: 16
             }}>
-              <div style={{ width: 32, height: 32, background: '#FFF', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
+              <div style={{ width: 28, height: 28, background: '#FFF', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
                 👤
               </div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>Guest ID</span>
-                <span style={{ fontSize: 13, color: '#FFF', fontWeight: 800 }}>#{guest?.guest_id?.substring(0, 6)}</span>
+                <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.7)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>Guest</span>
+                <span style={{ fontSize: 12, color: '#FFF', fontWeight: 800 }}>#{guest?.guest_id?.substring(0, 6)}</span>
               </div>
             </div>
           </div>
         </div>
-        {/* Call Waiter Button */}
+        {/* Actions Row */}
         <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
           <button onClick={async () => {
             const res = await fetch(`${API}/table/${qrToken}/call-waiter`, { method: 'POST' });
@@ -257,6 +280,14 @@ export default function MenuPage() {
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
           }}>
             <span style={{ fontSize: 20 }}>🔔</span> Call Waiter
+          </button>
+          <button onClick={() => setShowFeedback(true)} style={{
+            flex: 1, padding: '14px', borderRadius: 16, border: 'none',
+            background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)',
+            color: '#FFF', fontWeight: 900, fontSize: 15, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+          }}>
+            <span style={{ fontSize: 20 }}>💬</span> Give Feedback
           </button>
           {lockInfo?.call_waiter && (
             <div style={{
@@ -370,6 +401,14 @@ export default function MenuPage() {
         </div>
       )}
 
+      {showOrders && (
+        <OrdersDrawer
+          orders={orders}
+          onClose={() => setShowOrders(false)}
+          onNewOrder={() => { setShowOrders(false); setShowWishlist(true); }}
+        />
+      )}
+
       {showWishlist && (
         <WishlistDrawer
           items={cartItems}
@@ -383,6 +422,14 @@ export default function MenuPage() {
           navigate={navigate}
           restaurantId={restaurantId || data?.restaurant?.id}
           qrToken={qrToken}
+        />
+      )}
+
+      {showFeedback && (
+        <FeedbackModal
+          restaurantId={restaurantId || data?.restaurant?.id}
+          guestId={guest?.guest_id}
+          onClose={() => setShowFeedback(false)}
         />
       )}
     </div>
@@ -418,6 +465,120 @@ function QtyControl({ qty, onAdd, onRemove }) {
   return <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#FF6B35', borderRadius: 12, padding: '7px 15px', boxShadow: '0 4px 12px rgba(255,107,53,0.3)' }}><button onClick={onRemove} style={{ background: 'none', color: '#fff', fontSize: 18, fontWeight: 900, border: 'none' }}>−</button><span style={{ color: '#fff', fontSize: 16, fontWeight: 900 }}>{qty}</span><button onClick={onAdd} style={{ background: 'none', color: '#fff', fontSize: 18, fontWeight: 900, border: 'none' }}>+</button></div>;
 }
 
+function FeedbackModal({ restaurantId, guestId, onClose }) {
+  const [rating, setRating] = useState(0);
+  const [hoveredStar, setHoveredStar] = useState(0);
+  const [description, setDescription] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = async () => {
+    if (rating === 0) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${API}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurant_id: restaurantId,
+          rating,
+          description,
+          guest_id: guestId || ''
+        })
+      });
+      if (res.ok) {
+        setSubmitted(true);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 200, backdropFilter: 'blur(8px)' }} />
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, width: '100%', zIndex: 201, background: '#FFF', borderRadius: '32px 32px 0 0', padding: '0 0 40px', animation: 'slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 -20px 60px rgba(0,0,0,0.1)' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '15px 0' }}><div style={{ width: 40, height: 5, borderRadius: 10, background: '#EEE' }} /></div>
+        {submitted ? (
+          <div style={{ padding: '40px 24px', textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+            <h2 style={{ fontSize: 22, fontWeight: 900, color: '#1A1A1A', marginBottom: 8 }}>Thank You!</h2>
+            <p style={{ fontSize: 15, color: '#888', marginBottom: 24 }}>Your feedback helps us improve.</p>
+            <button onClick={onClose} className="btn-primary" style={{ width: '100%', padding: '16px', fontSize: 16 }}>Close</button>
+          </div>
+        ) : (
+          <>
+            <div style={{ padding: '10px 24px 20px', borderBottom: '1px solid #F5F5F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 22, fontWeight: 900, color: '#1A1A1A' }}>Give Feedback</h2>
+              <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#999', padding: '4px 8px', borderRadius: 8 }}>✕</button>
+            </div>
+            <div style={{ padding: '24px 24px 0' }}>
+              <p style={{ fontSize: 14, color: '#666', marginBottom: 16, fontWeight: 600 }}>Rate your experience</p>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 24 }}>
+                {[1, 2, 3, 4, 5].map(star => (
+                  <button
+                    key={star}
+                    onClick={() => setRating(star)}
+                    onMouseEnter={() => setHoveredStar(star)}
+                    onMouseLeave={() => setHoveredStar(0)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: 40,
+                      cursor: 'pointer',
+                      color: (hoveredStar || rating) >= star ? '#FFD700' : '#DDD',
+                      transition: 'all 0.15s',
+                      transform: (hoveredStar || rating) >= star ? 'scale(1.1)' : 'scale(1)'
+                    }}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Tell us about your experience (optional)..."
+                rows={4}
+                style={{
+                  width: '100%',
+                  padding: '14px 18px',
+                  borderRadius: 12,
+                  border: '1.5px solid rgba(0,0,0,0.08)',
+                  background: '#F5F5F5',
+                  fontSize: 15,
+                  color: '#1A1A1A',
+                  resize: 'none',
+                  outline: 'none',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
+            <div style={{ padding: '24px' }}>
+              <button
+                onClick={handleSubmit}
+                disabled={rating === 0 || submitting}
+                className="btn-primary"
+                style={{
+                  width: '100%',
+                  padding: '18px',
+                  fontSize: 16,
+                  opacity: rating === 0 ? 0.5 : 1,
+                  cursor: rating === 0 ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {submitting ? 'Submitting...' : 'Submit Feedback ✨'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
 function WishlistDrawer({ items, total, onAdd, onRemove, onClose, onSave, isModified, wishlistId, navigate, restaurantId, qrToken }) {
   const showViewOnly = !isModified && wishlistId;
   const handleAction = () => {
@@ -450,6 +611,57 @@ function WishlistDrawer({ items, total, onAdd, onRemove, onClose, onSave, isModi
           <button onClick={handleAction} className="btn-primary" style={{ width: '100%', padding: '20px', fontSize: 18 }}>
             {showViewOnly ? 'View My List ✨' : 'Save to My List ✨'}
           </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function OrdersDrawer({ orders, onClose, onNewOrder }) {
+  const statusColor = { pending: '#FF6B35', claimed: '#3498DB', completed: '#1DB954' };
+  const statusLabel = { pending: 'Pending', claimed: 'Preparing', completed: 'Completed' };
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 200, backdropFilter: 'blur(8px)' }} />
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, width: '100%', zIndex: 201, background: '#FFF', borderRadius: '32px 32px 0 0', padding: '0 0 40px', animation: 'slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 -20px 60px rgba(0,0,0,0.1)' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '15px 0' }}><div style={{ width: 40, height: 5, borderRadius: 10, background: '#EEE' }} /></div>
+        <div style={{ padding: '10px 24px 20px', borderBottom: '1px solid #F5F5F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ fontSize: 22, fontWeight: 900, color: '#1A1A1A' }}>My Orders</h2>
+        </div>
+        <div style={{ overflowY: 'auto', padding: '10px 24px', flex: 1 }}>
+          {orders.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <p style={{ fontSize: 40, marginBottom: 12 }}>✅</p>
+              <p style={{ fontSize: 16, fontWeight: 700, color: '#888', marginBottom: 8 }}>All orders served!</p>
+              <p style={{ fontSize: 13, color: '#AAA' }}>Served orders are cleared. Place a new order to see it here.</p>
+              <button onClick={onNewOrder} className="btn-primary" style={{ marginTop: 20, padding: '14px 28px', fontSize: 15 }}>Start New Order</button>
+            </div>
+          ) : (
+            orders.map(order => (
+              <div key={order.id} style={{ marginBottom: 16, background: '#F9F9F9', borderRadius: 16, padding: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#888' }}>Table {order.table_number}</span>
+                    <span style={{ fontSize: 11, color: '#AAA', marginLeft: 8 }}>{new Date(order.created_at * 1000).toLocaleTimeString()}</span>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 800, padding: '4px 10px', borderRadius: 10, background: (statusColor[order.status] || '#888') + '20', color: statusColor[order.status] || '#888' }}>
+                    {statusLabel[order.status] || order.status}
+                  </span>
+                </div>
+                {order.items?.map((item, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A' }}>{item.quantity}x {item.name}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#1A1A1A' }}>₹{item.price * item.quantity}</span>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 8, borderTop: '1px solid #EEE' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#888' }}>Total</span>
+                  <span style={{ fontSize: 18, fontWeight: 900, color: '#FF6B35' }}>₹{order.total_amount}</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </>
