@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     firebase_credentials: str | None = None
     firebase_credentials_path: str | None = None
     firebase_database_url: str = ""
-    frontend_url: str = ""
+    allowed_origins: str = ""
 
     ratelimit_storage_uri: str = "memory://"
     ratelimit_default: str = "200 per minute"

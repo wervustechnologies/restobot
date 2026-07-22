@@ -1,4 +1,3 @@
-import socket
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from limiter import limiter
@@ -12,31 +11,10 @@ def create_app():
 
     limiter.init_app(app)
 
-    frontend_url = settings.frontend_url
-    allowed_origins = [o.strip() for o in frontend_url.split(',') if o.strip()] if frontend_url else []
-    
-    known_origins = [
-        "https://restobot-zeta.vercel.app",
-        "https://restobot-super-admin-resonance-318c.wervustechnologies.workers.dev",
-        "https://restobot-client-art-7fcd.wervustechnologies.workers.dev",
-        "http://localhost:5173",
-        "http://localhost:5174",
-    ]
-    for origin in known_origins:
-        if origin not in allowed_origins:
-            allowed_origins.append(origin)
-
-    try:
-        host_ip = socket.gethostbyname(socket.gethostname())
-        for port in ("5173", "5174", "5000"):
-            origin = f"http://{host_ip}:{port}"
-            if origin not in allowed_origins:
-                allowed_origins.append(origin)
-    except Exception:
-        pass
+    allowed_origins = [o.strip() for o in settings.allowed_origins.split(',') if o.strip()]
 
     CORS(app, resources={r"/api/*": {
-        "origins": "*",
+        "origins": allowed_origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
         "supports_credentials": True
@@ -47,7 +25,7 @@ def create_app():
         if request.method == 'OPTIONS':
             origin = request.headers.get('Origin', '')
             resp = app.make_default_options_response()
-            if origin:
+            if origin in allowed_origins:
                 resp.headers['Access-Control-Allow-Origin'] = origin
             resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
             resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept'
@@ -58,7 +36,7 @@ def create_app():
     @app.after_request
     def add_cors_headers(response):
         origin = request.headers.get('Origin', '')
-        if origin:
+        if origin in allowed_origins:
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Credentials'] = 'true'
         return response
