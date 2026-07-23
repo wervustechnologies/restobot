@@ -160,6 +160,23 @@ def complete_order(order_id):
 
     return jsonify({'success': True, 'message': 'Order completed'}), 200
 
+@orders_bp.route('/orders/<order_id>/serve', methods=['PUT'])
+@token_required
+def serve_order(order_id):
+    db_ref = get_db()
+    restaurant_id = request.restaurant_id
+
+    order = db_ref.child(f'restaurants/{restaurant_id}/orders/{order_id}').get()
+    if not order:
+        return jsonify({'error': 'Order not found'}), 404
+
+    db_ref.child(f'restaurants/{restaurant_id}/orders/{order_id}').update({
+        'status': 'served',
+        'served_at': time.time()
+    })
+
+    return jsonify({'success': True, 'message': 'Order served'}), 200
+
 @orders_bp.route('/orders/table/<table_number>/lock', methods=['PUT'])
 @token_required
 def lock_table(table_number):
@@ -254,6 +271,7 @@ def dismiss_call(table_number):
 def get_tables_with_orders():
     db_ref = get_db()
     restaurant_id = request.restaurant_id
+    filter_type = request.args.get('filter', 'completed')
 
     tables = format_list(db_ref.child(f'restaurants/{restaurant_id}/tables').get())
     # Live status board only needs active orders. RTDB equal_to takes a single
@@ -261,7 +279,16 @@ def get_tables_with_orders():
     # pulling the restaurant's full order history on every poll.
     pending = format_list(db_ref.child(f'restaurants/{restaurant_id}/orders').order_by_child('status').equal_to('pending').get())
     claimed = format_list(db_ref.child(f'restaurants/{restaurant_id}/orders').order_by_child('status').equal_to('claimed').get())
-    orders = pending + claimed
+    served = format_list(db_ref.child(f'restaurants/{restaurant_id}/orders').order_by_child('status').equal_to('served').get())
+    orders = pending + claimed + served
+
+    if filter_type in ('completed', 'all'):
+        completed = format_list(db_ref.child(f'restaurants/{restaurant_id}/orders').order_by_child('status').equal_to('completed').limit_to_last(200).get())
+        orders += completed
+        
+    if filter_type in ('billed', 'all'):
+        billed = format_list(db_ref.child(f'restaurants/{restaurant_id}/orders').order_by_child('status').equal_to('billed').limit_to_last(200).get())
+        orders += billed
 
     table_orders = {}
     for table in tables:
@@ -276,7 +303,9 @@ def get_tables_with_orders():
             'call_waiter_at': table.get('call_waiter_at'),
             'orders': [],
             'total_amount': 0,
-            'has_pending': False
+            'has_pending': False,
+            'has_completed': False,
+            'has_billed': False
         }
 
     for order in orders:
@@ -284,11 +313,57 @@ def get_tables_with_orders():
         if tnum not in table_orders:
             continue
         table_orders[tnum]['orders'].append(order)
-        if order.get('status') in ('pending', 'claimed'):
+        if order.get('status') in ('pending', 'claimed', 'served'):
             table_orders[tnum]['total_amount'] += order.get('total_amount', 0)
             table_orders[tnum]['has_pending'] = True
+        elif order.get('status') == 'completed':
+            table_orders[tnum]['total_amount'] += order.get('total_amount', 0)
+            table_orders[tnum]['has_completed'] = True
+        elif order.get('status') == 'billed':
+            table_orders[tnum]['total_amount'] += order.get('total_amount', 0)
+            table_orders[tnum]['has_billed'] = True
 
     result = [v for v in table_orders.values()]
     result.sort(key=lambda x: int(x['table_number']) if x['table_number'].isdigit() else 0)
 
     return jsonify(result), 200
+
+@orders_bp.route('/orders/table/<table_number>/bill', methods=['PUT'])
+@token_required
+def bill_table(table_number):
+    db_ref = get_db()
+    restaurant_id = request.restaurant_id
+
+    tables = db_ref.child(f'restaurants/{restaurant_id}/tables').get() or {}
+    table_id = None
+    for tid, tdata in tables.items():
+        if str(tdata.get('table_number')) == str(table_number):
+            table_id = tid
+            break
+
+    if not table_id:
+        return jsonify({'error': 'Table not found'}), 404
+
+    orders_ref = db_ref.child(f'restaurants/{restaurant_id}/orders')
+    orders = []
+    for st in ['pending', 'claimed', 'served', 'completed']:
+        orders.extend(format_list(orders_ref.order_by_child('status').equal_to(st).get()))
+    
+    table_orders = [o for o in orders if str(o.get('table_number')) == str(table_number)]
+    
+    updates = {}
+    for order in table_orders:
+        if order.get('status') in ['pending', 'claimed', 'served', 'completed']:
+            updates[f"restaurants/{restaurant_id}/orders/{order['id']}/status"] = 'billed'
+            updates[f"restaurants/{restaurant_id}/orders/{order['id']}/billed_at"] = time.time()
+            
+    updates[f"restaurants/{restaurant_id}/tables/{table_id}/locked_by"] = None
+    updates[f"restaurants/{restaurant_id}/tables/{table_id}/locked_by_name"] = None
+    updates[f"restaurants/{restaurant_id}/tables/{table_id}/locked_at"] = None
+    updates[f"restaurants/{restaurant_id}/tables/{table_id}/call_waiter"] = False
+    updates[f"restaurants/{restaurant_id}/tables/{table_id}/call_waiter_at"] = None
+
+    if updates:
+        db_ref.update(updates)
+
+    return jsonify({'success': True, 'message': 'Table billed and cleared'}), 200

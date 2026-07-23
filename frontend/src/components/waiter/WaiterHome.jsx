@@ -195,6 +195,21 @@ export default function WaiterHome() {
     }
   };
 
+  const handleServeOrder = async (orderId) => {
+    const token = localStorage.getItem('waiter_token');
+    if (!token) return;
+
+    try {
+      await fetch(`${API_BASE_URL}/orders/${orderId}/serve`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      fetchTables();
+    } catch (err) {
+      console.error('Failed to serve order:', err);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('waiter_token');
     localStorage.removeItem('waiter_user');
@@ -247,7 +262,7 @@ export default function WaiterHome() {
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 15 }}>
               {myTables.map(table => (
-                <MyTableCard key={table.table_number} table={table} onRelease={handleReleaseTable} onCompleteOrder={handleCompleteOrder} onAddItem={(orderId) => { fetchMenuItems(); setAddItemModal({ open: true, orderId, tableNumber: table.table_number }); }} onDismissCall={dismissCall} />
+                <MyTableCard key={table.table_number} table={table} onRelease={handleReleaseTable} onCompleteOrder={handleCompleteOrder} onServeOrder={handleServeOrder} onAddItem={(orderId) => { fetchMenuItems(); setAddItemModal({ open: true, orderId, tableNumber: table.table_number }); }} onDismissCall={dismissCall} />
               ))}
             </div>
           </div>
@@ -404,7 +419,7 @@ export default function WaiterHome() {
   );
 }
 
-function MyTableCard({ table, onRelease, onCompleteOrder, onAddItem, onDismissCall }) {
+function MyTableCard({ table, onRelease, onCompleteOrder, onServeOrder, onAddItem, onDismissCall }) {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -456,16 +471,16 @@ function MyTableCard({ table, onRelease, onCompleteOrder, onAddItem, onDismissCa
         </div>
       )}
 
-      {table.orders.filter(o => o.status !== 'completed').map(order => (
+      {table.orders.filter(o => o.status !== 'completed' && o.status !== 'billed').map(order => (
         <div key={order.id} style={{ background: '#F9F9F9', borderRadius: 14, padding: 16, marginBottom: 10 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{
                 padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
-                background: order.status === 'pending' ? '#FFF3E0' : '#E8F5E9',
-                color: order.status === 'pending' ? '#FF6B35' : '#1DB954'
+                background: order.status === 'pending' ? '#FFF3E0' : order.status === 'served' ? '#E3F2FD' : '#E8F5E9',
+                color: order.status === 'pending' ? '#FF6B35' : order.status === 'served' ? '#2196F3' : '#1DB954'
               }}>
-                {order.status === 'pending' ? '⏳ New Order' : '👤 In Progress'}
+                {order.status === 'pending' ? '⏳ New Order' : order.status === 'served' ? '🍽️ Served' : '👤 In Progress'}
               </span>
               <button onClick={() => onAddItem(order.id)}
                 style={{ width: 28, height: 28, borderRadius: 8, background: '#FF6B35', color: '#FFF', border: 'none', fontSize: 18, fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
@@ -482,35 +497,85 @@ function MyTableCard({ table, onRelease, onCompleteOrder, onAddItem, onDismissCa
             </div>
           ))}
 
-          <button onClick={async () => {
-              const result = await Swal.fire({
-                title: 'Order Served?',
-                text: 'Mark this order as completed',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#1DB954',
-                cancelButtonColor: '#666',
-                confirmButtonText: 'Yes, served!'
-              });
-              if (result.isConfirmed) {
-                onCompleteOrder(order.id);
-                Swal.fire({
-                  title: 'Completed!',
-                  text: 'Order has been marked as served.',
-                  icon: 'success',
-                  timer: 1500,
-                  showConfirmButton: false
+          {order.status !== 'served' ? (
+            <button onClick={async () => {
+                const result = await Swal.fire({
+                  title: 'Order Served?',
+                  text: 'Mark this order as served to the table',
+                  icon: 'question',
+                  showCancelButton: true,
+                  confirmButtonColor: '#2196F3',
+                  cancelButtonColor: '#666',
+                  confirmButtonText: 'Yes, served!'
                 });
-              }
-            }}
-            style={{
-              width: '100%', marginTop: 12, padding: '12px', background: '#1DB954', color: '#FFF',
-              border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer'
-            }}>
-            ✅ Order Served
-          </button>
+                if (result.isConfirmed) {
+                  onServeOrder(order.id);
+                  Swal.fire({
+                    title: 'Served!',
+                    text: 'Order marked as served.',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                  });
+                }
+              }}
+              style={{
+                width: '100%', marginTop: 12, padding: '12px', background: '#2196F3', color: '#FFF',
+                border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer'
+              }}>
+              🍽️ Mark as Served
+            </button>
+          ) : (
+            <button onClick={async () => {
+                const result = await Swal.fire({
+                  title: 'Guests Finished?',
+                  text: 'Mark this order as completed (guests done eating)',
+                  icon: 'question',
+                  showCancelButton: true,
+                  confirmButtonColor: '#1DB954',
+                  cancelButtonColor: '#666',
+                  confirmButtonText: 'Yes, finished!'
+                });
+                if (result.isConfirmed) {
+                  onCompleteOrder(order.id);
+                  Swal.fire({
+                    title: 'Completed!',
+                    text: 'Order moved to completed.',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                  });
+                }
+              }}
+              style={{
+                width: '100%', marginTop: 12, padding: '12px', background: '#1DB954', color: '#FFF',
+                border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer'
+              }}>
+              🏁 Guests Finished
+            </button>
+          )}
         </div>
       ))}
+
+      {table.orders.filter(o => o.status === 'completed' || o.status === 'billed').length > 0 && (
+        <div style={{ background: '#F5FFF5', borderRadius: 14, padding: 16, marginTop: 15, marginBottom: 10 }}>
+          <h4 style={{ margin: '0 0 10px 0', fontSize: 14, color: '#1DB954' }}>✅ Completed Orders</h4>
+          {table.orders.filter(o => o.status === 'completed' || o.status === 'billed').map(order => (
+            <div key={order.id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px dashed #DDD' }}>
+              {order.items?.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                  <span style={{ fontSize: 13, color: '#666' }}>{item.quantity}x {item.name}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#888' }}>₹{item.price * item.quantity}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+            <span style={{ fontSize: 14, fontWeight: 800 }}>Table Grand Total</span>
+            <span style={{ fontSize: 18, fontWeight: 900, color: '#1DB954' }}>₹{table.total_amount}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
