@@ -142,19 +142,27 @@ def add_table():
     data = request.get_json()
     table_num = data.get('table_number')
     token = str(uuid.uuid4())
-    
+
+    # Prevent duplicate table numbers within the same restaurant
+    tables_snapshot = db_ref.child(f'restaurants/{request.restaurant_id}/tables').get()
+    tables = tables_snapshot or {}
+    for existing in tables.values():
+        if str(existing.get('table_number')) == str(table_num):
+            return jsonify({'error': f'Table {table_num} already exists in this restaurant'}), 409
+
     table_data = {
         'table_number': table_num,
         'qr_token': token
     }
     table_ref = db_ref.child(f'restaurants/{request.restaurant_id}/tables').push(table_data)
-    
+
     # Also add to a global lookup for easy QR scanning
     db_ref.child(f'table_tokens/{token}').set({
         'restaurant_id': request.restaurant_id,
-        'table_number': table_num
+        'table_number': table_num,
+        'table_id': table_ref.key
     })
-    
+
     return jsonify({'id': table_ref.key, **table_data}), 201
 
 @admin_bp.route('/admin/tables/<id>', methods=['DELETE'])
