@@ -367,3 +367,60 @@ def bill_table(table_number):
         db_ref.update(updates)
 
     return jsonify({'success': True, 'message': 'Table billed and cleared'}), 200
+
+@orders_bp.route('/orders/table/<table_number>/bill-guest/<guest_id>', methods=['PUT'])
+@token_required
+def bill_guest_at_table(table_number, guest_id):
+    db_ref = get_db()
+    restaurant_id = request.restaurant_id
+
+    if not guest_id or guest_id == '':
+        return jsonify({'error': 'Invalid guest_id. Use table-wide billing for anonymous orders.'}), 400
+
+    tables = db_ref.child(f'restaurants/{restaurant_id}/tables').get() or {}
+    table_id = None
+    for tid, tdata in tables.items():
+        if str(tdata.get('table_number')) == str(table_number):
+            table_id = tid
+            break
+
+    if not table_id:
+        return jsonify({'error': 'Table not found'}), 404
+
+    orders_ref = db_ref.child(f'restaurants/{restaurant_id}/orders')
+    orders = []
+    for st in ['pending', 'claimed', 'served', 'completed', 'billed']:
+        orders.extend(format_list(orders_ref.order_by_child('status').equal_to(st).get()))
+
+    table_orders = [o for o in orders if str(o.get('table_number')) == str(table_number)]
+    guest_unbilled = [o for o in table_orders if o.get('guest_id') == guest_id and o.get('status') != 'billed']
+    table_unbilled = [o for o in table_orders if o.get('status') != 'billed']
+
+    if not guest_unbilled:
+        return jsonify({'error': 'No unbilled orders found for this guest at this table'}), 404
+
+    updates = {}
+    total_billed = 0
+    for order in guest_unbilled:
+        updates[f"restaurants/{restaurant_id}/orders/{order['id']}/status"] = 'billed'
+        updates[f"restaurants/{restaurant_id}/orders/{order['id']}/billed_at"] = time.time()
+        total_billed += order.get('total_amount', 0)
+
+    all_guests_billed = len(guest_unbilled) == len(table_unbilled)
+    if all_guests_billed:
+        updates[f"restaurants/{restaurant_id}/tables/{table_id}/locked_by"] = None
+        updates[f"restaurants/{restaurant_id}/tables/{table_id}/locked_by_name"] = None
+        updates[f"restaurants/{restaurant_id}/tables/{table_id}/locked_at"] = None
+        updates[f"restaurants/{restaurant_id}/tables/{table_id}/call_waiter"] = False
+        updates[f"restaurants/{restaurant_id}/tables/{table_id}/call_waiter_at"] = None
+
+    if updates:
+        db_ref.update(updates)
+
+    return jsonify({
+        'success': True,
+        'message': 'Guest billed successfully',
+        'billed_count': len(guest_unbilled),
+        'total_amount': total_billed,
+        'table_cleared': all_guests_billed
+    }), 200
