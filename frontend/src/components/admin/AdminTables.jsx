@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import QRCode from 'qrcode';
-import { API_BASE_URL } from '../../apiConfig';
+import { PUBLIC_URL, API_BASE_URL } from '../../apiConfig';
 import Swal from 'sweetalert2';
 
 export default function AdminTables() {
   const [tables, setTables] = useState([]);
   const [newTableNum, setNewTableNum] = useState('');
-  const [qrBaseUrl, setQrBaseUrl] = useState(() => localStorage.getItem('qr_base_url') || window.location.origin);
   const [qrCodes, setQrCodes] = useState({});
   const { token, user } = useAuth();
 
@@ -23,26 +22,10 @@ export default function AdminTables() {
       const data = await res.json();
       setTables(Array.isArray(data) ? data : []);
 
-      // Try to get server IP to suggest a better QR Base URL
-      const infoRes = await fetch(`${API_BASE_URL}/admin/server-info`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (infoRes.ok) {
-        const infoData = await infoRes.json();
-        if (infoData.local_ip && infoData.local_ip !== '127.0.0.1') {
-          const currentUrl = new URL(qrBaseUrl);
-          if (currentUrl.hostname === 'localhost' || currentUrl.hostname === '127.0.0.1') {
-            const suggestedUrl = `${currentUrl.protocol}//${infoData.local_ip}:${currentUrl.port || '5173'}`;
-            setQrBaseUrl(suggestedUrl);
-            localStorage.setItem('qr_base_url', suggestedUrl);
-          }
-        }
-      }
-
       // Generate QR codes
       const codes = {};
       for (const table of Array.isArray(data) ? data : []) {
-        const url = `${qrBaseUrl}/?t=${table.qr_token}`;
+        const url = `${PUBLIC_URL}/?t=${table.qr_token}`;
         codes[table.id] = await QRCode.toDataURL(url, {
           width: 400,
           margin: 2,
@@ -58,13 +41,7 @@ export default function AdminTables() {
 
   useEffect(() => {
     fetchData();
-  }, [token, qrBaseUrl]);
-
-  const handleBaseUrlChange = (e) => {
-    const newUrl = e.target.value;
-    setQrBaseUrl(newUrl);
-    localStorage.setItem('qr_base_url', newUrl);
-  };
+  }, [token]);
 
   const handleAddTable = async (e) => {
     e.preventDefault();
@@ -131,21 +108,6 @@ export default function AdminTables() {
             value={newTableNum} onChange={e => setNewTableNum(e.target.value)} />
           <button type="submit" className="btn-primary" style={{ whiteSpace: 'nowrap' }}>+ Add Table</button>
         </form>
-      </div>
-
-      <div style={{ background: '#FFF', padding: '15px 20px', borderRadius: 12, marginBottom: 30, border: '1px solid #EEE', display: 'flex', alignItems: 'center', gap: 15, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: '250px' }}>
-          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#444', marginBottom: 5 }}>
-            QR Code Base URL (Update this to your local network IP for mobile testing, e.g., http://192.168.1.x:5173)
-          </label>
-          <input
-            type="text"
-            className="btn-outline"
-            style={{ textAlign: 'left', background: '#F5F5F5', width: '100%', padding: '10px 15px' }}
-            value={qrBaseUrl}
-            onChange={handleBaseUrlChange}
-          />
-        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 25 }}>

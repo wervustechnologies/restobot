@@ -1,0 +1,32 @@
+{
+  "_README": [
+    "INDEX-ONLY SNIPPET — DO NOT DEPLOY AS-IS.",
+    "This file declares only the .indexOn entries needed by the backend's",
+    "order_by_child queries. It intentionally contains NO .read/.write rules.",
+    "Firebase defaults access rules to DENY when they are absent, so deploying",
+    "this verbatim would lock out the frontend client SDK.",
+    "",
+    "ACTION REQUIRED: merge the .indexOn entries below into your project's",
+    "existing access rules (Firebase Console -> Realtime Database -> Rules,",
+    "or `firebase deploy --only database` after combining with current rules).",
+    "The Admin SDK used by the backend bypasses rules entirely, so these",
+    "indexes only matter for query performance — but without them the",
+    "order_by_child queries below emit 'Index not defined' warnings and can",
+    "400-error at scale."
+  ],
+  "rules": {
+    "users": {
+      ".indexOn": ["email", "restaurant_id"]
+    },
+    "guests": {
+      ".indexOn": ["fingerprint"]
+    },
+    "restaurants": {
+      "$restaurant_id": {
+        "orders": {
+          ".indexOn": ["status", "created_at"]
+        }
+      }
+    }
+  }
+}

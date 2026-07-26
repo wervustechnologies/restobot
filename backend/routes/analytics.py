@@ -17,10 +17,7 @@ def get_analytics():
     
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
-    
-    orders_dict = db_ref.child(f'restaurants/{res_id}/orders').get()
-    orders = format_list(orders_dict)
-    
+
     def parse_order_date(order):
         ts = order.get('created_at')
         if not ts:
@@ -33,9 +30,19 @@ def get_analytics():
     if start_date and end_date:
         sd = datetime.strptime(start_date, '%Y-%m-%d')
         ed = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
-        orders = [o for o in orders if parse_order_date(o) and sd <= parse_order_date(o) <= ed]
+        # Push the date filter to RTDB via order_by_child('created_at') so we
+        # only download orders in range instead of the restaurant's full history.
+        orders_ref = db_ref.child(f'restaurants/{res_id}/orders') \
+            .order_by_child('created_at') \
+            .start_at(sd.timestamp()) \
+            .end_at(ed.timestamp())
+        orders = format_list(orders_ref.get())
         day_count = (ed - sd).days + 1
     else:
+        # No date filter: all-time totals. This branch remains unbounded by
+        # design to preserve existing behavior.
+        orders_dict = db_ref.child(f'restaurants/{res_id}/orders').get()
+        orders = format_list(orders_dict)
         day_count = 7
 
     completed_orders = [o for o in orders if o.get('status') == 'completed']

@@ -4,10 +4,9 @@ import bcrypt
 from functools import wraps
 from flask import request, jsonify
 from firebase_client import get_db
+from settings import settings
 
-import os
-
-SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'restobot-super-secret-key-local-dev')
+SECRET_KEY = settings.jwt_secret_key
 
 def generate_token(user_id, restaurant_id, is_superadmin=False):
     payload = {

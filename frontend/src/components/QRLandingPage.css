@@ -1,0 +1,839 @@
+/* ============================================
+   QR Landing Page — Premium Light Theme
+   ============================================ */
+
+/* ---------- Base Container ---------- */
+.qr-landing {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: linear-gradient(165deg, #FFFFFF 0%, #FFF8F5 40%, #FFF1EB 70%, #FFF5F0 100%);
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: 'Outfit', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ambient light blobs */
+.qr-landing::before,
+.qr-landing::after {
+  content: '';
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+  z-index: 0;
+}
+.qr-landing::before {
+  width: 400px;
+  height: 400px;
+  background: rgba(255, 107, 53, 0.1);
+  top: -100px;
+  right: -100px;
+  animation: ambientFloat 8s ease-in-out infinite;
+}
+.qr-landing::after {
+  width: 350px;
+  height: 350px;
+  background: rgba(255, 160, 100, 0.08);
+  bottom: -80px;
+  left: -80px;
+  animation: ambientFloat 10s ease-in-out infinite reverse;
+}
+
+@keyframes ambientFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(30px, -20px) scale(1.1); }
+}
+
+/* ---------- Inner Wrapper ---------- */
+.qr-landing__inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 440px;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-bottom: 40px;
+}
+
+/* ---------- Animated Particles ---------- */
+.qr-landing__particles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.qr-landing__particle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: rgba(255, 107, 53, 0.18);
+  border-radius: 50%;
+  animation: particleRise linear infinite;
+}
+.qr-landing__particle:nth-child(1) { left: 10%; animation-duration: 14s; animation-delay: 0s; }
+.qr-landing__particle:nth-child(2) { left: 25%; animation-duration: 18s; animation-delay: 2s; width: 3px; height: 3px; }
+.qr-landing__particle:nth-child(3) { left: 40%; animation-duration: 12s; animation-delay: 4s; }
+.qr-landing__particle:nth-child(4) { left: 55%; animation-duration: 16s; animation-delay: 1s; width: 1.5px; height: 1.5px; }
+.qr-landing__particle:nth-child(5) { left: 70%; animation-duration: 20s; animation-delay: 3s; }
+.qr-landing__particle:nth-child(6) { left: 85%; animation-duration: 15s; animation-delay: 5s; width: 2.5px; height: 2.5px; }
+.qr-landing__particle:nth-child(7) { left: 50%; animation-duration: 22s; animation-delay: 7s; }
+.qr-landing__particle:nth-child(8) { left: 15%; animation-duration: 17s; animation-delay: 6s; width: 1px; height: 1px; }
+
+@keyframes particleRise {
+  0% { bottom: -10px; opacity: 0; }
+  10% { opacity: 0.5; }
+  90% { opacity: 0.15; }
+  100% { bottom: 110%; opacity: 0; }
+}
+
+/* ---------- Header / Branding ---------- */
+.qr-landing__header {
+  text-align: center;
+  padding-top: 52px;
+  margin-bottom: 12px;
+  animation: landingFadeDown 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.qr-landing__table-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 100px;
+  background: rgba(255, 107, 53, 0.08);
+  border: 1px solid rgba(255, 107, 53, 0.15);
+  margin-bottom: 20px;
+  animation: landingFadeDown 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+.qr-landing__table-badge span {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #E85A20;
+}
+
+.qr-landing__restaurant-name {
+  font-size: 32px;
+  font-weight: 900;
+  color: #1A1A1A;
+  letter-spacing: -1px;
+  line-height: 1.15;
+  margin-bottom: 8px;
+}
+
+.qr-landing__subtitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.35);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+/* ---------- HERO CARD — Smart Menu ---------- */
+.qr-landing__hero {
+  width: 100%;
+  margin-top: 28px;
+  animation: landingFadeUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+}
+
+.qr-landing__hero-card {
+  position: relative;
+  width: 100%;
+  padding: 36px 28px 32px;
+  border-radius: 28px;
+  background: #FFFFFF;
+  border: 1px solid rgba(255, 107, 53, 0.12);
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 4px 24px rgba(255, 107, 53, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+/* Shimmer effect */
+.qr-landing__hero-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 107, 53, 0.04) 50%,
+    transparent 100%
+  );
+  animation: heroShimmer 4s ease-in-out infinite;
+}
+
+/* Glow ring on hover */
+.qr-landing__hero-card::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 29px;
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.3), rgba(255, 160, 100, 0.1), rgba(255, 107, 53, 0.2));
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.qr-landing__hero-card:hover,
+.qr-landing__hero-card:active {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 20px 60px rgba(255, 107, 53, 0.14), 0 4px 16px rgba(0, 0, 0, 0.06);
+  border-color: rgba(255, 107, 53, 0.25);
+}
+.qr-landing__hero-card:hover::after {
+  opacity: 1;
+}
+
+@keyframes heroShimmer {
+  0% { left: -100%; }
+  50% { left: 100%; }
+  100% { left: 100%; }
+}
+
+/* Hero icon area */
+.qr-landing__hero-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #FF6B35 0%, #FF8F65 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  box-shadow: 0 12px 40px rgba(255, 107, 53, 0.25);
+  animation: iconPulse 3s ease-in-out infinite;
+  position: relative;
+  z-index: 1;
+}
+.qr-landing__hero-icon svg {
+  width: 36px;
+  height: 36px;
+  color: #FFFFFF;
+}
+
+@keyframes iconPulse {
+  0%, 100% { box-shadow: 0 12px 40px rgba(255, 107, 53, 0.25); }
+  50% { box-shadow: 0 16px 50px rgba(255, 107, 53, 0.38); }
+}
+
+.qr-landing__hero-title {
+  font-size: 26px;
+  font-weight: 900;
+  color: #1A1A1A;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.qr-landing__hero-desc {
+  font-size: 15px;
+  font-weight: 400;
+  color: #888888;
+  line-height: 1.5;
+  margin-bottom: 28px;
+  position: relative;
+  z-index: 1;
+}
+
+.qr-landing__hero-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px 24px;
+  border-radius: 16px;
+  border: none;
+  background: linear-gradient(135deg, #FF6B35 0%, #E85A20 100%);
+  color: #FFFFFF;
+  font-size: 16px;
+  font-weight: 800;
+  font-family: 'Outfit', sans-serif;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 8px 30px rgba(255, 107, 53, 0.3);
+  position: relative;
+  z-index: 1;
+  letter-spacing: 0.3px;
+}
+.qr-landing__hero-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(255, 107, 53, 0.42);
+}
+.qr-landing__hero-cta:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 20px rgba(255, 107, 53, 0.3);
+}
+.qr-landing__hero-cta svg {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.3s ease;
+}
+.qr-landing__hero-cta:hover svg {
+  transform: translateX(4px);
+}
+
+/* ---------- Secondary Cards Row ---------- */
+.qr-landing__secondary {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+/* When only one secondary card (no review_link) */
+.qr-landing__secondary--single {
+  grid-template-columns: 1fr;
+}
+
+.qr-landing__sec-card {
+  position: relative;
+  padding: 24px 20px;
+  border-radius: 22px;
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  text-decoration: none;
+  display: block;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.qr-landing__sec-card:hover,
+.qr-landing__sec-card:active {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+}
+
+/* stagger entrance */
+.qr-landing__sec-card--review {
+  animation: landingFadeUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.45s both;
+}
+.qr-landing__sec-card--review:hover {
+  border-color: rgba(66, 133, 244, 0.3);
+  box-shadow: 0 12px 40px rgba(66, 133, 244, 0.1);
+}
+
+.qr-landing__sec-card--feedback {
+  animation: landingFadeUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both;
+}
+.qr-landing__sec-card--feedback:hover {
+  border-color: rgba(139, 92, 246, 0.25);
+  box-shadow: 0 12px 40px rgba(139, 92, 246, 0.08);
+}
+
+.qr-landing__sec-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.qr-landing__sec-icon--review {
+  background: rgba(66, 133, 244, 0.08);
+}
+.qr-landing__sec-icon--review svg {
+  color: #4285F4;
+}
+.qr-landing__sec-icon--feedback {
+  background: rgba(139, 92, 246, 0.08);
+}
+.qr-landing__sec-icon--feedback svg {
+  color: #8B5CF6;
+}
+.qr-landing__sec-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.qr-landing__sec-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #1A1A1A;
+  margin-bottom: 4px;
+}
+
+.qr-landing__sec-desc {
+  font-size: 12px;
+  font-weight: 400;
+  color: #999999;
+  line-height: 1.4;
+}
+
+.qr-landing__sec-arrow {
+  position: absolute;
+  top: 24px;
+  right: 20px;
+  color: rgba(0, 0, 0, 0.12);
+  transition: all 0.3s ease;
+}
+.qr-landing__sec-card:hover .qr-landing__sec-arrow {
+  color: rgba(0, 0, 0, 0.3);
+  transform: translateX(3px);
+}
+.qr-landing__sec-arrow svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---------- Call Waiter Button ---------- */
+.qr-landing__call-waiter {
+  width: 100%;
+  margin-top: 18px;
+}
+
+.qr-landing__waiter-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 24px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  background: #FFFFFF;
+  color: #1A1A1A;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Outfit', sans-serif;
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.qr-landing__waiter-btn:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+}
+
+.qr-landing__waiter-btn:active {
+  transform: translateY(0);
+}
+
+.qr-landing__waiter-btn--called {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.25);
+  color: #16A34A;
+}
+.qr-landing__waiter-btn--called:hover {
+  transform: none;
+  box-shadow: 0 2px 12px rgba(34, 197, 94, 0.08);
+}
+
+.qr-landing__waiter-btn:disabled {
+  cursor: default;
+}
+
+.qr-landing__waiter-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+}
+.qr-landing__waiter-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ---------- Feedback Modal ---------- */
+.qr-landing__feedback-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: overlayFadeIn 0.3s ease both;
+}
+
+.qr-landing__feedback-sheet {
+  width: 100%;
+  max-width: 440px;
+  max-height: 90vh;
+  max-height: 90dvh;
+  background: #FFFFFF;
+  border-radius: 28px 28px 0 0;
+  padding: 12px 24px 40px;
+  overflow-y: auto;
+  animation: sheetSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.1);
+}
+
+.qr-landing__feedback-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.1);
+  margin: 0 auto 24px;
+}
+
+.qr-landing__feedback-title {
+  font-size: 22px;
+  font-weight: 900;
+  color: #1A1A1A;
+  margin-bottom: 6px;
+}
+
+.qr-landing__feedback-subtitle {
+  font-size: 14px;
+  color: #999999;
+  margin-bottom: 28px;
+}
+
+/* Star rating */
+.qr-landing__stars {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.qr-landing__star {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #FAFAFA;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #CCCCCC;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.qr-landing__star:hover,
+.qr-landing__star--active {
+  background: rgba(255, 180, 0, 0.1);
+  border-color: rgba(255, 180, 0, 0.3);
+  color: #E6A000;
+  transform: scale(1.1);
+}
+
+.qr-landing__feedback-textarea {
+  width: 100%;
+  min-height: 120px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #F9F9F9;
+  color: #1A1A1A;
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  padding: 16px;
+  resize: none;
+  outline: none;
+  transition: border-color 0.3s ease;
+  margin-bottom: 20px;
+}
+.qr-landing__feedback-textarea::placeholder {
+  color: #BBBBBB;
+}
+.qr-landing__feedback-textarea:focus {
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.06);
+}
+
+.qr-landing__feedback-submit {
+  width: 100%;
+  padding: 16px;
+  border-radius: 16px;
+  border: none;
+  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+  color: #FFFFFF;
+  font-size: 16px;
+  font-weight: 800;
+  font-family: 'Outfit', sans-serif;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 30px rgba(139, 92, 246, 0.25);
+}
+.qr-landing__feedback-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(139, 92, 246, 0.38);
+}
+.qr-landing__feedback-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.qr-landing__feedback-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+.qr-landing__feedback-cancel {
+  flex: 1;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: transparent;
+  color: #999999;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Outfit', sans-serif;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.qr-landing__feedback-cancel:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  color: #666666;
+  background: #F9F9F9;
+}
+
+/* Success state */
+.qr-landing__feedback-success {
+  text-align: center;
+  padding: 40px 0;
+}
+.qr-landing__feedback-success-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 32px;
+  color: #22C55E;
+  animation: successPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.qr-landing__feedback-success h3 {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1A1A1A;
+  margin-bottom: 8px;
+}
+.qr-landing__feedback-success p {
+  font-size: 14px;
+  color: #999999;
+}
+
+@keyframes successPop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ---------- Footer Branding ---------- */
+.qr-landing__footer {
+  margin-top: auto;
+  padding-top: 40px;
+  text-align: center;
+  animation: landingFadeUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.7s both;
+}
+.qr-landing__powered {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.2);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.qr-landing__powered strong {
+  color: rgba(255, 107, 53, 0.5);
+  font-weight: 800;
+}
+
+/* ---------- Loading State ---------- */
+.qr-landing__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  height: 100dvh;
+  gap: 20px;
+}
+.qr-landing__loading-spinner {
+  width: 44px;
+  height: 44px;
+  border: 3px solid rgba(255, 107, 53, 0.1);
+  border-top-color: #FF6B35;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.qr-landing__loading-text {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.3);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+/* ---------- Animations ---------- */
+@keyframes landingFadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes landingFadeDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes sheetSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- Responsive ---------- */
+
+/* Smaller phones (SE, etc.) */
+@media (max-width: 374px) {
+  .qr-landing__inner {
+    padding: 0 18px;
+  }
+  .qr-landing__header {
+    padding-top: 40px;
+  }
+  .qr-landing__restaurant-name {
+    font-size: 26px;
+  }
+  .qr-landing__hero-card {
+    padding: 28px 22px 26px;
+    border-radius: 24px;
+  }
+  .qr-landing__hero-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 18px;
+  }
+  .qr-landing__hero-icon svg {
+    width: 30px;
+    height: 30px;
+  }
+  .qr-landing__hero-title {
+    font-size: 22px;
+  }
+  .qr-landing__hero-desc {
+    font-size: 13px;
+  }
+  .qr-landing__hero-cta {
+    padding: 14px 20px;
+    font-size: 15px;
+  }
+  .qr-landing__secondary {
+    gap: 10px;
+  }
+  .qr-landing__sec-card {
+    padding: 20px 16px;
+    border-radius: 18px;
+  }
+  .qr-landing__sec-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+  }
+  .qr-landing__sec-title {
+    font-size: 13px;
+  }
+  .qr-landing__sec-desc {
+    font-size: 11px;
+  }
+}
+
+/* Tablets and up */
+@media (min-width: 768px) {
+  .qr-landing__inner {
+    max-width: 500px;
+    padding: 0 32px;
+  }
+  .qr-landing__header {
+    padding-top: 72px;
+  }
+  .qr-landing__restaurant-name {
+    font-size: 38px;
+  }
+  .qr-landing__hero-card {
+    padding: 44px 36px 38px;
+  }
+  .qr-landing__hero-icon {
+    width: 80px;
+    height: 80px;
+  }
+  .qr-landing__hero-icon svg {
+    width: 40px;
+    height: 40px;
+  }
+  .qr-landing__hero-title {
+    font-size: 30px;
+  }
+  .qr-landing__sec-card {
+    padding: 28px 24px;
+  }
+}
+
+/* Landscape phones — compress vertical spacing */
+@media (max-height: 600px) and (orientation: landscape) {
+  .qr-landing__header {
+    padding-top: 24px;
+    margin-bottom: 8px;
+  }
+  .qr-landing__hero {
+    margin-top: 12px;
+  }
+  .qr-landing__hero-card {
+    padding: 20px 24px;
+  }
+  .qr-landing__hero-icon {
+    width: 52px;
+    height: 52px;
+    margin-bottom: 14px;
+  }
+  .qr-landing__hero-desc {
+    margin-bottom: 16px;
+  }
+  .qr-landing__secondary {
+    margin-top: 12px;
+  }
+  .qr-landing__sec-card {
+    padding: 16px 14px;
+  }
+}
+
+/* Safe area insets for notched phones */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .qr-landing__inner {
+    padding-bottom: calc(40px + env(safe-area-inset-bottom));
+  }
+  .qr-landing__feedback-sheet {
+    padding-bottom: calc(40px + env(safe-area-inset-bottom));
+  }
+}

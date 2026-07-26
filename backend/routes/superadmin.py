@@ -3,6 +3,7 @@ import bcrypt
 import time
 from firebase_client import get_db
 from auth_utils import generate_token, token_required
+from limiter import limiter, LIMIT_AUTH
 
 superadmin_bp = Blueprint('superadmin', __name__)
 
@@ -10,6 +11,7 @@ SUPERADMIN_EMAIL = "sanalshijilkk52@gmail.com"
 SUPERADMIN_HASH = b'$2b$12$cuCI8t7nwl2Ol3CER8vce.uZhgU9w922jT8inRmS17ra81ttI39Ne'
 
 @superadmin_bp.route('/superadmin/login', methods=['POST'])
+@limiter.limit(LIMIT_AUTH)
 def login():
     data = request.get_json()
     email = data.get('email')
@@ -49,7 +51,6 @@ def list_restaurants():
                 'uid': admin.get('uid') if admin else None,
                 'name': admin.get('name', '') if admin else '',
                 'email': admin.get('email', '') if admin else '',
-                'password_plain': admin.get('password_plain', '') if admin else '',
                 'created_at': admin.get('created_at') if admin else None,
             } if admin else None
         })
@@ -84,14 +85,17 @@ def create_restaurant_admin():
     db_ref.child('users').push({
         'email': email,
         'password': hashed_pw,
-        'password_plain': password,
         'name': owner_name,
         'restaurant_id': rid,
         'role': 'owner',
         'created_at': time.time()
     })
 
-    return jsonify({'message': 'Restaurant and Admin created successfully', 'rid': rid}), 201
+    return jsonify({
+        'message': 'Restaurant and Admin created successfully',
+        'rid': rid,
+        'admin_password': password
+    }), 201
 
 @superadmin_bp.route('/superadmin/restaurant/<rid>', methods=['PUT'])
 @token_required
@@ -120,14 +124,12 @@ def update_restaurant(rid):
         update_data = {'name': owner_name, 'email': email}
         if password:
             update_data['password'] = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            update_data['password_plain'] = password
         db_ref.child('users').child(admin_uid).update(update_data)
     else:
         hashed_pw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8') if password else ''
         db_ref.child('users').push({
             'email': email,
             'password': hashed_pw,
-            'password_plain': password if password else '',
             'name': owner_name,
             'restaurant_id': rid,
             'role': 'owner',

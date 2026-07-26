@@ -1,24 +1,18 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import os
+from limiter import limiter
+from settings import settings
 from firebase_client import init_firebase
 
 def create_app():
     app = Flask(__name__)
-    
+
     init_firebase()
 
-    frontend_url = os.environ.get('FRONTEND_URL', '')
-    allowed_origins = [o.strip() for o in frontend_url.split(',') if o.strip()] if frontend_url else []
-    
-    known_origins = [
-        "https://restobot-zeta.vercel.app",
-        "http://localhost:5173",
-        "http://localhost:5174",
-    ]
-    for origin in known_origins:
-        if origin not in allowed_origins:
-            allowed_origins.append(origin)
+    limiter.init_app(app)
+
+    allowed_origins = [o.strip() for o in settings.allowed_origins.split(',') if o.strip()]
+    print(f"[CORS] Configured allowed_origins: {allowed_origins}")
 
     CORS(app, resources={r"/api/*": {
         "origins": allowed_origins,
@@ -31,14 +25,16 @@ def create_app():
     def handle_preflight():
         if request.method == 'OPTIONS':
             origin = request.headers.get('Origin', '')
+            resp = app.make_default_options_response()
             if origin in allowed_origins:
-                resp = app.make_default_options_response()
                 resp.headers['Access-Control-Allow-Origin'] = origin
-                resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-                resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept'
-                resp.headers['Access-Control-Allow-Credentials'] = 'true'
-                resp.headers['Access-Control-Max-Age'] = '3600'
-                return resp
+            else:
+                print(f"[CORS] Blocked OPTIONS request from origin: {origin}")
+            resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept'
+            resp.headers['Access-Control-Allow-Credentials'] = 'true'
+            resp.headers['Access-Control-Max-Age'] = '3600'
+            return resp
 
     @app.after_request
     def add_cors_headers(response):
@@ -58,6 +54,7 @@ def create_app():
     from routes.wishlist import wishlist_bp
     from routes.guests import guests_bp
     from routes.orders import orders_bp
+    from routes.feedback import feedback_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(admin_bp, url_prefix='/api')
@@ -69,5 +66,6 @@ def create_app():
     app.register_blueprint(wishlist_bp, url_prefix='/api')
     app.register_blueprint(guests_bp, url_prefix='/api')
     app.register_blueprint(orders_bp, url_prefix='/api')
+    app.register_blueprint(feedback_bp, url_prefix='/api')
 
     return app

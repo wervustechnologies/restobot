@@ -16,6 +16,7 @@ export default function AdminMenuManager() {
   const [showMainCatForm, setShowMainCatForm] = useState(false);
   const [editItemId, setEditItemId] = useState(null);
   const { token } = useAuth();
+  const [pendingRec, setPendingRec] = useState({ food_items: '', beverages: '' });
 
   const [expandedGroups, setExpandedGroups] = useState({});
 
@@ -32,6 +33,7 @@ export default function AdminMenuManager() {
     is_enabled: true, priority: 'medium'
   };
   const [newItem, setNewItem] = useState(initialItemState);
+  const [itemRecs, setItemRecs] = useState({ food_items: {}, beverages: {} });
 
   const fetchData = async () => {
     const [mainCatRes, catRes, itemRes] = await Promise.all([
@@ -122,6 +124,16 @@ export default function AdminMenuManager() {
     });
     
     if (res.ok) {
+      let itemId = editItemId;
+      if (!editItemId) {
+        const created = await res.json();
+        itemId = created.id;
+      }
+      await fetch(`${API_BASE_URL}/admin/items/${itemId}/recommendations`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(itemRecs)
+      });
       closeItemForm();
       Swal.fire({ title: 'Success!', text: editItemId ? 'Item updated successfully' : 'Item added successfully', icon: 'success', timer: 1500, showConfirmButton: false });
       fetchData();
@@ -136,6 +148,7 @@ export default function AdminMenuManager() {
     setNewItem(initialItemState);
     setEditItemId(null);
     setShowItemForm(false);
+    setItemRecs({ food_items: {}, beverages: {} });
   };
 
   const handleEditClick = (item) => {
@@ -145,6 +158,9 @@ export default function AdminMenuManager() {
     });
     setEditItemId(item.id);
     setShowItemForm(true);
+    fetch(`${API_BASE_URL}/admin/items/${item.id}/recommendations`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    }).then(r => r.json()).then(data => setItemRecs(data));
   };
 
   const handleToggleItem = async (item) => {
@@ -471,6 +487,64 @@ export default function AdminMenuManager() {
                   style={{ width: 44, height: 24, borderRadius: 24, cursor: 'pointer', background: newItem.is_enabled !== false ? '#1DB954' : '#CCC', position: 'relative', transition: '0.3s' }}>
                   <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#FFF', position: 'absolute', top: 2, left: newItem.is_enabled !== false ? 22 : 2, transition: '0.3s' }} />
                 </div>
+              </div>
+
+              {/* Associated Recommendations */}
+              <div style={{ borderTop: '2px solid #EEE', paddingTop: 15, marginTop: 15 }}>
+                <h4 style={{ fontSize: 15, fontWeight: 800, marginBottom: 4, color: '#FF6B35' }}>Associated Recommendations</h4>
+                <p style={{ fontSize: 12, color: '#888', marginBottom: 15 }}>These items will be suggested in the chat when this item is selected.</p>
+
+                {['food_items', 'beverages'].map(type => {
+                  const label = type === 'food_items' ? 'Food Items' : 'Beverages';
+                  const recs = itemRecs[type] || {};
+                  const otherType = type === 'food_items' ? 'beverages' : 'food_items';
+                  return (
+                    <div key={type} style={{ marginBottom: 16 }}>
+                      <label style={{ fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 6, display: 'block' }}>{label}</label>
+                      {Object.keys(recs).length > 0 && (
+                        <div style={{ marginBottom: 8 }}>
+                          {Object.entries(recs).map(([recId, recData]) => {
+                            const item = items.find(i => i.id === recId);
+                            if (!item) return null;
+                            return (
+                              <div key={recId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #F5F5F5' }}>
+                                <img src={item.image_url} style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', background: '#EEE', flexShrink: 0 }} />
+                                <span style={{ flex: 1, fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                <select value={recData.priority} onChange={e => setItemRecs(prev => ({ ...prev, [type]: { ...prev[type], [recId]: { priority: e.target.value } } }))}
+                                  style={{ background: '#F5F5F5', border: 'none', padding: '4px 6px', borderRadius: 6, fontSize: 11 }}>
+                                  <option value="high">High</option>
+                                  <option value="medium">Med</option>
+                                  <option value="low">Low</option>
+                                </select>
+                                <button type="button" onClick={() => {
+                                  const updated = { ...itemRecs[type] };
+                                  delete updated[recId];
+                                  setItemRecs(prev => ({ ...prev, [type]: updated }));
+                                }} style={{ background: 'none', border: 'none', color: '#FF4B4B', cursor: 'pointer', fontSize: 14, padding: 2 }}>✕</button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <select value={pendingRec[type] || ''} onChange={e => setPendingRec(prev => ({ ...prev, [type]: e.target.value }))}
+                          style={{ flex: 1, background: '#F5F5F5', border: 'none', padding: '8px 10px', borderRadius: 8, fontSize: 12 }}>
+                          <option value="">+ Add {label.slice(0, -1).toLowerCase()}...</option>
+                          {items.filter(i => i.id !== editItemId && !recs[i.id] && !(itemRecs[otherType] || {})[i.id]).map(i => (
+                            <option key={i.id} value={i.id}>{i.name}</option>
+                          ))}
+                        </select>
+                        <button type="button" onClick={() => {
+                          const id = pendingRec[type];
+                          if (id) {
+                            setItemRecs(prev => ({ ...prev, [type]: { ...prev[type], [id]: { priority: 'medium' } } }));
+                            setPendingRec(prev => ({ ...prev, [type]: '' }));
+                          }
+                        }} style={{ padding: '8px 14px', background: '#FF6B35', color: '#FFF', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>+</button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
