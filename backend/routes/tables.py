@@ -21,13 +21,14 @@ def _resolve_table(db_ref, qr_token):
     table_lookup = db_ref.child(f'table_tokens/{qr_token}').get()
     if not table_lookup:
         return None, None, None
-    restaurant_id = table_lookup['restaurant_id']
-    table_number = table_lookup['table_number']
-    tables = db_ref.child(f'restaurants/{restaurant_id}/tables').get() or {}
-    for tid, tdata in tables.items():
-        if str(tdata.get('table_number')) == str(table_number):
-            return restaurant_id, table_number, tid
-    return restaurant_id, table_number, None
+    restaurant_id = table_lookup.get('restaurant_id')
+    table_id = table_lookup.get('table_id')
+    if not restaurant_id or not table_id:
+        return None, None, None
+    table_data = db_ref.child(f'restaurants/{restaurant_id}/tables/{table_id}').get()
+    if not table_data:
+        return None, None, None
+    return restaurant_id, table_data.get('table_number'), table_id
 
 @tables_bp.route('/table/<qr_token>/lock-status', methods=['GET'])
 @limiter.limit(LIMIT_PUBLIC_READ)
