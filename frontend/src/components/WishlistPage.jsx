@@ -71,6 +71,7 @@ export default function WishlistPage() {
             body: JSON.stringify({ restaurant_id: rid, guest_id: guest.guest_id, cart: {} })
           });
         }
+        await fetch(`${API}/wishlist/${rid}/${wishlistId}/ordered`, { method: 'PUT' });
         localStorage.removeItem('original_cart');
         setOrderSubmitted(true);
       } else {
@@ -220,14 +221,14 @@ export default function WishlistPage() {
         <div className="wl-actions">
           <button 
             onClick={handleSubmitOrder} 
-            disabled={submitting}
+            disabled={submitting || wishlist?.ordered}
             className="btn-primary wl-btn-submit" 
-            style={{ opacity: submitting ? 0.7 : 1 }}
+            style={{ opacity: (submitting || wishlist?.ordered) ? 0.5 : 1, cursor: (submitting || wishlist?.ordered) ? 'not-allowed' : 'pointer' }}
           >
-            {submitting ? 'Submitting...' : 'Submit Order 🍽️'}
+            {wishlist?.ordered ? 'Already Ordered ✓' : submitting ? 'Submitting...' : 'Submit Order 🍽️'}
           </button>
           <button className="wl-btn-edit" onClick={handleEditSelection}>
-            Edit Selection
+            {wishlist?.ordered ? 'Order Again' : 'Edit Selection'}
           </button>
           <button className="wl-btn-back" onClick={handleEditSelection}>
             Return to Menu
