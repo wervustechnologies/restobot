@@ -217,88 +217,112 @@ export default function MenuPage() {
 
       {/* Header UI */}
       <div style={{
-        padding: '24px 20px 24px',
-        background: 'linear-gradient(135deg, #FF6B35 0%, #E85A20 100%)',
-        borderRadius: '0 0 32px 32px',
-        boxShadow: '0 10px 30px rgba(232,90,32,0.2)',
-        marginBottom: 20
+        padding: '28px 24px 24px',
+        background: 'linear-gradient(135deg, #FF6B35 0%, #FF8F65 50%, #E85A20 100%)',
+        borderRadius: '0 0 36px 36px',
+        boxShadow: '0 16px 36px -8px rgba(232, 90, 32, 0.35)',
+        marginBottom: 24,
+        position: 'relative',
+        overflow: 'hidden'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Subtle background decorative circle for premium depth */}
+        <div style={{
+          position: 'absolute',
+          top: -40,
+          right: -40,
+          width: 180,
+          height: 180,
+          background: 'radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 70%)',
+          borderRadius: '50%',
+          pointerEvents: 'none'
+        }} />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
           <div>
-            <h1 style={{ fontSize: 28, fontWeight: 900, color: '#FFFFFF', letterSpacing: '-0.5px' }}>{data?.restaurant?.name}</h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
-              <span style={{ width: 8, height: 8, background: '#FFF', borderRadius: '50%', opacity: 0.6 }} />
-              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)', fontWeight: 700 }}>Table {resolvedTableNum}</p>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255, 255, 255, 0.22)', backdropFilter: 'blur(10px)', padding: '4px 12px', borderRadius: 100, marginBottom: 10, border: '1px solid rgba(255, 255, 255, 0.3)' }}>
+              <span style={{ width: 6, height: 6, background: '#FFF', borderRadius: '50%', boxShadow: '0 0 8px #FFF' }} />
+              <span style={{ fontSize: 12, color: '#FFFFFF', fontWeight: 800, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Table {resolvedTableNum}</span>
             </div>
+            <h1 style={{ fontSize: 32, fontWeight: 900, color: '#FFFFFF', letterSpacing: '-0.8px', lineHeight: 1.1, textShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
+              {data?.restaurant?.name || 'Menu'}
+            </h1>
             {lockInfo?.locked_by_name && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>
-                  👨‍🍳 Being served by <b>{lockInfo.locked_by_name}</b>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, background: 'rgba(0, 0, 0, 0.15)', backdropFilter: 'blur(8px)', padding: '4px 10px', borderRadius: 12 }}>
+                <span style={{ fontSize: 12, color: '#FFFFFF', fontWeight: 600 }}>
+                  👨‍🍳 Served by <b style={{ color: '#FFE600' }}>{lockInfo.locked_by_name}</b>
                 </span>
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {data?.restaurant?.review_link && (
-              <a href={data.restaurant.review_link} target="_blank" rel="noopener noreferrer" style={{ background: 'rgba(255,215,0,0.25)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,215,0,0.2)', padding: '10px 14px', borderRadius: 20, color: '#FFD700', fontWeight: 800, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', textDecoration: 'none' }}>
-                <span style={{ fontSize: 16 }}>⭐</span> Reviews
-              </a>
-            )}
-            <button onClick={() => setShowOrders(true)} style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 14px', borderRadius: 20, color: '#FFF', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
-              <span style={{ fontSize: 18 }}>🍽️</span>
-              <span style={{ background: orders.length > 0 ? '#FFF' : 'rgba(255,255,255,0.15)', color: orders.length > 0 ? '#FF6B35' : 'rgba(255,255,255,0.6)', borderRadius: 12, padding: '3px 8px', fontSize: 13, minWidth: 22, textAlign: 'center' }}>{orders.length}</span>
-            </button>
-            <div style={{
+
+          <button
+            onClick={() => setShowOrders(true)}
+            style={{
+              background: 'rgba(255, 255, 255, 0.22)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.35)',
+              padding: '10px 16px',
+              borderRadius: 20,
+              color: '#FFF',
+              fontWeight: 800,
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
-              background: 'rgba(255,255,255,0.2)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              padding: '6px 12px',
-              borderRadius: 16
+              gap: 10,
+              cursor: 'pointer',
+              fontSize: 14,
+              boxShadow: '0 8px 20px rgba(0, 0, 0, 0.08)',
+              transition: 'all 0.2s ease',
+              outline: 'none'
+            }}
+          >
+            <span style={{ fontSize: 18 }}>🍽️</span>
+            <span>Orders</span>
+            <span style={{
+              background: orders.length > 0 ? '#FFFFFF' : 'rgba(255, 255, 255, 0.25)',
+              color: orders.length > 0 ? '#E85A20' : '#FFFFFF',
+              borderRadius: 12,
+              padding: '2px 8px',
+              fontSize: 12,
+              fontWeight: 900,
+              minWidth: 22,
+              textAlign: 'center',
+              boxShadow: orders.length > 0 ? '0 2px 6px rgba(0,0,0,0.15)' : 'none'
             }}>
-              <div style={{ width: 28, height: 28, background: '#FFF', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
-                👤
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.7)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>Guest</span>
-                <span style={{ fontSize: 12, color: '#FFF', fontWeight: 800 }}>#{guest?.guest_id?.substring(0, 6)}</span>
-              </div>
-            </div>
-          </div>
+              {orders.length}
+            </span>
+          </button>
         </div>
+
         {/* Actions Row */}
-        <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
-          <button onClick={async () => {
-            const res = await fetch(`${API}/table/${qrToken}/call-waiter`, { method: 'POST' });
-            if (res.ok) setLockInfo(prev => ({ ...prev, call_waiter: true, call_waiter_at: Date.now() }));
-          }} style={{
-            flex: 1, padding: '14px', borderRadius: 16, border: 'none',
-            background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)',
-            color: '#FFF', fontWeight: 900, fontSize: 15, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
-          }}>
-            <span style={{ fontSize: 20 }}>🔔</span> Call Waiter
+        <div style={{ marginTop: 22, display: 'flex', gap: 12, position: 'relative', zIndex: 1 }}>
+          <button
+            onClick={async () => {
+              if (lockInfo?.call_waiter) return;
+              const res = await fetch(`${API}/table/${qrToken}/call-waiter`, { method: 'POST' });
+              if (res.ok) setLockInfo(prev => ({ ...prev, call_waiter: true, call_waiter_at: Date.now() }));
+            }}
+            style={{
+              flex: 1,
+              padding: '14px 20px',
+              borderRadius: 18,
+              border: lockInfo?.call_waiter ? '1px solid rgba(255, 255, 255, 0.5)' : '1px solid rgba(255, 255, 255, 0.3)',
+              background: lockInfo?.call_waiter ? 'rgba(34, 197, 94, 0.35)' : 'rgba(255, 255, 255, 0.2)',
+              backdropFilter: 'blur(12px)',
+              color: '#FFF',
+              fontWeight: 800,
+              fontSize: 15,
+              cursor: lockInfo?.call_waiter ? 'default' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              boxShadow: '0 6px 16px rgba(0, 0, 0, 0.06)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <span style={{ fontSize: 18 }}>{lockInfo?.call_waiter ? '✅' : '🔔'}</span>
+            <span>{lockInfo?.call_waiter ? 'Waiter Notified!' : 'Call Waiter'}</span>
           </button>
-          <button onClick={() => setShowFeedback(true)} style={{
-            flex: 1, padding: '14px', borderRadius: 16, border: 'none',
-            background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)',
-            color: '#FFF', fontWeight: 900, fontSize: 15, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
-          }}>
-            <span style={{ fontSize: 20 }}>💬</span> Give Feedback
-          </button>
-          {lockInfo?.call_waiter && (
-            <div style={{
-              padding: '10px 18px', borderRadius: 12,
-              background: 'rgba(255,215,0,0.3)', backdropFilter: 'blur(10px)',
-              color: '#FFD700', fontWeight: 800, fontSize: 13,
-              display: 'flex', alignItems: 'center', gap: 6
-            }}>
-              <span>✅</span> Notified
-            </div>
-          )}
         </div>
       </div>
 
