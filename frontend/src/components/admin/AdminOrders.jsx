@@ -32,7 +32,7 @@ export default function AdminOrders() {
     fetchTables();
     const interval = setInterval(fetchTables, 10000);
     return () => clearInterval(interval);
-  }, [token]);
+  }, [token, filter]);
 
   const filteredTables = tables.filter(t => {
     if (filter === 'pending') return t.has_pending;
@@ -58,10 +58,29 @@ export default function AdminOrders() {
     }
   };
 
+  const handleBillGuest = async (tableNumber, guestId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/orders/table/${tableNumber}/bill-guest/${guestId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
+      if (res.ok) {
+        setCheckoutTable(null);
+        fetchTables();
+      } else {
+        const data = await res.json();
+        console.error('Failed to bill guest:', data.error || res.statusText);
+        fetchTables();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const totalPending = tables.filter(t => t.has_pending).length;
   const totalRevenue = tables.reduce((sum, t) => {
     const completedAmount = t.orders
-      .filter(o => o.status === 'completed')
+      .filter(o => o.status === 'completed' || o.status === 'billed')
       .reduce((s, o) => s + (o.total_amount || 0), 0);
     return sum + completedAmount;
   }, 0);
@@ -140,18 +159,72 @@ export default function AdminOrders() {
                 }, {});
                 const totalAmount = Object.values(mergedItems).reduce((sum, item) => sum + item.price * item.quantity, 0);
 
+                const byGuest = unbilledOrders.reduce((acc, order) => {
+                  const gid = order.guest_id || 'anonymous';
+                  if (!acc[gid]) acc[gid] = [];
+                  acc[gid].push(order);
+                  return acc;
+                }, {});
+
                 return (
                   <div>
-                    {Object.values(mergedItems).map((item, idx) => (
-                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dashed #DDD' }}>
-                        <span style={{ fontSize: 14, fontWeight: 600 }}>{item.quantity}x {item.name}</span>
-                        <span style={{ fontSize: 14, fontWeight: 800 }}>₹{item.price * item.quantity}</span>
+                    <div style={{ marginBottom: 20, paddingBottom: 15, borderBottom: '2px solid #333' }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, color: '#888' }}>Grand Total</div>
+                      {Object.values(mergedItems).map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dashed #DDD' }}>
+                          <span style={{ fontSize: 14, fontWeight: 600 }}>{item.quantity}x {item.name}</span>
+                          <span style={{ fontSize: 14, fontWeight: 800 }}>₹{item.price} × {item.quantity} = ₹{item.price * item.quantity}</span>
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 15, paddingTop: 15, borderTop: '2px solid #333' }}>
+                        <span style={{ fontSize: 18, fontWeight: 900 }}>Grand Total</span>
+                        <span style={{ fontSize: 18, fontWeight: 900, color: '#1DB954' }}>₹{totalAmount}</span>
                       </div>
-                    ))}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 15, paddingTop: 15, borderTop: '2px solid #333' }}>
-                      <span style={{ fontSize: 18, fontWeight: 900 }}>Grand Total</span>
-                      <span style={{ fontSize: 18, fontWeight: 900, color: '#1DB954' }}>₹{totalAmount}</span>
                     </div>
+
+                    {Object.entries(byGuest).map(([gid, orders]) => {
+                      const guestItems = orders.reduce((acc, order) => {
+                        (order.items || []).forEach(item => {
+                          const key = item.name;
+                          if (!acc[key]) acc[key] = { ...item, quantity: 0, price: item.price };
+                          acc[key].quantity += item.quantity;
+                        });
+                        return acc;
+                      }, {});
+                      const guestTotal = Object.values(guestItems).reduce((sum, item) => sum + item.price * item.quantity, 0);
+                      const isAnonymous = !gid || gid === 'anonymous';
+
+                      return (
+                        <div key={gid} style={{ marginBottom: 15, padding: 12, background: '#F9F9F9', borderRadius: 12 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#666' }}>
+                              {isAnonymous ? 'Anonymous Orders' : `Guest ${gid.substring(0, 6)}`}
+                            </span>
+                            <span style={{ fontSize: 14, fontWeight: 800, color: '#FF6B35' }}>₹{guestTotal}</span>
+                          </div>
+                          {Object.values(guestItems).map((item, idx) => (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
+                              <span>{item.quantity}x {item.name}</span>
+                              <span>₹{item.price} × {item.quantity} = ₹{item.price * item.quantity}</span>
+                            </div>
+                          ))}
+                          {!isAnonymous ? (
+                            <button
+                              onClick={() => handleBillGuest(checkoutTable.table_number, gid)}
+                              style={{
+                                width: '100%', marginTop: 10, padding: '10px', background: '#1DB954', color: '#FFF',
+                                border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer'
+                              }}>
+                              Bill This Guest
+                            </button>
+                          ) : (
+                            <div style={{ marginTop: 10, fontSize: 11, color: '#999', textAlign: 'center' }}>
+                              Anonymous orders can only be billed together (use table-wide billing below)
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })()}
@@ -160,7 +233,9 @@ export default function AdminOrders() {
               <button onClick={() => setCheckoutTable(null)}
                 style={{ flex: 1, padding: '12px', borderRadius: 10, border: '1px solid #DDD', background: '#FFF', fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
               <button onClick={() => handleBill(checkoutTable.table_number)}
-                style={{ flex: 1, padding: '12px', borderRadius: 10, border: 'none', background: '#1DB954', color: '#FFF', fontWeight: 700, cursor: 'pointer' }}>Mark as Billed</button>
+                style={{ flex: 1, padding: '12px', borderRadius: 10, border: 'none', background: '#FF6B35', color: '#FFF', fontWeight: 700, cursor: 'pointer' }}>
+                Bill All (Table-wide)
+              </button>
             </div>
           </div>
         </div>
@@ -321,7 +396,7 @@ function GuestOrderGroup({ guestId, orders }) {
               <span style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A' }}>
                 {item.quantity}x {item.name}
               </span>
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#FF6B35' }}>₹{item.price * item.quantity}</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#FF6B35' }}>₹{item.price} × {item.quantity} = ₹{item.price * item.quantity}</span>
             </div>
           ))}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTop: '2px solid #F5F5F5' }}>
@@ -376,7 +451,7 @@ function OrderItems({ order }) {
               <span style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A' }}>
                 {item.quantity}x {item.name}
               </span>
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#FF6B35' }}>₹{item.price * item.quantity}</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#FF6B35' }}>₹{item.price} × {item.quantity} = ₹{item.price * item.quantity}</span>
             </div>
           ))}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTop: '2px solid #F5F5F5' }}>

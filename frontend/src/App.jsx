@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext';
 
 import MenuPage from './components/MenuPage';
 import WishlistPage from './components/WishlistPage';
+import QRLandingPage from './components/QRLandingPage';
 
 // Admin Pages
 import AdminLayout from './components/admin/AdminLayout';
@@ -29,7 +30,7 @@ function RootRoute() {
   const location = window.location;
   const params = new URLSearchParams(location.search);
   if (params.get('t')) {
-    return <MenuPage />;
+    return <QRLandingPage />;
   }
   return <Navigate to="/admin/login" replace />;
 }
