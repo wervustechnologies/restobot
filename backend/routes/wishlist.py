@@ -42,6 +42,19 @@ def save_wishlist():
     
     return jsonify({'success': True, 'wishlist_id': wishlist_ref.key}), 201
 
+@wishlist_bp.route('/wishlist/<restaurant_id>/<wishlist_id>/ordered', methods=['PUT'])
+@limiter.limit(LIMIT_PUBLIC_WRITE)
+def mark_wishlist_ordered(restaurant_id, wishlist_id):
+    db_ref = get_db()
+    wishlist = db_ref.child(f'restaurants/{restaurant_id}/wishlists/{wishlist_id}').get()
+    if not wishlist:
+        return jsonify({'error': 'Wishlist not found'}), 404
+    db_ref.child(f'restaurants/{restaurant_id}/wishlists/{wishlist_id}').update({
+        'ordered': True,
+        'ordered_at': time.time()
+    })
+    return jsonify({'success': True}), 200
+
 @wishlist_bp.route('/wishlist/<restaurant_id>/<wishlist_id>', methods=['GET'])
 @limiter.limit(LIMIT_PUBLIC_READ)
 def get_wishlist(restaurant_id, wishlist_id):

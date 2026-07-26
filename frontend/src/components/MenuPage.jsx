@@ -34,9 +34,7 @@ export default function MenuPage() {
       fetch(`${API}/cart/${rid}/${guest.guest_id}`)
         .then(r => r.json())
         .then(d => {
-          if (d && Object.keys(d).length > 0) {
-            setCart(d);
-          }
+          setCart(d && Object.keys(d).length > 0 ? d : {});
           setHasLoadedCart(true);
         })
         .catch(() => setHasLoadedCart(true));
@@ -156,7 +154,7 @@ export default function MenuPage() {
     const fetchOrders = () => {
       fetch(`${API}/orders/guest/${rid}/${guest.guest_id}`)
         .then(r => r.json())
-        .then(d => setOrders(d.filter(o => o.status !== 'completed')))
+        .then(d => setOrders(d.filter(o => o.status !== 'completed' && o.status !== 'served')))
         .catch(() => {});
     };
     fetchOrders();
