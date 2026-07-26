@@ -32,7 +32,7 @@ export default function AdminOrders() {
     fetchTables();
     const interval = setInterval(fetchTables, 10000);
     return () => clearInterval(interval);
-  }, [token]);
+  }, [token, filter]);
 
   const filteredTables = tables.filter(t => {
     if (filter === 'pending') return t.has_pending;
@@ -80,7 +80,7 @@ export default function AdminOrders() {
   const totalPending = tables.filter(t => t.has_pending).length;
   const totalRevenue = tables.reduce((sum, t) => {
     const completedAmount = t.orders
-      .filter(o => o.status === 'completed')
+      .filter(o => o.status === 'completed' || o.status === 'billed')
       .reduce((s, o) => s + (o.total_amount || 0), 0);
     return sum + completedAmount;
   }, 0);
@@ -173,7 +173,7 @@ export default function AdminOrders() {
                       {Object.values(mergedItems).map((item, idx) => (
                         <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dashed #DDD' }}>
                           <span style={{ fontSize: 14, fontWeight: 600 }}>{item.quantity}x {item.name}</span>
-                          <span style={{ fontSize: 14, fontWeight: 800 }}>₹{item.price * item.quantity}</span>
+                          <span style={{ fontSize: 14, fontWeight: 800 }}>₹{item.price} × {item.quantity} = ₹{item.price * item.quantity}</span>
                         </div>
                       ))}
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 15, paddingTop: 15, borderTop: '2px solid #333' }}>
@@ -205,7 +205,7 @@ export default function AdminOrders() {
                           {Object.values(guestItems).map((item, idx) => (
                             <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                               <span>{item.quantity}x {item.name}</span>
-                              <span>₹{item.price * item.quantity}</span>
+                              <span>₹{item.price} × {item.quantity} = ₹{item.price * item.quantity}</span>
                             </div>
                           ))}
                           {!isAnonymous ? (
@@ -396,7 +396,7 @@ function GuestOrderGroup({ guestId, orders }) {
               <span style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A' }}>
                 {item.quantity}x {item.name}
               </span>
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#FF6B35' }}>₹{item.price * item.quantity}</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#FF6B35' }}>₹{item.price} × {item.quantity} = ₹{item.price * item.quantity}</span>
             </div>
           ))}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTop: '2px solid #F5F5F5' }}>
@@ -451,7 +451,7 @@ function OrderItems({ order }) {
               <span style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A' }}>
                 {item.quantity}x {item.name}
               </span>
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#FF6B35' }}>₹{item.price * item.quantity}</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#FF6B35' }}>₹{item.price} × {item.quantity} = ₹{item.price * item.quantity}</span>
             </div>
           ))}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTop: '2px solid #F5F5F5' }}>
