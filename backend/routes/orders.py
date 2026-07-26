@@ -158,6 +158,24 @@ def complete_order(order_id):
         'completed_at': time.time()
     })
 
+    table_number = order.get('table_number')
+    if table_number:
+        orders_ref = db_ref.child(f'restaurants/{restaurant_id}/orders')
+        remaining = []
+        for st in ['pending', 'claimed', 'served']:
+            remaining.extend(format_list(orders_ref.order_by_child('status').equal_to(st).get()))
+        table_active = [o for o in remaining if str(o.get('table_number')) == str(table_number)]
+
+        if not table_active:
+            tables = db_ref.child(f'restaurants/{restaurant_id}/tables').get() or {}
+            for tid, tdata in tables.items():
+                if str(tdata.get('table_number')) == str(table_number):
+                    db_ref.child(f'restaurants/{restaurant_id}/tables/{tid}').update({
+                        'call_waiter': False,
+                        'call_waiter_at': None
+                    })
+                    break
+
     return jsonify({'success': True, 'message': 'Order completed'}), 200
 
 @orders_bp.route('/orders/<order_id>/serve', methods=['PUT'])
@@ -238,7 +256,9 @@ def unlock_table(table_number):
     db_ref.child(f'restaurants/{restaurant_id}/tables/{table_id}').update({
         'locked_by': None,
         'locked_by_name': None,
-        'locked_at': None
+        'locked_at': None,
+        'call_waiter': False,
+        'call_waiter_at': None
     })
 
     return jsonify({'success': True, 'message': 'Table unlocked'}), 200
@@ -303,9 +323,13 @@ def get_tables_with_orders():
             'call_waiter_at': table.get('call_waiter_at'),
             'orders': [],
             'total_amount': 0,
+            'active_total': 0,
             'has_pending': False,
+            'has_served': False,
             'has_completed': False,
-            'has_billed': False
+            'has_billed': False,
+            'pending_count': 0,
+            'served_count': 0
         }
 
     for order in orders:
@@ -313,14 +337,20 @@ def get_tables_with_orders():
         if tnum not in table_orders:
             continue
         table_orders[tnum]['orders'].append(order)
-        if order.get('status') in ('pending', 'claimed', 'served'):
-            table_orders[tnum]['total_amount'] += order.get('total_amount', 0)
+        status = order.get('status')
+        amount = order.get('total_amount', 0)
+        table_orders[tnum]['total_amount'] += amount
+        if status in ('pending', 'claimed'):
+            table_orders[tnum]['active_total'] += amount
             table_orders[tnum]['has_pending'] = True
-        elif order.get('status') == 'completed':
-            table_orders[tnum]['total_amount'] += order.get('total_amount', 0)
+            table_orders[tnum]['pending_count'] += 1
+        elif status == 'served':
+            table_orders[tnum]['active_total'] += amount
+            table_orders[tnum]['has_served'] = True
+            table_orders[tnum]['served_count'] += 1
+        elif status == 'completed':
             table_orders[tnum]['has_completed'] = True
-        elif order.get('status') == 'billed':
-            table_orders[tnum]['total_amount'] += order.get('total_amount', 0)
+        elif status == 'billed':
             table_orders[tnum]['has_billed'] = True
 
     result = [v for v in table_orders.values()]

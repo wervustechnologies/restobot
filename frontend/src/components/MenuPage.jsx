@@ -34,9 +34,7 @@ export default function MenuPage() {
       fetch(`${API}/cart/${rid}/${guest.guest_id}`)
         .then(r => r.json())
         .then(d => {
-          if (d && Object.keys(d).length > 0) {
-            setCart(d);
-          }
+          setCart(d && Object.keys(d).length > 0 ? d : {});
           setHasLoadedCart(true);
         })
         .catch(() => setHasLoadedCart(true));
@@ -156,7 +154,7 @@ export default function MenuPage() {
     const fetchOrders = () => {
       fetch(`${API}/orders/guest/${rid}/${guest.guest_id}`)
         .then(r => r.json())
-        .then(d => setOrders(d.filter(o => o.status !== 'completed')))
+        .then(d => setOrders(d.filter(o => o.status !== 'completed' && o.status !== 'served')))
         .catch(() => {});
     };
     fetchOrders();
@@ -271,15 +269,22 @@ export default function MenuPage() {
         {/* Actions Row */}
         <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
           <button onClick={async () => {
-            const res = await fetch(`${API}/table/${qrToken}/call-waiter`, { method: 'POST' });
-            if (res.ok) setLockInfo(prev => ({ ...prev, call_waiter: true, call_waiter_at: Date.now() }));
+            if (!qrToken) return;
+            try {
+              const res = await fetch(`${API}/table/${qrToken}/call-waiter`, { method: 'POST' });
+              if (res.ok) {
+                setLockInfo(prev => ({ ...prev, call_waiter: true, call_waiter_at: Date.now() }));
+              }
+            } catch (err) {
+              console.error('Call waiter failed:', err);
+            }
           }} style={{
             flex: 1, padding: '14px', borderRadius: 16, border: 'none',
-            background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)',
+            background: lockInfo?.call_waiter ? 'rgba(255,215,0,0.4)' : 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)',
             color: '#FFF', fontWeight: 900, fontSize: 15, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
           }}>
-            <span style={{ fontSize: 20 }}>🔔</span> Call Waiter
+            <span style={{ fontSize: 20 }}>{lockInfo?.call_waiter ? '✅' : '🔔'}</span> {lockInfo?.call_waiter ? 'Waiter Notified' : 'Call Waiter'}
           </button>
           <button onClick={() => setShowFeedback(true)} style={{
             flex: 1, padding: '14px', borderRadius: 16, border: 'none',
