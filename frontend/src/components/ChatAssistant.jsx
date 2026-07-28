@@ -6,7 +6,7 @@ const DEFAULT_COURSE_ORDER = ['starter', 'main', 'bread', 'rice', 'dessert', 'be
 const getCourseInfo = (ct) => {
   const labels = {
     starter: 'Starter',
-    main: 'Main Course',
+    main: 'Full Meal',
     bread: 'Bread',
     rice: 'Rice',
     dessert: 'Dessert',
@@ -14,7 +14,7 @@ const getCourseInfo = (ct) => {
   };
   const questions = {
     starter: 'Pick a <b>starter</b> to begin your meal:',
-    main: 'Now choose your <b>main course</b>:',
+    main: 'Now choose your <b>full meal</b>:',
     bread: 'Add a <b>bread</b> to go with it?',
     rice: 'Would you like a <b>rice dish</b>?',
     dessert: 'End on a sweet note? Pick a <b>dessert</b>:',
@@ -292,9 +292,9 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
           })
         });
         const data = await res.json();
-        if (data.suggestion) {
+        if (data.suggestions && data.suggestions.length) {
           await botSay(data.message, 400);
-          showCards([data.suggestion], async (sugDish, sugId) => {
+          showCards(data.suggestions, async (sugDish, sugId) => {
             lockCards(sugId, sugDish.name); userSay(`✓ Add ${sugDish.name}`);
             const updatedSel = { ...newSel, [`suggested_${courseKey}`]: sugDish };
             setFlow(prev => ({ ...prev, selections: updatedSel }));
@@ -345,9 +345,9 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
       const d = await r.json();
       console.log("AI Recommendation response:", d);
 
-      if (d.suggested_item && d.suggested_item.id) {
+      if (d.suggestions && d.suggestions.length) {
         await botSay(d.suggestion_text, 400);
-        showCards([d.suggested_item], async (dish, cardId) => {
+        showCards(d.suggestions, async (dish, cardId) => {
           lockCards(cardId, dish.name); userSay(`Yes, add ${dish.name}`);
           const newSel = { ...selections, suggested: dish };
           setFlow(prev => ({ ...prev, selections: newSel }));

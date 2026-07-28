@@ -394,19 +394,17 @@ export default function AdminMenuManager() {
                 onChange={e => setNewCat({ ...newCat, name: e.target.value })} />
               <div style={{ background: '#FFF0EA', padding: '10px 15px', borderRadius: 12, border: '1px solid rgba(255,107,53,0.2)' }}>
                 <label style={{ fontSize: 12, fontWeight: 700, color: '#FF6B35', marginBottom: 8, display: 'block' }}>Course Type <span style={{ fontSize: 10, color: '#888' }}>(Used by AI Chat Guide)</span></label>
-                <input 
-                  list="course-types"
-                  placeholder="Enter or select Course Type" 
-                  required 
+                <select
+                  value={newCat.course_type}
+                  onChange={e => setNewCat({ ...newCat, course_type: e.target.value })}
+                  required
                   style={{ background: '#F5F5F5', border: 'none', padding: '10px 15px', borderRadius: 10, width: '100%', color: '#333', fontWeight: 600 }}
-                  value={newCat.course_type} 
-                  onChange={e => setNewCat({ ...newCat, course_type: e.target.value })} 
-                />
-                <datalist id="course-types">
-                  {[...new Set(categories.map(c => c.course_type).filter(Boolean))].map(ct => (
-                    <option key={ct} value={ct} />
-                  ))}
-                </datalist>
+                >
+                  <option value="">Select Course Type</option>
+                  <option value="starter">Starter</option>
+                  <option value="main">Full meal</option>
+                  <option value="beverage">Beverages</option>
+                </select>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
                 <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={() => setShowCatForm(false)}>Cancel</button>
