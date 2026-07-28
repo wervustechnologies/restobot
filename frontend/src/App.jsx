@@ -14,6 +14,7 @@ import AdminLogin from './components/admin/AdminLogin';
 import AdminMenuManager from './components/admin/AdminMenuManager';
 import AdminTables from './components/admin/AdminTables';
 import AdminOrders from './components/admin/AdminOrders';
+import AdminOrderHistory from './components/admin/AdminOrderHistory';
 import AdminWaiters from './components/admin/AdminWaiters';
 import AdminReviews from './components/admin/AdminReviews';
 
@@ -49,6 +50,7 @@ function CustomerApp() {
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<AdminDashboard />} />
         <Route path="orders" element={<AdminOrders />} />
+        <Route path="orders/history" element={<AdminOrderHistory />} />
         <Route path="menu" element={<AdminMenuManager />} />
         <Route path="tables" element={<AdminTables />} />
         <Route path="waiters" element={<AdminWaiters />} />
