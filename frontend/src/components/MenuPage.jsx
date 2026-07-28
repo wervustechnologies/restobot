@@ -220,6 +220,7 @@ export default function MenuPage() {
         onAddToCart={addItem}
         onShowWishlist={() => setShowWishlist(true)}
         hideMascot={showWishlist}
+        mode={showOrders ? 'orders' : 'menu'}
       />
 
       {/* Header UI */}

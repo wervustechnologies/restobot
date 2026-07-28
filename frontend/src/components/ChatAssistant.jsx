@@ -90,7 +90,7 @@ function Typing() {
   );
 }
 
-export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCart, onShowWishlist, hideMascot }) {
+export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCart, onShowWishlist, hideMascot, mode = 'menu' }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showBubble, setShowBubble] = useState(false);
   const [menuData, setMenuData] = useState(initialMenuData || null);
@@ -100,12 +100,96 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
   const [step, setStep] = useState(0);
   const [flow, setFlow] = useState({});
   const bottomRef = useRef(null);
+  const mascotRef = useRef(null);
+  const dragRef = useRef(null);
+
+  // Minimize / drag state
+  const [userMinimized, setUserMinimized] = useState(false);
+  const [fabCorner, setFabCorner] = useState('bottom-left');
 
   const [dynamicCourses, setDynamicCourses] = useState([]);
+
+  const inOrdersMode = mode === 'orders';
+  const isEffectivelyMinimized = userMinimized || (inOrdersMode && !isOpen);
 
   useEffect(() => { injectCSS(); }, []);
   useEffect(() => { setTimeout(() => setShowBubble(true), 800); }, []);
   useEffect(() => { setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 80); }, [items, isTyping]);
+
+  // Auto-close chat when switching to orders mode
+  useEffect(() => {
+    if (mode === 'orders') {
+      setIsOpen(false);
+    }
+  }, [mode]);
+
+  // ── Drag handlers for mascot (menu mode) ──
+  const handleMascotPointerDown = (e) => {
+    if (isOpen) return;
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false
+    };
+    mascotRef.current?.setPointerCapture(e.pointerId);
+  };
+
+  const handleMascotPointerMove = (e) => {
+    if (!dragRef.current || !mascotRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      dragRef.current.moved = true;
+      mascotRef.current.style.transform = `translate(${dx}px, ${dy}px)`;
+      mascotRef.current.style.transition = 'none';
+    }
+  };
+
+  const handleMascotPointerUp = (e) => {
+    if (!dragRef.current) return;
+    const wasMoved = dragRef.current.moved;
+    const dist = Math.sqrt(
+      Math.pow(e.clientX - dragRef.current.startX, 2) +
+      Math.pow(e.clientY - dragRef.current.startY, 2)
+    );
+
+    if (mascotRef.current) {
+      mascotRef.current.style.transform = '';
+      mascotRef.current.style.transition = '';
+    }
+    dragRef.current = null;
+
+    if (wasMoved && dist > 80) {
+      // Snap to nearest corner
+      const midX = window.innerWidth / 2;
+      const midY = window.innerHeight / 2;
+      const corner = (e.clientY < midY ? 'top' : 'bottom') + '-' + (e.clientX < midX ? 'left' : 'right');
+      setFabCorner(corner);
+      setUserMinimized(true);
+      setIsOpen(false);
+    } else if (!wasMoved) {
+      // Treat as click — open chat
+      setIsOpen(true);
+    }
+  };
+
+  const handleFabClick = () => {
+    if (inOrdersMode) {
+      setIsOpen(true);
+    } else {
+      setUserMinimized(false);
+    }
+  };
+
+  const fabPos = (() => {
+    if (inOrdersMode) return { top: 20, right: 20 };
+    switch (fabCorner) {
+      case 'top-left': return { top: 80, left: 20 };
+      case 'top-right': return { top: 80, right: 20 };
+      case 'bottom-right': return { bottom: 20, right: 20 };
+      default: return { bottom: 20, left: 20 };
+    }
+  })();
 
   useEffect(() => {
     if (menuData) {
@@ -523,13 +607,106 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
     return null;
   };
 
+  // ── Shared chat content (header + progress + messages) ──
+  const renderChatContent = (showCloseInHeader = false, onClose = null) => (
+    <>
+      {/* Header */}
+      <div style={{ padding: '14px 16px', background: '#c05c28', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        {showCloseInHeader && (
+          <button
+            onClick={onClose}
+            style={{
+              background: 'rgba(255,255,255,0.2)', border: 'none',
+              width: 32, height: 32, borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 900,
+              flexShrink: 0,
+            }}
+          >✕</button>
+        )}
+        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🍽️</div>
+        <div>
+          <div style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>{resName || 'AI Menu Guide'}</div>
+          <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11 }}>AI Menu Guide — online</div>
+        </div>
+      </div>
+
+      {/* Progress Bar */}
+      <div style={{ height: 3, background: '#eee', flexShrink: 0 }}>
+        <div style={{ height: '100%', background: '#c05c28', width: `${pct}%`, transition: 'width 0.4s ease' }} />
+      </div>
+
+      {/* Step Label */}
+      <div style={{ padding: '6px 12px 0', fontSize: 11, color: '#999', textAlign: 'center', background: '#fff', flexShrink: 0 }}>{getStepLabel()}</div>
+
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {items.map((item, idx) => renderItem(item, idx))}
+        {isTyping && <Typing />}
+        <div ref={bottomRef} />
+      </div>
+    </>
+  );
+
   return (
     <>
-      {/* Floating Chef — always visible */}
-      {!hideMascot && (
+      {/* ── Minimized FAB (drag-to-corner or orders mode) ── */}
+      {isEffectivelyMinimized && !hideMascot && (
         <div
-          onClick={() => !isOpen && setIsOpen(true)}
-          style={{ position: 'fixed', bottom: isOpen ? 560 : 0, left: isOpen ? 10 : 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end', cursor: isOpen ? 'default' : 'pointer', pointerEvents: 'auto', padding: '20px', transition: 'bottom 0.3s, left 0.3s' }}>
+          onClick={handleFabClick}
+          style={{
+            position: 'fixed',
+            ...fabPos,
+            zIndex: 1001,
+            width: 56,
+            height: 56,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #FF6B35 0%, #E85A20 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 8px 25px rgba(255,107,53,0.4)',
+            animation: 'pulse-ai 2s infinite',
+            transition: 'all 0.3s ease',
+            overflow: 'hidden',
+            border: '3px solid rgba(255,255,255,0.3)',
+          }}
+        >
+          <img src="/kidai.png" alt="AI Assistant" style={{ width: 36, height: 46, objectFit: 'contain' }} />
+          {/* AI badge */}
+          <div style={{
+            position: 'absolute', top: -2, right: -2,
+            background: '#fff', borderRadius: 8,
+            padding: '1px 5px', fontSize: 8, fontWeight: 900,
+            color: '#E85A20', boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+            letterSpacing: 0.5, lineHeight: '14px',
+          }}>AI</div>
+        </div>
+      )}
+
+      {/* ── Floating Mascot (menu mode, not minimized) ── */}
+      {!isEffectivelyMinimized && !hideMascot && !inOrdersMode && (
+        <div
+          ref={mascotRef}
+          onPointerDown={handleMascotPointerDown}
+          onPointerMove={handleMascotPointerMove}
+          onPointerUp={handleMascotPointerUp}
+          style={{
+            position: 'fixed',
+            bottom: isOpen ? 560 : 0,
+            left: isOpen ? 10 : 0,
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'flex-end',
+            cursor: isOpen ? 'default' : 'grab',
+            pointerEvents: 'auto',
+            padding: '20px',
+            transition: 'bottom 0.3s, left 0.3s',
+            touchAction: 'none',
+            userSelect: 'none',
+          }}
+        >
           {!isOpen && showBubble && (
             <div style={{ position: 'absolute', bottom: 135, left: 105, background: 'linear-gradient(135deg, #FFFFFF 0%, #FFD2B8 100%)', padding: '10px 20px', borderRadius: '20px 20px 20px 0', boxShadow: '0 10px 25px rgba(255,107,53,0.25)', border: '1px solid #FFC4A3', whiteSpace: 'nowrap', fontSize: 13, fontWeight: 800, color: '#E85A20', zIndex: 1001, display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none' }}>
               Confused? Click me! 🍽️
@@ -540,40 +717,45 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
         </div>
       )}
 
-      {/* Close */}
-      {isOpen && (
+      {/* ── Close Button (menu mode chat) ── */}
+      {isOpen && !inOrdersMode && (
         <button onClick={() => setIsOpen(false)}
           style={{ position: 'fixed', bottom: 95, right: 25, zIndex: 1001, width: 44, height: 44, borderRadius: '50%', background: '#FFF', border: '1.5px solid #F0F0F0', boxShadow: '0 8px 20px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18, fontWeight: 900, color: '#666' }}>✕</button>
       )}
 
-      {/* Chat Window */}
-      {isOpen && (
+      {/* ── Chat Window (menu mode) ── */}
+      {isOpen && !inOrdersMode && (
         <div style={{ position: 'fixed', bottom: 150, right: 20, zIndex: 1000, width: 'calc(100% - 40px)', maxWidth: 380, background: '#f9f9f9', borderRadius: 24, border: '1px solid #eee', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', animation: 'slideUp 0.3s cubic-bezier(0.4,0,0.2,1)', height: 540 }}>
-
-          {/* Header */}
-          <div style={{ padding: '14px 16px', background: '#c05c28', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🍽️</div>
-            <div>
-              <div style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>{resName || 'AI Menu Guide'}</div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11 }}>AI Menu Guide — online</div>
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div style={{ height: 3, background: '#eee', flexShrink: 0 }}>
-            <div style={{ height: '100%', background: '#c05c28', width: `${pct}%`, transition: 'width 0.4s ease' }} />
-          </div>
-
-          {/* Step Label */}
-          <div style={{ padding: '6px 12px 0', fontSize: 11, color: '#999', textAlign: 'center', background: '#fff', flexShrink: 0 }}>{getStepLabel()}</div>
-
-          {/* Messages */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {items.map((item, idx) => renderItem(item, idx))}
-            {isTyping && <Typing />}
-            <div ref={bottomRef} />
-          </div>
+          {renderChatContent()}
         </div>
+      )}
+
+      {/* ── Side Panel Chat (orders mode) ── */}
+      {isOpen && inOrdersMode && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setIsOpen(false)}
+            style={{
+              position: 'fixed', inset: 0,
+              background: 'rgba(0,0,0,0.3)',
+              zIndex: 1002,
+              backdropFilter: 'blur(2px)',
+            }}
+          />
+          {/* Panel sliding from right */}
+          <div style={{
+            position: 'fixed', top: 0, right: 0, bottom: 0,
+            width: '88%', maxWidth: 380,
+            zIndex: 1003,
+            background: '#f9f9f9',
+            display: 'flex', flexDirection: 'column',
+            boxShadow: '-10px 0 40px rgba(0,0,0,0.15)',
+            animation: 'slideInRight 0.3s cubic-bezier(0.4,0,0.2,1)',
+          }}>
+            {renderChatContent(true, () => setIsOpen(false))}
+          </div>
+        </>
       )}
     </>
   );
