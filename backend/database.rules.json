@@ -24,7 +24,7 @@
     "restaurants": {
       "$restaurant_id": {
         "orders": {
-          ".indexOn": ["status", "created_at"]
+          ".indexOn": ["status", "created_at", "guest_id"]
         }
       }
     }

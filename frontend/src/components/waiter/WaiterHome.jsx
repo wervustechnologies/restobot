@@ -9,7 +9,7 @@ export default function WaiterHome() {
   const [loading, setLoading] = useState(true);
   const [waiter, setWaiter] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
-  const [addItemModal, setAddItemModal] = useState({ open: false, orderId: null, tableNumber: null });
+  const [addItemModal, setAddItemModal] = useState({ open: false, tableNumber: null, guestId: null, userName: '' });
   const [selectedItem, setSelectedItem] = useState('');
   const [itemQty, setItemQty] = useState(1);
   const [itemSearch, setItemSearch] = useState('');
@@ -67,30 +67,39 @@ export default function WaiterHome() {
 
   const handleAddItem = async () => {
     const token = localStorage.getItem('waiter_token');
-    if (!selectedItem || !addItemModal.orderId) return;
+    if (!selectedItem || !addItemModal.tableNumber) return;
 
     const item = menuItems.find(m => m.id === selectedItem);
     if (!item) return;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/orders/${addItemModal.orderId}/add-items`, {
-        method: 'PUT',
+      // Waiter-added items create a brand-new pending order attributed to the
+      // selected customer (same as a guest follow-up order), not an append to
+      // an existing order. The waiter then serves/completes it normally.
+      const res = await fetch(`${API_BASE_URL}/orders/waiter-add`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
+          table_number: addItemModal.tableNumber,
+          guest_id: addItemModal.guestId || '',
+          user_name: addItemModal.userName || '',
           items: [{ name: item.name, price: item.price, quantity: itemQty }]
         })
       });
 
       if (res.ok) {
-        Swal.fire({ icon: 'success', title: 'Item Added!', timer: 1500, showConfirmButton: false });
-        setAddItemModal({ open: false, orderId: null, tableNumber: null });
+        Swal.fire({ icon: 'success', title: 'Order Added!', text: 'New pending order created for this guest', timer: 1500, showConfirmButton: false });
+        setAddItemModal({ open: false, tableNumber: null, guestId: null, userName: '' });
         setSelectedItem('');
         setItemQty(1);
         setItemSearch('');
         fetchTables();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        Swal.fire('Error', data.error || 'Failed to add item', 'error');
       }
     } catch (err) {
       Swal.fire('Error', 'Failed to add item', 'error');
@@ -262,7 +271,7 @@ export default function WaiterHome() {
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 15 }}>
               {myTables.map(table => (
-                <MyTableCard key={table.table_number} table={table} onRelease={handleReleaseTable} onCompleteOrder={handleCompleteOrder} onServeOrder={handleServeOrder} onAddItem={(orderId) => { fetchMenuItems(); setAddItemModal({ open: true, orderId, tableNumber: table.table_number }); }} onDismissCall={dismissCall} />
+                <MyTableCard key={table.table_number} table={table} onRelease={handleReleaseTable} onCompleteOrder={handleCompleteOrder} onServeOrder={handleServeOrder} onAddItem={(guestId, userName) => { fetchMenuItems(); setAddItemModal({ open: true, tableNumber: table.table_number, guestId, userName }); }} onDismissCall={dismissCall} />
               ))}
             </div>
           </div>
@@ -328,7 +337,7 @@ export default function WaiterHome() {
         return (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
             <div style={{ background: '#FFF', borderRadius: 16, padding: 24, width: '90%', maxWidth: 400, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-              <h3 style={{ fontSize: 18, fontWeight: 900, marginBottom: 14 }}>Add Item to Table {addItemModal.tableNumber}</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 900, marginBottom: 14 }}>Add Item{addItemModal.userName ? ` for ${addItemModal.userName}` : ''} — Table {addItemModal.tableNumber}</h3>
 
               <div style={{ marginBottom: 14 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 6 }}>Select Item</label>
@@ -406,7 +415,7 @@ export default function WaiterHome() {
               </div>
 
               <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => { setAddItemModal({ open: false, orderId: null, tableNumber: null }); setSelectedItem(''); setItemQty(1); setItemSearch(''); }}
+                <button onClick={() => { setAddItemModal({ open: false, tableNumber: null, guestId: null, userName: '' }); setSelectedItem(''); setItemQty(1); setItemSearch(''); }}
                   style={{ flex: 1, padding: '12px', borderRadius: 10, border: '1px solid #DDD', background: '#FFF', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
                 <button onClick={handleAddItem} disabled={!selectedItem}
                   style={{ flex: 1, padding: '12px', borderRadius: 10, border: 'none', background: selectedItem ? '#FF6B35' : '#DDD', color: '#FFF', fontWeight: 700, fontSize: 14, cursor: selectedItem ? 'pointer' : 'not-allowed' }}>Add Item</button>
@@ -475,97 +484,162 @@ function MyTableCard({ table, onRelease, onCompleteOrder, onServeOrder, onAddIte
         const activeOrders = table.orders.filter(o => o.status !== 'completed' && o.status !== 'billed');
         if (activeOrders.length === 0) return null;
 
-        const grouped = {};
+        // Group active orders by (guest_id, user_name). Two customers can share
+        // a single device (same fingerprint -> same guest_id), so the name
+        // snapshot captured at order time is what separates them. guest_id
+        // alone would merge them; the composite key keeps each person distinct
+        // and scopes each group's actions to only that person's orders.
+        const byGuest = {};
         activeOrders.forEach(order => {
-          const st = order.status;
-          if (!grouped[st]) grouped[st] = { status: st, items: {}, total: 0, orderIds: [], orderCount: 0 };
-          grouped[st].orderIds.push(order.id);
-          grouped[st].orderCount++;
-          (order.items || []).forEach(item => {
-            const key = item.name;
-            if (grouped[st].items[key]) {
-              grouped[st].items[key].quantity += item.quantity;
-              grouped[st].items[key].total += item.price * item.quantity;
-            } else {
-              grouped[st].items[key] = { name: item.name, quantity: item.quantity, price: item.price, total: item.price * item.quantity };
-            }
-            grouped[st].total += item.price * item.quantity;
-          });
+          const gid = order.guest_id || '';
+          const uname = order.user_name || '';
+          const key = `${gid}::${uname}`;
+          if (!byGuest[key]) byGuest[key] = { key, guestId: gid, name: uname, orders: [] };
+          byGuest[key].orders.push(order);
+          if (!byGuest[key].name && uname) byGuest[key].name = uname;
+        });
+
+        const guestLabel = (g) => {
+          if (g.name) return g.name;
+          if (!g.guestId) return 'Table / Unassigned';
+          return `Guest ${g.guestId.substring(0, 6)}`;
+        };
+
+        // Disambiguate duplicate names at the same table with a short id suffix.
+        const labelCounts = {};
+        Object.values(byGuest).forEach(g => {
+          const l = guestLabel(g);
+          labelCounts[l] = (labelCounts[l] || 0) + 1;
         });
 
         const statusConfig = {
           pending: { label: '⏳ New Order', bg: '#FFF3E0', color: '#FF6B35', btnBg: '#2196F3', btnLabel: '🍽️ Mark as Served' },
           claimed: { label: '👤 In Progress', bg: '#E8F5E9', color: '#1DB954', btnBg: '#2196F3', btnLabel: '🍽️ Mark as Served' },
-          served: { label: '🍽️ Served', bg: '#E3F2FD', color: '#2196F3', btnBg: '#1DB954', btnLabel: '🏁 Order Completed' }
+          served: { label: '🍽️ Served', bg: '#E3F2FD', color: '#2196F3', btnBg: '#1DB954', btnLabel: '🏁 Complete' }
         };
 
-        return Object.values(grouped).map(group => {
-          const cfg = statusConfig[group.status] || statusConfig.pending;
-          const items = Object.values(group.items);
+        return Object.values(byGuest).map(group => {
+          // Within a guest, sub-group by status so per-status serve/complete
+          // still works alongside the per-guest bulk complete.
+          const byStatus = {};
+          group.orders.forEach(order => {
+            const st = order.status;
+            if (!byStatus[st]) byStatus[st] = { status: st, items: {}, total: 0, orderIds: [], orderCount: 0 };
+            byStatus[st].orderIds.push(order.id);
+            byStatus[st].orderCount++;
+            (order.items || []).forEach(item => {
+              const key = item.name;
+              if (byStatus[st].items[key]) {
+                byStatus[st].items[key].quantity += item.quantity;
+                byStatus[st].items[key].total += item.price * item.quantity;
+              } else {
+                byStatus[st].items[key] = { name: item.name, quantity: item.quantity, price: item.price, total: item.price * item.quantity };
+              }
+              byStatus[st].total += item.price * item.quantity;
+            });
+          });
+
+          const guestTotal = group.orders.reduce((s, o) => s + (o.items || []).reduce((ss, it) => ss + it.price * it.quantity, 0), 0);
+          const allOrderIds = group.orders.map(o => o.id);
+
+          const baseLabel = guestLabel(group);
+          const dupSuffix = labelCounts[baseLabel] > 1 && group.guestId ? ` #${group.guestId.substring(0, 4)}` : '';
+          const displayLabel = baseLabel + dupSuffix;
+          const initial = ((group.name || '?').trim().charAt(0) || '?').toUpperCase();
+
           return (
-            <div key={group.status} style={{ background: '#F9F9F9', borderRadius: 14, padding: 16, marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{
-                    padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
-                    background: cfg.bg, color: cfg.color
+            <div key={group.key} style={{ background: '#F9F9F9', borderRadius: 14, padding: 16, marginBottom: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 10,
+                    background: 'linear-gradient(135deg, #FF6B35, #E85A20)',
+                    color: '#FFF', fontSize: 14, fontWeight: 900,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}>
-                    {cfg.label} {group.orderCount > 1 ? `(${group.orderCount})` : ''}
-                  </span>
-                  <button onClick={() => onAddItem(group.orderIds[0])}
+                    {initial}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: '#1A1A1A' }}>{displayLabel}</div>
+                    <div style={{ fontSize: 11, color: '#999', fontWeight: 600 }}>{group.orders.length} order{group.orders.length > 1 ? 's' : ''}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 16, fontWeight: 900, color: '#FF6B35' }}>₹{guestTotal}</span>
+                  <button onClick={() => onAddItem(group.guestId, group.name)}
+                    title="Add item to this guest"
                     style={{ width: 28, height: 28, borderRadius: 8, background: '#FF6B35', color: '#FFF', border: 'none', fontSize: 18, fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
                     +
                   </button>
                 </div>
-                <span style={{ fontSize: 16, fontWeight: 900, color: '#FF6B35' }}>₹{group.total}</span>
               </div>
 
-              {items.map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: idx < items.length - 1 ? '1px solid #EEE' : 'none' }}>
-                  <span style={{ fontSize: 14, fontWeight: 600 }}>{item.quantity}x {item.name}</span>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: '#888' }}>₹{item.total}</span>
-                </div>
-              ))}
+              {Object.values(byStatus).map(sg => {
+                const cfg = statusConfig[sg.status] || statusConfig.pending;
+                const items = Object.values(sg.items);
+                return (
+                  <div key={sg.status} style={{ marginBottom: 10, background: '#FFF', borderRadius: 10, padding: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ padding: '3px 9px', borderRadius: 6, fontSize: 11, fontWeight: 700, background: cfg.bg, color: cfg.color }}>
+                        {cfg.label} {sg.orderCount > 1 ? `(${sg.orderCount})` : ''}
+                      </span>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: '#888' }}>₹{sg.total}</span>
+                    </div>
 
-              {group.status !== 'served' ? (
-                <button onClick={async () => {
-                    const result = await Swal.fire({
-                      title: 'Order Served?',
-                      text: `Mark ${group.orderCount > 1 ? group.orderCount + ' orders' : 'this order'} as served to the table`,
-                      icon: 'question',
-                      showCancelButton: true,
-                      confirmButtonColor: '#2196F3',
-                      cancelButtonColor: '#666',
-                      confirmButtonText: 'Yes, served!'
-                    });
-                    if (result.isConfirmed) {
-                      for (const oid of group.orderIds) { await onServeOrder(oid); }
-                      Swal.fire({ title: 'Served!', text: 'Order marked as served.', icon: 'success', timer: 1500, showConfirmButton: false });
-                    }
-                  }}
-                  style={{ width: '100%', marginTop: 12, padding: '12px', background: cfg.btnBg, color: '#FFF', border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
-                  {cfg.btnLabel}
-                </button>
-              ) : (
-                <button onClick={async () => {
-                    const result = await Swal.fire({
-                      title: 'Mark as Order Completed?',
-                      text: `Mark ${group.orderCount > 1 ? group.orderCount + ' orders' : 'this order'} as completed`,
-                      icon: 'question',
-                      showCancelButton: true,
-                      confirmButtonColor: '#1DB954',
-                      cancelButtonColor: '#666',
-                      confirmButtonText: 'Yes, complete!'
-                    });
-                    if (result.isConfirmed) {
-                      for (const oid of group.orderIds) { await onCompleteOrder(oid); }
-                      Swal.fire({ title: 'Completed!', text: 'Order marked as completed.', icon: 'success', timer: 1500, showConfirmButton: false });
-                    }
-                  }}
-                  style={{ width: '100%', marginTop: 12, padding: '12px', background: cfg.btnBg, color: '#FFF', border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
-                  {cfg.btnLabel}
-                </button>
-              )}
+                    {items.map((item, idx) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < items.length - 1 ? '1px solid #EEE' : 'none' }}>
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>{item.quantity}x {item.name}</span>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: '#888' }}>₹{item.total}</span>
+                      </div>
+                    ))}
+
+                    <button onClick={async () => {
+                        if (sg.status === 'served') {
+                          const result = await Swal.fire({
+                            title: 'Mark as Completed?',
+                            text: `Mark ${sg.orderCount > 1 ? sg.orderCount + ' orders' : 'this order'} for ${displayLabel} as completed`,
+                            icon: 'question', showCancelButton: true,
+                            confirmButtonColor: '#1DB954', cancelButtonColor: '#666', confirmButtonText: 'Yes, complete!'
+                          });
+                          if (result.isConfirmed) {
+                            for (const oid of sg.orderIds) { await onCompleteOrder(oid); }
+                            Swal.fire({ title: 'Completed!', icon: 'success', timer: 1500, showConfirmButton: false });
+                          }
+                        } else {
+                          const result = await Swal.fire({
+                            title: 'Mark as Served?',
+                            text: `Mark ${sg.orderCount > 1 ? sg.orderCount + ' orders' : 'this order'} for ${displayLabel} as served`,
+                            icon: 'question', showCancelButton: true,
+                            confirmButtonColor: '#2196F3', cancelButtonColor: '#666', confirmButtonText: 'Yes, served!'
+                          });
+                          if (result.isConfirmed) {
+                            for (const oid of sg.orderIds) { await onServeOrder(oid); }
+                            Swal.fire({ title: 'Served!', icon: 'success', timer: 1500, showConfirmButton: false });
+                          }
+                        }
+                      }}
+                      style={{ width: '100%', marginTop: 10, padding: '10px', background: cfg.btnBg, color: '#FFF', border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>
+                      {cfg.btnLabel}
+                    </button>
+                  </div>
+                );
+              })}
+
+              <button onClick={async () => {
+                  const result = await Swal.fire({
+                    title: 'Complete all orders?',
+                    text: `Mark all of ${displayLabel}'s active orders as completed`,
+                    icon: 'question', showCancelButton: true,
+                    confirmButtonColor: '#1DB954', cancelButtonColor: '#666', confirmButtonText: 'Yes, complete all!'
+                  });
+                  if (result.isConfirmed) {
+                    for (const oid of allOrderIds) { await onCompleteOrder(oid); }
+                    Swal.fire({ title: 'Completed!', icon: 'success', timer: 1500, showConfirmButton: false });
+                  }
+                }}
+                style={{ width: '100%', marginTop: 4, padding: '12px', background: '#1DB954', color: '#FFF', border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+                🏁 Mark all Complete
+              </button>
             </div>
           );
         });

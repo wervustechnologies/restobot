@@ -77,6 +77,24 @@ export default function AdminOrders() {
     }
   };
 
+  const handleCompleteGuest = (orderIds) => {
+    if (!orderIds || orderIds.length === 0) return;
+    // Optimistically flip these orders to completed in the open checkout
+    // snapshot so the admin sees the guest turn "Completed" instantly, then
+    // persist each via the per-order complete endpoint and refresh.
+    const idSet = new Set(orderIds);
+    setCheckoutTable(prev => prev ? {
+      ...prev,
+      orders: prev.orders.map(o => idSet.has(o.id) ? { ...o, status: 'completed' } : o)
+    } : prev);
+    Promise.all(orderIds.map(id =>
+      fetch(`${API_BASE_URL}/orders/${id}/complete`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).catch(err => console.error('Failed to complete order', id, err))
+    )).then(() => fetchTables());
+  };
+
   const totalPending = tables.filter(t => t.has_pending).length;
   const totalRevenue = tables.reduce((sum, t) => {
     const completedAmount = t.orders
@@ -193,13 +211,32 @@ export default function AdminOrders() {
                       }, {});
                       const guestTotal = Object.values(guestItems).reduce((sum, item) => sum + item.price * item.quantity, 0);
                       const isAnonymous = !gid || gid === 'anonymous';
+                      // A guest is "active" (not completed) while any of their
+                      // unbilled orders are still pending/claimed/served. Those
+                      // need a Mark Complete step before/at billing, so they are
+                      // visually distinguished from already-completed guests.
+                      const activeOrders = orders.filter(o => o.status === 'pending' || o.status === 'claimed' || o.status === 'served');
+                      const guestIsActive = activeOrders.length > 0;
+                      const activeOrderIds = activeOrders.map(o => o.id);
+                      const guestName = isAnonymous ? 'Anonymous Orders' : (orders[0]?.user_name || `Guest ${gid.substring(0, 6)}`);
 
                       return (
-                        <div key={gid} style={{ marginBottom: 15, padding: 12, background: '#F9F9F9', borderRadius: 12 }}>
+                        <div key={gid} style={{
+                          marginBottom: 15, padding: 12, borderRadius: 12,
+                          background: guestIsActive ? '#FFF4E6' : '#F1F8F1',
+                          borderLeft: `4px solid ${guestIsActive ? '#FF6B35' : '#1DB954'}`
+                        }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: '#666' }}>
-                              {isAnonymous ? 'Anonymous Orders' : `Guest ${gid.substring(0, 6)}`}
-                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: '#333' }}>{guestName}</span>
+                              <span style={{
+                                padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 800,
+                                background: guestIsActive ? '#FFE0B2' : '#C8E6C9',
+                                color: guestIsActive ? '#E65100' : '#1B5E20'
+                              }}>
+                                {guestIsActive ? 'ACTIVE' : 'COMPLETED'}
+                              </span>
+                            </div>
                             <span style={{ fontSize: 14, fontWeight: 800, color: '#FF6B35' }}>₹{guestTotal}</span>
                           </div>
                           {Object.values(guestItems).map((item, idx) => (
@@ -208,17 +245,30 @@ export default function AdminOrders() {
                               <span>₹{item.price} × {item.quantity} = ₹{item.price * item.quantity}</span>
                             </div>
                           ))}
-                          {!isAnonymous ? (
-                            <button
-                              onClick={() => handleBillGuest(checkoutTable.table_number, gid)}
-                              style={{
-                                width: '100%', marginTop: 10, padding: '10px', background: '#1DB954', color: '#FFF',
-                                border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer'
-                              }}>
-                              Bill This Guest
-                            </button>
-                          ) : (
-                            <div style={{ marginTop: 10, fontSize: 11, color: '#999', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                            {guestIsActive && (
+                              <button
+                                onClick={() => handleCompleteGuest(activeOrderIds)}
+                                style={{
+                                  flex: 1, padding: '10px', background: '#2196F3', color: '#FFF',
+                                  border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer'
+                                }}>
+                                ✓ Mark Complete
+                              </button>
+                            )}
+                            {!isAnonymous && (
+                              <button
+                                onClick={() => handleBillGuest(checkoutTable.table_number, gid)}
+                                style={{
+                                  flex: 1, padding: '10px', background: '#1DB954', color: '#FFF',
+                                  border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer'
+                                }}>
+                                Bill This Guest
+                              </button>
+                            )}
+                          </div>
+                          {isAnonymous && (
+                            <div style={{ marginTop: 8, fontSize: 11, color: '#999', textAlign: 'center' }}>
                               Anonymous orders can only be billed together (use table-wide billing below)
                             </div>
                           )}
@@ -350,6 +400,7 @@ function GuestOrderGroup({ guestId, orders }) {
   const totalAmount = Object.values(mergedItems).reduce((sum, item) => sum + item.price * item.quantity, 0);
   const statuses = [...new Set(orders.map(o => o.status))];
   const waiterNames = [...new Set(orders.map(o => o.claimed_by_name).filter(Boolean))];
+  const guestName = orders[0]?.user_name || (guestId ? `Guest ${guestId.substring(0, 6)}` : 'Anonymous');
 
   const statusConfig = {
     pending: { bg: '#FFF3E0', color: '#FF6B35', label: '⏳ Pending' },
@@ -366,6 +417,9 @@ function GuestOrderGroup({ guestId, orders }) {
     <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: 10, marginTop: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 800, color: '#1A1A1A' }}>
+            {guestName}
+          </span>
           <span style={{
             padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
             background: status.bg, color: status.color

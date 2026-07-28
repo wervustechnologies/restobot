@@ -22,6 +22,7 @@ def create_order():
     total_amount = data.get('total_amount', 0)
     qr_token = data.get('qr_token')
     guest_id = data.get('guest_id')
+    user_name = (data.get('user_name') or '').strip()[:30]
 
     if not restaurant_id:
         return jsonify({'error': 'Missing restaurant_id'}), 400
@@ -39,6 +40,11 @@ def create_order():
         'items': items,
         'total_amount': total_amount,
         'guest_id': guest_id or '',
+        # Snapshot of the customer name captured at order time. Two customers
+        # may share a device (same fingerprint -> same guest_id), so the name
+        # snapshot is what lets the waiter tell their orders apart. guest_id
+        # remains the key for billing logic.
+        'user_name': user_name,
         'status': 'pending',
         'claimed_by': None,
         'claimed_by_name': None,
@@ -53,14 +59,53 @@ def create_order():
 
     return jsonify({'success': True, 'order_id': order_ref.key, 'order': order_data}), 201
 
+@orders_bp.route('/orders/waiter-add', methods=['POST'])
+@token_required
+def waiter_create_order():
+    db_ref = get_db()
+    restaurant_id = request.restaurant_id
+    data = request.get_json()
+
+    items = data.get('items', [])
+    table_number = data.get('table_number')
+    guest_id = data.get('guest_id') or ''
+    user_name = (data.get('user_name') or '').strip()[:30]
+
+    if not items:
+        return jsonify({'error': 'Missing items'}), 400
+    if not table_number:
+        return jsonify({'error': 'Missing table_number'}), 400
+
+    total_amount = sum(item.get('price', 0) * item.get('quantity', 1) for item in items)
+
+    # A waiter-added item becomes a brand-new pending order attributed to the
+    # selected customer — identical to a guest placing a follow-up order. The
+    # waiter then serves/completes it through the normal status flow.
+    order_data = {
+        'table_number': str(table_number),
+        'items': items,
+        'total_amount': total_amount,
+        'guest_id': guest_id,
+        'user_name': user_name,
+        'status': 'pending',
+        'claimed_by': None,
+        'claimed_by_name': None,
+        'created_at': time.time(),
+        'claimed_at': None
+    }
+
+    order_ref = db_ref.child(f'restaurants/{restaurant_id}/orders').push(order_data)
+
+    return jsonify({'success': True, 'order_id': order_ref.key, 'order': order_data}), 201
+
 @orders_bp.route('/orders/guest/<restaurant_id>/<guest_id>', methods=['GET'])
 @limiter.limit(LIMIT_PUBLIC_WRITE)
 def get_guest_orders(restaurant_id, guest_id):
     db_ref = get_db()
-    orders = format_list(db_ref.child(f'restaurants/{restaurant_id}/orders').get())
-    guest_orders = [o for o in orders if o.get('guest_id') == guest_id]
-    guest_orders.sort(key=lambda x: x.get('created_at', 0), reverse=True)
-    return jsonify(guest_orders), 200
+    # Use the guest_id index instead of scanning the whole restaurant's orders.
+    orders = format_list(db_ref.child(f'restaurants/{restaurant_id}/orders').order_by_child('guest_id').equal_to(guest_id).get())
+    orders.sort(key=lambda x: x.get('created_at', 0), reverse=True)
+    return jsonify(orders), 200
 
 @orders_bp.route('/orders/<restaurant_id>', methods=['GET'])
 @token_required
@@ -309,6 +354,20 @@ def get_tables_with_orders():
     if filter_type in ('billed', 'all'):
         billed = format_list(db_ref.child(f'restaurants/{restaurant_id}/orders').order_by_child('status').equal_to('billed').limit_to_last(200).get())
         orders += billed
+
+    # Attach a display name to each order. Prefer the name snapshot captured at
+    # order time (so two customers sharing a device are distinguishable); for
+    # older orders that have none, fall back to resolving guests/{id}.name.
+    resolve_gids = {o.get('guest_id') for o in orders if o.get('guest_id') and not o.get('user_name')}
+    guest_names = {}
+    for gid in resolve_gids:
+        gname = db_ref.child(f'guests/{gid}/name').get()
+        guest_names[gid] = gname or ''
+    for o in orders:
+        if o.get('user_name'):
+            continue
+        gid = o.get('guest_id')
+        o['user_name'] = guest_names.get(gid, '') if gid else ''
 
     table_orders = {}
     for table in tables:
