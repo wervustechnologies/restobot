@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { API_BASE_URL } from '../../apiConfig';
+import { useInvalidation } from '../../hooks/useInvalidation';
 
 export default function AdminOrders() {
   const [tables, setTables] = useState([]);
@@ -8,6 +9,17 @@ export default function AdminOrders() {
   const [viewFilter, setViewFilter] = useState('checkout');
   const [checkoutTable, setCheckoutTable] = useState(null);
   const { token } = useAuth();
+
+  // The board listener is keyed to the restaurant; pull its id out of the JWT
+  // payload (trusted server-issued token) to build the RTDB invalidation path.
+  const restaurantId = (() => {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return payload.restaurant_id || null;
+    } catch {
+      return null;
+    }
+  })();
 
   const fetchTables = async () => {
     try {
@@ -31,10 +43,10 @@ export default function AdminOrders() {
     setLoading(false);
   };
 
+  useInvalidation(restaurantId ? `restaurants/${restaurantId}/_rev` : null, fetchTables);
+
   useEffect(() => {
     fetchTables();
-    const interval = setInterval(fetchTables, 10000);
-    return () => clearInterval(interval);
   }, [token]);
 
   const filteredTables = tables.filter(t => {

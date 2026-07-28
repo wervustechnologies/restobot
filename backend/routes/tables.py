@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 import time
-from firebase_client import get_db
+from firebase_client import get_db, bump_rev
 from limiter import limiter, LIMIT_PUBLIC_READ, LIMIT_PUBLIC_WRITE
 
 tables_bp = Blueprint('tables', __name__)
@@ -65,4 +65,5 @@ def call_waiter(qr_token):
         'call_waiter_at': time.time()
     })
 
+    bump_rev(restaurant_id, 'tables')
     return jsonify({'success': True, 'message': 'Waiter has been notified!'}), 200
