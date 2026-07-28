@@ -27,6 +27,18 @@ def get_analytics():
         except:
             return None
 
+    # Billed rows are bucketed by the time they were actually billed, not when
+    # they were created. Legacy rows may lack `billed_at`, in which case we fall
+    # back to `created_at` so they still appear on the chart.
+    def parse_billed_date(order):
+        ts = order.get('billed_at') or order.get('created_at')
+        if not ts:
+            return None
+        try:
+            return datetime.fromtimestamp(ts)
+        except:
+            return None
+
     if start_date and end_date:
         sd = datetime.strptime(start_date, '%Y-%m-%d')
         ed = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
@@ -47,16 +59,28 @@ def get_analytics():
 
     completed_orders = [o for o in orders if o.get('status') == 'completed']
     pending_orders = [o for o in orders if o.get('status') in ('pending', 'claimed')]
-    
+    # Billed metrics drive the Order History page. NOTE: when a date range is
+    # supplied above, the RTDB query filters by `created_at`, so billed totals
+    # are computed over orders *created* in range (not billed in range). True
+    # billed-on-date reporting would need a billed_at-keyed query (out of scope).
+    billed_orders = [o for o in orders if o.get('status') == 'billed']
+
     total_revenue = sum(o.get('total_amount', 0) for o in completed_orders)
     total_orders = len(orders)
-    
+
     now = datetime.utcnow()
     daily_revenue = []
     for i in range(day_count - 1, -1, -1):
         date = (now - timedelta(days=i)).strftime('%Y-%m-%d')
         day_total = sum(o.get('total_amount', 0) for o in completed_orders if parse_order_date(o) and parse_order_date(o).strftime('%Y-%m-%d') == date)
         daily_revenue.append({'date': date, 'amount': day_total})
+
+    billed_revenue = sum(o.get('total_amount', 0) for o in billed_orders)
+    billed_daily_revenue = []
+    for i in range(day_count - 1, -1, -1):
+        date = (now - timedelta(days=i)).strftime('%Y-%m-%d')
+        day_total = sum(o.get('total_amount', 0) for o in billed_orders if parse_billed_date(o) and parse_billed_date(o).strftime('%Y-%m-%d') == date)
+        billed_daily_revenue.append({'date': date, 'amount': day_total})
 
     item_counts = {}
     for o in orders:
@@ -77,7 +101,11 @@ def get_analytics():
         'avg_order_value': round(total_revenue / len(completed_orders), 2) if completed_orders else 0,
         'daily_revenue': daily_revenue,
         'popular_items': popular_items,
-        'total_tables': total_tables
+        'total_tables': total_tables,
+        'billed_orders': len(billed_orders),
+        'billed_revenue': billed_revenue,
+        'billed_avg_order_value': round(billed_revenue / len(billed_orders), 2) if billed_orders else 0,
+        'billed_daily_revenue': billed_daily_revenue
     }
     
     return jsonify(metrics), 200

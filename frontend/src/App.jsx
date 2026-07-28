@@ -49,6 +49,7 @@ function CustomerApp() {
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<AdminDashboard />} />
         <Route path="orders" element={<AdminOrders />} />
+        <Route path="orders/history" element={<Navigate to="/admin" replace />} />
         <Route path="menu" element={<AdminMenuManager />} />
         <Route path="tables" element={<AdminTables />} />
         <Route path="waiters" element={<AdminWaiters />} />

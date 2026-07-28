@@ -84,7 +84,7 @@ export default function QRLandingPage() {
           restaurant_id: restaurantId,
           guest_id: guest?.guest_id || null,
           rating: feedbackRating,
-          comment: feedbackText.trim(),
+          description: feedbackText.trim(),
           table_number: tableNumber
         })
       });

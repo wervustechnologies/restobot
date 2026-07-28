@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useGuest } from '../context/GuestContext';
 import { API_BASE_URL as API } from '../apiConfig';
+import Swal from 'sweetalert2';
 
 
 export default function WishlistPage() {
@@ -14,7 +15,7 @@ export default function WishlistPage() {
   const [orderSubmitted, setOrderSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
-  const { guest } = useGuest();
+  const { guest, guestName, saveGuestName } = useGuest();
 
   useEffect(() => {
     const fetchWishlist = () => {
@@ -49,6 +50,36 @@ export default function WishlistPage() {
 
   const handleSubmitOrder = async () => {
     if (!wishlist || !wishlist.items) return;
+
+    // Name is required to place an order so the waiter/admin can attribute it
+    // to this guest. Prompt once (first order on this device) and persist the
+    // name on the guest record; returning guests skip this via guestName.
+    let name = guestName;
+    if (!name) {
+      const { value: inputName } = await Swal.fire({
+        title: 'What is your name?',
+        text: 'We use your name so the waiter can bring your order to you.',
+        input: 'text',
+        inputPlaceholder: 'Enter your name',
+        inputAttributes: { maxlength: 30, autocapitalize: 'on', autocorrect: 'off' },
+        showCancelButton: true,
+        confirmButtonColor: '#FF6B35',
+        cancelButtonColor: '#666',
+        confirmButtonText: 'Continue',
+        inputValidator: (value) => {
+          if (!value || !value.trim()) return 'Please enter your name to continue';
+          return null;
+        }
+      });
+      if (!inputName) return;
+      const saved = await saveGuestName(inputName);
+      if (!saved) {
+        Swal.fire('Error', 'Could not save your name. Please try again.', 'error');
+        return;
+      }
+      name = inputName.trim();
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch(`${API}/orders`, {
@@ -59,7 +90,8 @@ export default function WishlistPage() {
           items: wishlist.items,
           total_amount: wishlist.total_amount,
           qr_token: qrToken,
-          guest_id: guest?.guest_id
+          guest_id: guest?.guest_id,
+          user_name: name
         })
       });
       const data = await res.json();
