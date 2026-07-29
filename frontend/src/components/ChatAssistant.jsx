@@ -49,6 +49,7 @@ const CSS = `
 .ctag-pop{background:#faeeda;color:#633806}
 .ctag-veg{background:#e1f5ee;color:#085041}
 .ctag-nov{background:#fce8e8;color:#7a1111}
+.ctag-mix{background:#fef3e0;color:#7a4a06}
 .ctag-sp{background:#faece7;color:#712b13}
 .ctyping{display:flex;gap:3px;align-items:center;padding:4px 0}
 .ctyping span{width:6px;height:6px;border-radius:50%;background:#ccc;display:inline-block;animation:cb 1.2s infinite}
@@ -166,7 +167,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
     showOpts([
       { label: '🥦 Pure Veg', val: 'veg' },
       { label: '🍗 Non-Veg', val: 'non-veg' },
-      { label: '🍲 Mix / Flexible', val: 'non-veg' },
+      { label: '🍲 Mix / Flexible', val: 'mix' },
     ], async (o, id) => {
       lockOpts(id, o.val); userSay(o.label);
       setFlow(prev => ({ ...prev, diet: o.val }));
@@ -246,11 +247,14 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
     const subCats = (mainCat.categories || []).filter(c => c.course_type?.toLowerCase() === courseKey);
     let dishes = subCats.flatMap(c => (c.items || []).filter(i => i.is_enabled !== false));
     if (diet === 'veg') {
-      dishes = dishes.filter(i => i.item_type === 'veg');
+      dishes = dishes.filter(i => i.item_type === 'veg' || i.item_type === 'mixed');
     } else if (diet === 'non-veg') {
-      const strictDishes = dishes.filter(i => i.item_type === 'non-veg');
+      const strictDishes = dishes.filter(i => i.item_type === 'non-veg' || i.item_type === 'mixed');
       if (strictDishes.length > 0) dishes = strictDishes;
     }
+    const spiceCap = spice === 'mild' ? 2 : spice === 'medium' ? 4 : 5;
+    const spiceOk = dishes.filter(i => (Number(i.spice_level) || 3) <= spiceCap);
+    if (spiceOk.length > 0) dishes = spiceOk;
 
     if (dishes.length === 0) {
       await runCourses(mData, diet, mainCat, spice, hunger, courses, idx + 1, selections);
@@ -288,7 +292,9 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
           body: JSON.stringify({
             restaurant_id: restaurantId,
             current_item: dish,
-            course_type: courseKey
+            course_type: courseKey,
+            diet: diet,
+            spice: spice
           })
         });
         const data = await res.json();
@@ -334,7 +340,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
     try {
       const r = await fetch(`${API_BASE_URL}/chat/evaluate`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ restaurant_id: restaurantId, selections })
+        body: JSON.stringify({ restaurant_id: restaurantId, selections, diet })
       });
       
       if (!r.ok) {
@@ -462,8 +468,8 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
                 <div className="dcard-tags">
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#c05c28', marginRight: 4 }}>₹{d.price}</span>
                   {d.is_bestseller && <span className="ctag ctag-pop">🔥 Popular</span>}
-                  <span className={`ctag ${d.item_type === 'veg' ? 'ctag-veg' : 'ctag-nov'}`}>
-                    {d.item_type === 'veg' ? 'Veg' : 'Non-Veg'}
+                  <span className={`ctag ${d.item_type === 'veg' ? 'ctag-veg' : d.item_type === 'non-veg' ? 'ctag-nov' : 'ctag-mix'}`}>
+                    {d.item_type === 'veg' ? 'Veg' : d.item_type === 'non-veg' ? 'Non-Veg' : 'Mixed'}
                   </span>
                   {d.spice_level >= 3 && <span className="ctag ctag-sp">🌶️ Spicy</span>}
                 </div>
@@ -482,11 +488,13 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
 
     if (item.type === 'summary') {
       const sel = item.selections;
-      const rows = dynamicCourses.filter(k => sel[k]).map(k => ({
-        label: getCourseInfo(k).label,
-        dish: sel[k]
-      }));
-      if (sel.suggested) rows.push({ label: 'Our Choice', dish: sel.suggested });
+      const rows = [];
+      dynamicCourses.forEach(k => {
+        if (sel[k]) rows.push({ label: getCourseInfo(k).label, dish: sel[k] });
+        const sug = sel[`suggested_${k}`];
+        if (sug) rows.push({ label: 'Recommended', dish: sug });
+      });
+      if (sel.suggested) rows.push({ label: 'Recommended', dish: sel.suggested });
 
       return (
         <div key={item.id} style={{ paddingLeft: 34 }}>

@@ -17,6 +17,7 @@ export default function AdminMenuManager() {
   const [editItemId, setEditItemId] = useState(null);
   const { token } = useAuth();
   const [pendingRec, setPendingRec] = useState({ food_items: '', beverages: '' });
+  const [recTypeFilter, setRecTypeFilter] = useState({ food_items: 'all', beverages: 'all' });
 
   const [expandedGroups, setExpandedGroups] = useState({});
 
@@ -489,8 +490,9 @@ export default function AdminMenuManager() {
                     onChange={e => setNewItem({ ...newItem, item_type: e.target.value })}>
                     <option value="veg">Veg</option>
                     <option value="non-veg">Non-Veg</option>
+                    <option value="mixed">Mixed (staples — shown to all)</option>
                   </select>
-                  <span className="field-hint">Vegetarian or non-vegetarian</span>
+                  <span className="field-hint">Veg, Non-Veg, or Mixed (staples like breads/rice everyone eats)</span>
                 </div>
                 <div className="field-group">
                   <label className="field-label">Spice Level</label>
@@ -564,6 +566,8 @@ export default function AdminMenuManager() {
                   const label = type === 'food_items' ? 'Food Items' : 'Beverages';
                   const recs = itemRecs[type] || {};
                   const otherType = type === 'food_items' ? 'beverages' : 'food_items';
+                  const isBevSection = type === 'beverages';
+                  const beverageCatIds = new Set((categories || []).filter(c => (c.course_type || '').toLowerCase() === 'beverage').map(c => c.id));
                   return (
                     <div key={type} style={{ marginBottom: 16 }}>
                       <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>{label}</label>
@@ -576,6 +580,7 @@ export default function AdminMenuManager() {
                               <div key={recId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
                                 <img src={item.image_url} style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', background: 'var(--input-bg)', flexShrink: 0 }} />
                                 <span style={{ flex: 1, fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                <span title={item.item_type} style={{ width: 9, height: 9, borderRadius: '50%', flexShrink: 0, background: item.item_type === 'veg' ? '#1DB954' : item.item_type === 'non-veg' ? '#E53935' : '#F59E0B' }} />
                                 <select value={recData.priority} onChange={e => setItemRecs(prev => ({ ...prev, [type]: { ...prev[type], [recId]: { priority: e.target.value } } }))}
                                   style={{ background: 'var(--input-bg)', border: 'none', padding: '4px 6px', borderRadius: 6, fontSize: 11 }}>
                                   <option value="high">High</option>
@@ -592,21 +597,35 @@ export default function AdminMenuManager() {
                           })}
                         </div>
                       )}
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <select value={pendingRec[type] || ''} onChange={e => setPendingRec(prev => ({ ...prev, [type]: e.target.value }))}
-                          style={{ flex: 1, background: 'var(--input-bg)', border: 'none', padding: '8px 10px', borderRadius: 8, fontSize: 12 }}>
-                          <option value="">+ Add {label.slice(0, -1).toLowerCase()}...</option>
-                          {items.filter(i => i.id !== editItemId && !recs[i.id] && !(itemRecs[otherType] || {})[i.id]).map(i => (
-                            <option key={i.id} value={i.id}>{i.name}</option>
-                          ))}
-                        </select>
-                        <button type="button" onClick={() => {
-                          const id = pendingRec[type];
-                          if (id) {
-                            setItemRecs(prev => ({ ...prev, [type]: { ...prev[type], [id]: { priority: 'medium' } } }));
-                            setPendingRec(prev => ({ ...prev, [type]: '' }));
-                          }
-                        }} style={{ padding: '8px 14px', background: 'var(--primary)', color: '#FFF', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>+</button>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', marginTop: 8 }}>
+                        {type === 'food_items' && (
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>Filter</div>
+                          <select value={recTypeFilter[type]} onChange={e => setRecTypeFilter(prev => ({ ...prev, [type]: e.target.value }))}
+                            style={{ background: 'var(--input-bg)', border: 'none', padding: '10px 8px', borderRadius: 8, fontSize: 12 }}>
+                            <option value="all">All</option>
+                            <option value="veg">Veg</option>
+                            <option value="non-veg">Non-Veg</option>
+                            <option value="mixed">Mixed</option>
+                          </select>
+                        </div>
+                        )}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>Add {label.slice(0, -1).toLowerCase()}</div>
+                          <select value={pendingRec[type] || ''} onChange={e => {
+                            const id = e.target.value;
+                            if (id) {
+                              setItemRecs(prev => ({ ...prev, [type]: { ...prev[type], [id]: { priority: 'medium' } } }));
+                              setPendingRec(prev => ({ ...prev, [type]: '' }));
+                            }
+                          }}
+                            style={{ width: '100%', background: 'var(--input-bg)', border: 'none', padding: '10px 12px', borderRadius: 8, fontSize: 13 }}>
+                            <option value="">Choose a {label.slice(0, -1).toLowerCase()} to add...</option>
+                            {items.filter(i => i.id !== editItemId && !recs[i.id] && !(itemRecs[otherType] || {})[i.id] && (recTypeFilter[type] === 'all' || i.item_type === recTypeFilter[type]) && (isBevSection ? beverageCatIds.has(i.category_id) : !beverageCatIds.has(i.category_id))).map(i => (
+                              <option key={i.id} value={i.id}>{i.name} ({i.item_type === 'veg' ? 'Veg' : i.item_type === 'non-veg' ? 'Non-Veg' : 'Mixed'})</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </div>
                   );
