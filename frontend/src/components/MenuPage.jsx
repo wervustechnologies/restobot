@@ -147,14 +147,22 @@ export default function MenuPage() {
     }
   }, [cart, hasLoadedCart, guest, restaurantId, data]);
 
-  // Load placed orders and poll for updates
+  // Load placed orders and poll for updates. Active orders
+  // (pending/claimed/served/completed) always show; billed orders stay visible
+  // for 24h after billing, then are hidden. billed_at is stored as epoch
+  // seconds, so multiply by 1000 to compare against Date.now() (ms).
   useEffect(() => {
     if (!guest?.guest_id || !(restaurantId || data?.restaurant?.id)) return;
     const rid = restaurantId || data?.restaurant?.id;
+    const BILLED_VISIBLE_MS = 24 * 60 * 60 * 1000;
     const fetchOrders = () => {
       fetch(`${API}/orders/guest/${rid}/${guest.guest_id}`)
         .then(r => r.json())
-        .then(d => setOrders(d.filter(o => o.status !== 'completed' && o.status !== 'served')))
+        .then(d => setOrders(d.filter(o => {
+          if (o.status !== 'billed') return true;
+          const billedAtMs = o.billed_at ? o.billed_at * 1000 : 0;
+          return (Date.now() - billedAtMs) < BILLED_VISIBLE_MS;
+        })))
         .catch(() => {});
     };
     fetchOrders();
@@ -181,6 +189,7 @@ export default function MenuPage() {
 
   const cartTotal = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
   const cartCount = cartItems.reduce((s, i) => s + i.quantity, 0);
+  const activeOrderCount = orders.filter(o => o.status !== 'billed').length;
 
   const saveWishlist = async () => {
     const res = await fetch(`${API}/wishlist`, {
@@ -211,6 +220,7 @@ export default function MenuPage() {
         onAddToCart={addItem}
         onShowWishlist={() => setShowWishlist(true)}
         hideMascot={showWishlist}
+        mode={showOrders ? 'orders' : 'menu'}
       />
 
       {/* Header UI */}
@@ -276,17 +286,17 @@ export default function MenuPage() {
             <span style={{ fontSize: 18 }}>🍽️</span>
             <span>Orders</span>
             <span style={{
-              background: orders.length > 0 ? '#FFFFFF' : 'rgba(255, 255, 255, 0.25)',
-              color: orders.length > 0 ? '#E85A20' : '#FFFFFF',
+              background: activeOrderCount > 0 ? '#FFFFFF' : 'rgba(255, 255, 255, 0.25)',
+              color: activeOrderCount > 0 ? '#E85A20' : '#FFFFFF',
               borderRadius: 12,
               padding: '2px 8px',
               fontSize: 12,
               fontWeight: 900,
               minWidth: 22,
               textAlign: 'center',
-              boxShadow: orders.length > 0 ? '0 2px 6px rgba(0,0,0,0.15)' : 'none'
+              boxShadow: activeOrderCount > 0 ? '0 2px 6px rgba(0,0,0,0.15)' : 'none'
             }}>
-              {orders.length}
+              {activeOrderCount}
             </span>
           </button>
         </div>
@@ -640,8 +650,37 @@ function WishlistDrawer({ items, total, onAdd, onRemove, onClose, onSave, isModi
 }
 
 function OrdersDrawer({ orders, onClose, onNewOrder }) {
-  const statusColor = { pending: '#FF6B35', claimed: '#3498DB', completed: '#1DB954' };
-  const statusLabel = { pending: 'Pending', claimed: 'Preparing', completed: 'Completed' };
+  const statusColor = { pending: '#FF6B35', claimed: '#3498DB', served: '#1DB954', completed: '#6B7280', billed: '#9CA3AF' };
+  const statusLabel = { pending: 'Pending', claimed: 'Preparing', served: 'Served', completed: 'Completed', billed: 'Billed' };
+
+  const activeOrders = orders.filter(o => o.status !== 'billed');
+  const billedOrders = orders.filter(o => o.status === 'billed');
+  const activeTotal = activeOrders.reduce((s, o) => s + (Number(o.total_amount) || 0), 0);
+  const [showPast, setShowPast] = useState(false);
+
+  const renderOrderCard = (order) => (
+    <div key={order.id} style={{ marginBottom: 16, background: '#F9F9F9', borderRadius: 16, padding: 16, opacity: order.status === 'billed' ? 0.65 : 1 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#888' }}>Table {order.table_number}</span>
+          <span style={{ fontSize: 11, color: '#AAA', marginLeft: 8 }}>{new Date(order.created_at * 1000).toLocaleTimeString()}</span>
+        </div>
+        <span style={{ fontSize: 12, fontWeight: 800, padding: '4px 10px', borderRadius: 10, background: (statusColor[order.status] || '#888') + '20', color: statusColor[order.status] || '#888' }}>
+          {statusLabel[order.status] || order.status}
+        </span>
+      </div>
+      {order.items?.map((item, idx) => (
+        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A' }}>{item.quantity}x {item.name}</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#1A1A1A' }}>₹{item.price * item.quantity}</span>
+        </div>
+      ))}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 8, borderTop: '1px solid #EEE' }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#888' }}>Total</span>
+        <span style={{ fontSize: 18, fontWeight: 900, color: '#FF6B35' }}>₹{order.total_amount}</span>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -655,36 +694,57 @@ function OrdersDrawer({ orders, onClose, onNewOrder }) {
           {orders.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
               <p style={{ fontSize: 40, marginBottom: 12 }}>✅</p>
-              <p style={{ fontSize: 16, fontWeight: 700, color: '#888', marginBottom: 8 }}>All orders served!</p>
-              <p style={{ fontSize: 13, color: '#AAA' }}>Served orders are cleared. Place a new order to see it here.</p>
+              <p style={{ fontSize: 16, fontWeight: 700, color: '#888', marginBottom: 8 }}>No active orders</p>
+              <p style={{ fontSize: 13, color: '#AAA' }}>Your orders will show here until they're billed (and for 24h after).</p>
               <button onClick={onNewOrder} className="btn-primary" style={{ marginTop: 20, padding: '14px 28px', fontSize: 15 }}>Start New Order</button>
             </div>
           ) : (
-            orders.map(order => (
-              <div key={order.id} style={{ marginBottom: 16, background: '#F9F9F9', borderRadius: 16, padding: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <div>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#888' }}>Table {order.table_number}</span>
-                    <span style={{ fontSize: 11, color: '#AAA', marginLeft: 8 }}>{new Date(order.created_at * 1000).toLocaleTimeString()}</span>
+            <>
+              {activeOrders.length > 0 ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '4px 0 12px' }}>
+                    <span style={{ fontSize: 12, fontWeight: 900, color: '#FF6B35', textTransform: 'uppercase', letterSpacing: 1 }}>Current Orders</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: '#AAA', background: '#F0F0F0', borderRadius: 10, padding: '2px 8px' }}>{activeOrders.length}</span>
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 800, padding: '4px 10px', borderRadius: 10, background: (statusColor[order.status] || '#888') + '20', color: statusColor[order.status] || '#888' }}>
-                    {statusLabel[order.status] || order.status}
-                  </span>
-                </div>
-                {order.items?.map((item, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A' }}>{item.quantity}x {item.name}</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: '#1A1A1A' }}>₹{item.price * item.quantity}</span>
-                  </div>
-                ))}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 8, borderTop: '1px solid #EEE' }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#888' }}>Total</span>
-                  <span style={{ fontSize: 18, fontWeight: 900, color: '#FF6B35' }}>₹{order.total_amount}</span>
-                </div>
-              </div>
-            ))
+                  {activeOrders.map(renderOrderCard)}
+                </>
+              ) : (
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#AAA', textAlign: 'center', padding: '20px 0' }}>No current orders</p>
+              )}
+
+              {billedOrders.length > 0 && (
+                showPast ? (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '8px 0 12px' }}>
+                      <div style={{ flex: 1, height: 1, background: '#EEE' }} />
+                      <span style={{ fontSize: 11, fontWeight: 900, color: '#AAA', textTransform: 'uppercase', letterSpacing: 1 }}>Past Orders</span>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: '#AAA', background: '#F0F0F0', borderRadius: 10, padding: '2px 8px' }}>{billedOrders.length}</span>
+                      <div style={{ flex: 1, height: 1, background: '#EEE' }} />
+                    </div>
+                    {billedOrders.map(renderOrderCard)}
+                    <button onClick={() => setShowPast(false)} type="button" style={{ width: '100%', padding: '12px', marginTop: 4, background: '#FFF', border: '1.5px solid #EEE', borderRadius: 12, color: '#888', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Hide Past Orders</button>
+                  </>
+                ) : (
+                  <button onClick={() => setShowPast(true)} type="button" style={{ width: '100%', padding: '12px', marginTop: 8, background: '#FFF', border: '1.5px solid #EEE', borderRadius: 12, color: '#888', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <span>🗂️</span> View Past Orders ({billedOrders.length})
+                  </button>
+                )
+              )}
+            </>
           )}
         </div>
+
+        {activeOrders.length > 0 && (
+          <div style={{ padding: '16px 24px 0', background: '#FFF', borderTop: '1px solid #F5F5F5' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 18px', borderRadius: 16, background: 'linear-gradient(135deg, #FF6B35 0%, #E85A20 100%)', color: '#FFF', boxShadow: '0 8px 20px rgba(255,107,53,0.25)' }}>
+              <div>
+                <span style={{ fontSize: 15, fontWeight: 800, display: 'block', lineHeight: 1.2 }}>Total for All Current Orders</span>
+                <span style={{ fontSize: 12, fontWeight: 600, opacity: 0.92 }}>Combined total of {activeOrders.length} order{activeOrders.length > 1 ? 's' : ''}</span>
+              </div>
+              <span style={{ fontSize: 26, fontWeight: 900 }}>₹{activeTotal}</span>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
