@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 import time
 import time as time_module
-from firebase_client import get_db
+from firebase_client import get_db, bump_rev
 from auth_utils import token_required
 from limiter import limiter, LIMIT_PUBLIC_WRITE
 
@@ -57,6 +57,7 @@ def create_order():
     if guest_id:
         db_ref.child(f'restaurants/{restaurant_id}/active_carts/{guest_id}').delete()
 
+    bump_rev(restaurant_id, 'orders')
     return jsonify({'success': True, 'order_id': order_ref.key, 'order': order_data}), 201
 
 @orders_bp.route('/orders/waiter-add', methods=['POST'])
@@ -96,6 +97,7 @@ def waiter_create_order():
 
     order_ref = db_ref.child(f'restaurants/{restaurant_id}/orders').push(order_data)
 
+    bump_rev(restaurant_id, 'orders')
     return jsonify({'success': True, 'order_id': order_ref.key, 'order': order_data}), 201
 
 @orders_bp.route('/orders/guest/<restaurant_id>/<guest_id>', methods=['GET'])
@@ -159,6 +161,7 @@ def claim_order(order_id):
         'claimed_at': time.time()
     })
 
+    bump_rev(restaurant_id, 'orders')
     return jsonify({'success': True, 'message': 'Order claimed successfully'}), 200
 
 @orders_bp.route('/orders/<order_id>/add-items', methods=['PUT'])
@@ -186,6 +189,7 @@ def add_items_to_order(order_id):
         'total_amount': new_total
     })
 
+    bump_rev(restaurant_id, 'orders')
     return jsonify({'success': True, 'message': 'Items added', 'total_amount': new_total}), 200
 
 @orders_bp.route('/orders/<order_id>/complete', methods=['PUT'])
@@ -221,6 +225,7 @@ def complete_order(order_id):
                     })
                     break
 
+    bump_rev(restaurant_id, 'orders', 'tables')
     return jsonify({'success': True, 'message': 'Order completed'}), 200
 
 @orders_bp.route('/orders/<order_id>/serve', methods=['PUT'])
@@ -238,6 +243,7 @@ def serve_order(order_id):
         'served_at': time.time()
     })
 
+    bump_rev(restaurant_id, 'orders')
     return jsonify({'success': True, 'message': 'Order served'}), 200
 
 @orders_bp.route('/orders/table/<table_number>/lock', methods=['PUT'])
@@ -274,6 +280,7 @@ def lock_table(table_number):
         'locked_at': time.time()
     })
 
+    bump_rev(restaurant_id, 'tables')
     return jsonify({'success': True, 'message': 'Table locked'}), 200
 
 @orders_bp.route('/orders/table/<table_number>/unlock', methods=['PUT'])
@@ -306,6 +313,7 @@ def unlock_table(table_number):
         'call_waiter_at': None
     })
 
+    bump_rev(restaurant_id, 'tables')
     return jsonify({'success': True, 'message': 'Table unlocked'}), 200
 
 @orders_bp.route('/orders/table/<table_number>/dismiss-call', methods=['PUT'])
@@ -329,6 +337,7 @@ def dismiss_call(table_number):
         'call_waiter_at': None
     })
 
+    bump_rev(restaurant_id, 'tables')
     return jsonify({'success': True, 'message': 'Call dismissed'}), 200
 
 @orders_bp.route('/orders/tables-status', methods=['GET'])
@@ -455,6 +464,7 @@ def bill_table(table_number):
     if updates:
         db_ref.update(updates)
 
+    bump_rev(restaurant_id, 'orders', 'tables')
     return jsonify({'success': True, 'message': 'Table billed and cleared'}), 200
 
 @orders_bp.route('/orders/table/<table_number>/bill-guest/<guest_id>', methods=['PUT'])
@@ -506,6 +516,7 @@ def bill_guest_at_table(table_number, guest_id):
     if updates:
         db_ref.update(updates)
 
+    bump_rev(restaurant_id, 'orders', 'tables')
     return jsonify({
         'success': True,
         'message': 'Guest billed successfully',

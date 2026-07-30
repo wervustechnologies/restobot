@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../../apiConfig';
+import { useInvalidation } from '../../hooks/useInvalidation';
 import { useTheme } from '../../context/ThemeContext';
 import Swal from 'sweetalert2';
 
@@ -15,6 +16,7 @@ export default function WaiterHome() {
   const [itemSearch, setItemSearch] = useState('');
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const waiterRid = localStorage.getItem('waiter_rid');
 
   useEffect(() => {
     const token = localStorage.getItem('waiter_token');
@@ -42,10 +44,10 @@ export default function WaiterHome() {
     setLoading(false);
   };
 
+  useInvalidation(waiterRid ? `restaurants/${waiterRid}/_rev` : null, fetchTables);
+
   useEffect(() => {
     fetchTables();
-    const interval = setInterval(fetchTables, 5000);
-    return () => clearInterval(interval);
   }, []);
 
   const fetchMenuItems = async () => {

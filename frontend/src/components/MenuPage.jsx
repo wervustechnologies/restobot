@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import ChatAssistant from './ChatAssistant';
 import { useGuest } from '../context/GuestContext';
 import { API_BASE_URL as API } from '../apiConfig';
+import { useInvalidation } from '../hooks/useInvalidation';
 
 export default function MenuPage() {
   const [data, setData] = useState(null);
@@ -104,20 +105,23 @@ export default function MenuPage() {
     }
   }, [restaurantId, qrToken, tableNum]);
 
-  useEffect(() => {
+  const refreshLockStatus = () => {
     if (!qrToken) return;
-    const interval = setInterval(() => {
-      fetch(`${API}/table/${qrToken}/lock-status`)
-        .then(r => r.json())
-        .then(d => setLockInfo(d))
-        .catch(() => {});
-    }, 5000);
     fetch(`${API}/table/${qrToken}/lock-status`)
       .then(r => r.json())
       .then(d => setLockInfo(d))
       .catch(() => {});
-    return () => clearInterval(interval);
+  };
+
+  useEffect(() => {
+    if (!qrToken) return;
+    refreshLockStatus();
   }, [qrToken]);
+
+  useInvalidation(
+    (restaurantId || data?.restaurant?.id) ? `restaurants/${restaurantId || data?.restaurant?.id}/_rev/tables` : null,
+    refreshLockStatus
+  );
 
   const fetchMenu = (id) => {
     fetch(`${API}/menu/${id}`)
@@ -147,28 +151,34 @@ export default function MenuPage() {
     }
   }, [cart, hasLoadedCart, guest, restaurantId, data]);
 
-  // Load placed orders and poll for updates. Active orders
-  // (pending/claimed/served/completed) always show; billed orders stay visible
-  // for 24h after billing, then are hidden. billed_at is stored as epoch
-  // seconds, so multiply by 1000 to compare against Date.now() (ms).
+  // Load placed orders; live updates arrive via the _rev invalidation listener.
+  // Active orders (pending/claimed/served/completed) always show; billed orders
+  // stay visible for 24h after billing, then are hidden. billed_at is stored as
+  // epoch seconds, so multiply by 1000 to compare against Date.now() (ms).
+  const refreshGuestOrders = () => {
+    if (!guest?.guest_id) return;
+    const rid = restaurantId || data?.restaurant?.id;
+    if (!rid) return;
+    const BILLED_VISIBLE_MS = 24 * 60 * 60 * 1000;
+    fetch(`${API}/orders/guest/${rid}/${guest.guest_id}`)
+      .then(r => r.json())
+      .then(d => setOrders(d.filter(o => {
+        if (o.status !== 'billed') return true;
+        const billedAtMs = o.billed_at ? o.billed_at * 1000 : 0;
+        return (Date.now() - billedAtMs) < BILLED_VISIBLE_MS;
+      })))
+      .catch(() => {});
+  };
+
   useEffect(() => {
     if (!guest?.guest_id || !(restaurantId || data?.restaurant?.id)) return;
-    const rid = restaurantId || data?.restaurant?.id;
-    const BILLED_VISIBLE_MS = 24 * 60 * 60 * 1000;
-    const fetchOrders = () => {
-      fetch(`${API}/orders/guest/${rid}/${guest.guest_id}`)
-        .then(r => r.json())
-        .then(d => setOrders(d.filter(o => {
-          if (o.status !== 'billed') return true;
-          const billedAtMs = o.billed_at ? o.billed_at * 1000 : 0;
-          return (Date.now() - billedAtMs) < BILLED_VISIBLE_MS;
-        })))
-        .catch(() => {});
-    };
-    fetchOrders();
-    const interval = setInterval(fetchOrders, 8000);
-    return () => clearInterval(interval);
+    refreshGuestOrders();
   }, [guest, restaurantId, data]);
+
+  useInvalidation(
+    (restaurantId || data?.restaurant?.id) ? `restaurants/${restaurantId || data?.restaurant?.id}/_rev/orders` : null,
+    refreshGuestOrders
+  );
 
   const addItem = (item) => {
     setCart(prev => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }));

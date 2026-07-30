@@ -12,7 +12,12 @@
     "The Admin SDK used by the backend bypasses rules entirely, so these",
     "indexes only matter for query performance — but without them the",
     "order_by_child queries below emit 'Index not defined' warnings and can",
-    "400-error at scale."
+    "400-error at scale.",
+    "",
+    "EXCEPTION: restaurants/$restaurant_id/_rev is granted public '.read' on",
+    "purpose. It holds only integer invalidation counters (no business data) so",
+    "unauthenticated frontend clients can subscribe via Firebase onValue and",
+    "refetch their own auth'd/scoped REST endpoint instead of polling."
   ],
   "rules": {
     "users": {
@@ -23,6 +28,9 @@
     },
     "restaurants": {
       "$restaurant_id": {
+        "_rev": {
+          ".read": true
+        },
         "orders": {
           ".indexOn": ["status", "created_at", "guest_id"]
         }
