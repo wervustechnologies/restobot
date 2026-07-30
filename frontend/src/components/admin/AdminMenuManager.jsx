@@ -3,6 +3,35 @@ import { useAuth } from '../../context/AuthContext';
 import { API_BASE_URL } from '../../apiConfig';
 import Swal from 'sweetalert2';
 
+/* ─── Pill Radio Button Component ─── */
+function PillRadio({ label, options, value, onChange, hint }) {
+  return (
+    <div className="field-group">
+      <label className="field-label">{label}</label>
+      <div className="pill-radio-group">
+        {options.map(opt => {
+          const isActive = (opt.value ?? opt) === value;
+          const optLabel = opt.label || opt;
+          const optValue = opt.value ?? opt;
+          const dotColor = opt.dot;
+          return (
+            <button
+              key={optValue}
+              type="button"
+              onClick={() => onChange(optValue)}
+              className={`pill-radio ${isActive ? 'active' : ''}`}
+            >
+              {dotColor && <span className="pill-dot" style={{ background: dotColor }} />}
+              {optLabel}
+            </button>
+          );
+        })}
+      </div>
+      {hint && <span className="field-hint">{hint}</span>}
+    </div>
+  );
+}
+
 export default function AdminMenuManager() {
   const [mainCategories, setMainCategories] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -21,6 +50,8 @@ export default function AdminMenuManager() {
 
   const [expandedGroups, setExpandedGroups] = useState({});
   const [menuLoading, setMenuLoading] = useState(true);
+  const [sidebarSearch, setSidebarSearch] = useState('');
+  const [formStep, setFormStep] = useState(1);
 
   const toggleGroup = (group) => {
     setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }));
@@ -116,6 +147,18 @@ export default function AdminMenuManager() {
     }
   };
 
+  // Opens the item form with category auto-filled from sidebar
+  const openAddItemForm = (catId, mainCatId) => {
+    const cid = catId || activeCategory;
+    const cat = categories.find(c => c.id === cid);
+    const mcid = mainCatId || cat?.main_category_id || activeMainCategory;
+    setNewItem({ ...initialItemState, category_id: cid || '', main_category_id: mcid || '' });
+    setEditItemId(null);
+    setItemRecs({ food_items: {}, beverages: {} });
+    setFormStep(1);
+    setShowItemForm(true);
+  };
+
   const handleAddItem = async (e) => {
     e.preventDefault();
     const url = editItemId ? `${API_BASE_URL}/admin/items/${editItemId}` : `${API_BASE_URL}/admin/items`;
@@ -153,6 +196,7 @@ export default function AdminMenuManager() {
     setEditItemId(null);
     setShowItemForm(false);
     setItemRecs({ food_items: {}, beverages: {} });
+    setFormStep(1);
   };
 
   const handleEditClick = (item) => {
@@ -161,6 +205,7 @@ export default function AdminMenuManager() {
       ...item
     });
     setEditItemId(item.id);
+    setFormStep(1);
     setShowItemForm(true);
     fetch(`${API_BASE_URL}/admin/items/${item.id}/recommendations`, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -188,6 +233,10 @@ export default function AdminMenuManager() {
     }
   };
 
+  // Derive the context label for the current sidebar selection
+  const activeCatObj = categories.find(c => c.id === activeCategory);
+  const activeMainCatObj = mainCategories.find(mc => mc.id === activeMainCategory);
+
   return (
     <div>
       <style>{`
@@ -195,11 +244,37 @@ export default function AdminMenuManager() {
         .menu-manager-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .menu-manager-actions button { font-size: 13px; padding: 10px 14px; }
         .menu-layout { display: flex; gap: 20px; flex-direction: row; }
-        .menu-sidebar { width: 260px; flex-shrink: 0; }
+        .menu-sidebar { width: 280px; flex-shrink: 0; }
         .menu-items-panel { flex: 1; min-width: 0; }
         .item-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
-        .item-row-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-        .modal-card { width: 90vw; max-width: 480px; padding: 24px; max-height: 90vh; overflow-y: auto; }
+        .modal-overlay {
+          position: fixed;
+          top: 0; left: 0; right: 0; bottom: 0;
+          width: 100vw; height: 100vh;
+          background: rgba(15, 15, 22, 0.65);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10000;
+          animation: fadeIn 0.2s ease-out;
+        }
+        .modal-card {
+          width: 90vw; max-width: 530px; padding: 28px 30px; max-height: 88vh; overflow-y: auto;
+          margin: auto;
+          background: var(--surface) !important;
+          border: 1px solid var(--border) !important;
+          border-top: 4px solid var(--primary) !important;
+          border-radius: 20px !important;
+          box-shadow: 0 25px 60px rgba(0, 0, 0, 0.22), 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
           .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
           .field-group { display: flex; flex-direction: column; gap: 6px; }
           .field-label { font-size: 13px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 4px; }
@@ -212,6 +287,116 @@ export default function AdminMenuManager() {
           .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
           .modal-close { background: none; border: none; font-size: 22px; line-height: 1; color: var(--text-muted); cursor: pointer; padding: 0 4px; border-radius: 8px; }
           .modal-close:hover { color: var(--text); background: var(--input-bg); }
+
+          /* ── Stepper Navigation ── */
+          .stepper-nav {
+            display: flex; gap: 4px; background: var(--surface-alt);
+            padding: 4px; border-radius: 10px; margin: 14px 0 16px;
+            border: 1px solid var(--border);
+          }
+          .stepper-btn {
+            flex: 1; padding: 8px 10px; border: none; background: transparent;
+            border-radius: 7px; font-size: 12px; font-weight: 600;
+            color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            white-space: nowrap;
+          }
+          .stepper-btn:hover { color: var(--text); }
+          .stepper-btn.active {
+            background: var(--surface); color: var(--primary);
+            font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+          }
+          .stepper-num {
+            width: 18px; height: 18px; border-radius: 50%;
+            background: var(--border); color: var(--text-muted);
+            font-size: 10px; font-weight: 800; display: flex;
+            align-items: center; justify-content: center;
+          }
+          .stepper-btn.active .stepper-num {
+            background: var(--primary); color: #FFF;
+          }
+          .pill-radio-group {
+            display: flex; flex-wrap: wrap; gap: 6px;
+          }
+          .pill-radio {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 16px; border-radius: 8px;
+            border: 1.5px solid var(--border);
+            background: var(--surface);
+            color: var(--text-muted);
+            font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: all 0.15s;
+            white-space: nowrap;
+          }
+          .pill-radio:hover {
+            border-color: #CCC;
+            color: var(--text);
+            background: var(--surface-alt);
+          }
+          .pill-radio.active {
+            border-color: var(--primary);
+            background: rgba(255,107,53,0.06);
+            color: var(--primary);
+            font-weight: 700;
+          }
+          .pill-dot {
+            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+          }
+
+          /* ── Sidebar styles ── */
+          .sidebar-search {
+            padding: 10px 14px; margin: 10px; border-radius: 10px;
+            background: var(--input-bg); border: 1.5px solid transparent;
+            font-size: 13px; font-weight: 600; width: calc(100% - 20px);
+            transition: all 0.2s;
+          }
+          .sidebar-search:focus { border-color: var(--primary); background: var(--surface); outline: none; box-shadow: 0 0 0 3px rgba(255,107,53,0.08); }
+          .sidebar-course-group {
+            border-bottom: 1px solid var(--border);
+          }
+          .sidebar-course-header {
+            padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;
+            cursor: pointer; transition: background 0.15s; user-select: none;
+          }
+          .sidebar-course-header:hover { background: var(--surface-alt); }
+          .sidebar-cat-item {
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+            padding: 10px 14px 10px 20px; cursor: pointer; transition: all 0.15s;
+            border-left: 3px solid transparent; font-size: 13.5px; font-weight: 500;
+            color: var(--text-muted);
+          }
+          .sidebar-cat-item:hover { background: rgba(255,107,53,0.04); color: var(--text); }
+          .sidebar-cat-item.active {
+            background: rgba(255,107,53,0.07); color: #FF6B35;
+            font-weight: 800; border-left-color: #FF6B35;
+          }
+          .sidebar-cat-item .cat-count {
+            font-size: 11px; font-weight: 700; min-width: 22px; height: 22px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 6px; background: var(--surface-alt); color: var(--text-muted);
+            flex-shrink: 0;
+          }
+          .sidebar-cat-item.active .cat-count {
+            background: rgba(255,107,53,0.12); color: #FF6B35;
+          }
+          .sidebar-add-btn {
+            display: flex; align-items: center; gap: 6px;
+            padding: 8px 14px 8px 20px; width: 100%;
+            background: none; border: none; border-left: 3px solid transparent;
+            cursor: pointer; font-size: 12px; font-weight: 700;
+            color: var(--primary); opacity: 0.7; transition: all 0.15s;
+          }
+          .sidebar-add-btn:hover { opacity: 1; background: rgba(255,107,53,0.04); }
+
+          /* ── Category context banner ── */
+          .cat-context-banner {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; border-radius: 10px;
+            background: var(--surface-alt);
+            border: 1px solid var(--border);
+            margin-bottom: 4px;
+          }
+
           @media (max-width: 640px) {
           .menu-layout { flex-direction: column !important; }
           .menu-sidebar { width: 100% !important; }
@@ -221,6 +406,8 @@ export default function AdminMenuManager() {
           .form-grid-2 { grid-template-columns: 1fr !important; }
           .menu-manager-actions { width: 100%; }
           .menu-manager-actions button { flex: 1; }
+          .pill-radio-group { gap: 4px; }
+          .pill-radio { padding: 6px 12px; font-size: 12px; }
         }
       `}</style>
 
@@ -245,7 +432,6 @@ export default function AdminMenuManager() {
 
           {/* Layout skeleton */}
           <div className="menu-layout">
-            {/* Sidebar skeleton */}
             <div className="menu-sidebar skeleton-card" style={{ padding: 0, overflow: 'hidden' }}>
               <div style={{ padding: 15, borderBottom: '1px solid var(--border)' }}>
                 <div className="skeleton skeleton-text md" style={{ width: '70%' }} />
@@ -256,8 +442,6 @@ export default function AdminMenuManager() {
                 </div>
               ))}
             </div>
-
-            {/* Items panel skeleton */}
             <div className="menu-items-panel">
               <div className="skeleton-card" style={{ padding: 25 }}>
                 <div className="skeleton skeleton-text lg" style={{ width: '45%', marginBottom: 20 }} />
@@ -286,7 +470,7 @@ export default function AdminMenuManager() {
         <div className="menu-manager-actions">
           <button className="btn-outline" onClick={() => setShowMainCatForm(true)}>+ Main Category</button>
           <button className="btn-outline" onClick={() => setShowCatForm(true)}>+ Sub Category</button>
-          <button className="btn-primary" onClick={() => setShowItemForm(true)}>+ Food Item</button>
+          <button className="btn-primary" onClick={() => openAddItemForm()}>+ Food Item</button>
         </div>
       </div>
 
@@ -315,9 +499,30 @@ export default function AdminMenuManager() {
       </div>
 
       <div className="menu-layout">
-        {/* Structure Sidebar for Active Main Category */}
-        <div className="menu-sidebar card">
-          <div style={{ padding: 15, borderBottom: '1px solid #EEE', fontWeight: 900 }}>Sub Categories</div>
+        {/* ═══ Redesigned Sidebar ═══ */}
+        <div className="menu-sidebar card" style={{ overflow: 'hidden' }}>
+          <div style={{ padding: '14px 14px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 14, fontWeight: 900, color: 'var(--text)' }}>Sub Categories</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', background: 'var(--surface-alt)', padding: '3px 8px', borderRadius: 6 }}>
+              {(() => {
+                const mcCats = activeMainCategory === 'legacy-other' 
+                  ? categories.filter(c => !c.main_category_id)
+                  : categories.filter(c => c.main_category_id === activeMainCategory);
+                return `${mcCats.length} total`;
+              })()}
+            </span>
+          </div>
+
+          {/* Sidebar search */}
+          <input
+            type="text"
+            className="sidebar-search"
+            placeholder="🔍  Search categories..."
+            value={sidebarSearch}
+            onChange={e => setSidebarSearch(e.target.value)}
+          />
+
+          <div style={{ maxHeight: 'calc(100vh - 340px)', overflowY: 'auto' }} className="hide-scroll">
           {(() => {
             if (!activeMainCategory) return <div style={{ padding: 15, color: '#888' }}>Select a main category first</div>;
             
@@ -325,78 +530,113 @@ export default function AdminMenuManager() {
               ? categories.filter(c => !c.main_category_id)
               : categories.filter(c => c.main_category_id === activeMainCategory);
               
-            // Group sub-categories by course_type (dynamic)
+            // Filter by search
+            const filteredCats = sidebarSearch.trim()
+              ? mcCats.filter(c => c.name.toLowerCase().includes(sidebarSearch.toLowerCase()))
+              : mcCats;
+
+            // Group sub-categories by course_type
             const grouped = {};
-            mcCats.forEach(cat => {
+            filteredCats.forEach(cat => {
               const ct = cat.course_type || 'Other';
               if (!grouped[ct]) grouped[ct] = [];
               grouped[ct].push(cat);
             });
             
-            // Sort groups by the minimum display_order of categories within them
             const orderedKeys = Object.keys(grouped).sort((a, b) => {
               const orderA = Math.min(...grouped[a].map(c => c.display_order || 999));
               const orderB = Math.min(...grouped[b].map(c => c.display_order || 999));
               return orderA - orderB || a.localeCompare(b);
             });
 
-            const groupColors = ['#FF6B35', '#E85A20', '#D4A017', '#1DB954', '#9B59B6', '#3498DB', '#E74C3C'];
+            const courseTypeIcons = { 'starter': '🥗', 'main': '🍛', 'beverage': '🥤', 'Other': '📋' };
             
             return (
               <div>
                 {orderedKeys.length === 0 && (
-                  <div style={{ padding: '15px', fontSize: 13, color: '#999', fontStyle: 'italic' }}>No sub categories yet</div>
+                  <div style={{ padding: '20px 15px', fontSize: 13, color: '#999', textAlign: 'center' }}>
+                    {sidebarSearch ? 'No matching categories' : 'No sub categories yet'}
+                  </div>
                 )}
-                {orderedKeys.map((courseKey, idx) => {
-                  const groupColor = groupColors[idx % groupColors.length];
+                {orderedKeys.map((courseKey) => {
+                  const isExpanded = expandedGroups[courseKey];
+                  const totalItems = grouped[courseKey].reduce((sum, cat) => sum + items.filter(i => i.category_id === cat.id).length, 0);
                   return (
-                    <div key={courseKey}>
-                      {/* Course Type Row */}
-                      <div 
-                        onClick={() => toggleGroup(courseKey)}
-                        style={{ 
-                          padding: '10px 15px', 
-                          background: '#F8F9FA', 
-                          borderBottom: '1px solid #EEE', 
-                          display: 'flex', 
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          borderLeft: `4px solid ${groupColor}`,
-                          cursor: 'pointer'
-                        }}>
-                        <span style={{ fontSize: 13, fontWeight: 900, color: '#333', textTransform: 'uppercase', letterSpacing: 0.5 }}>{courseKey}</span>
-                        <span style={{ fontSize: 10, color: '#888' }}>{expandedGroups[courseKey] ? '▲' : '▼'}</span>
-                      </div>
-                      {/* Sub Categories (Collapsible) */}
-                      {expandedGroups[courseKey] && grouped[courseKey].map(cat => (
-                        <div key={cat.id}
-                          onClick={() => setActiveCategory(cat.id)}
-                          style={{
-                            padding: '12px 15px 12px 25px', cursor: 'pointer', borderBottom: '1px solid #F5F5F5',
-                            background: activeCategory === cat.id ? 'rgba(255,107,53,0.07)' : 'transparent',
-                            color: activeCategory === cat.id ? '#FF6B35' : '#555',
-                            fontWeight: activeCategory === cat.id ? 800 : 500,
-                            fontSize: 14,
-                            borderLeft: activeCategory === cat.id ? `3px solid #FF6B35` : '3px solid transparent',
-                            transition: 'all 0.15s'
-                          }}>
-                          {cat.name}
+                    <div key={courseKey} className="sidebar-course-group">
+                      <div className="sidebar-course-header" onClick={() => toggleGroup(courseKey)}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 15 }}>{courseTypeIcons[courseKey] || '📋'}</span>
+                          <span style={{ fontSize: 12, fontWeight: 900, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{courseKey}</span>
                         </div>
-                      ))}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', background: 'var(--surface-alt)', padding: '2px 7px', borderRadius: 5 }}>
+                            {totalItems}
+                          </span>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+                        </div>
+                      </div>
+                      {isExpanded && (
+                        <div>
+                          {grouped[courseKey].map(cat => {
+                            const catItemCount = items.filter(i => i.category_id === cat.id).length;
+                            return (
+                              <div key={cat.id}>
+                                <div
+                                  onClick={() => setActiveCategory(cat.id)}
+                                  className={`sidebar-cat-item ${activeCategory === cat.id ? 'active' : ''}`}
+                                >
+                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.name}</span>
+                                  <span className="cat-count">{catItemCount}</span>
+                                </div>
+                                {/* Inline + Add Item button under each subcategory */}
+                                {activeCategory === cat.id && (
+                                  <button
+                                    className="sidebar-add-btn"
+                                    onClick={(e) => { e.stopPropagation(); openAddItemForm(cat.id, cat.main_category_id); }}
+                                  >
+                                    <span style={{ fontSize: 14, lineHeight: 1 }}>＋</span> Add food item here
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
             );
           })()}
+          </div>
         </div>
 
         {/* Items List */}
         <div className="menu-items-panel">
           <div className="card" style={{ padding: 25 }}>
-            <h3 style={{ fontSize: 20, fontWeight: 800 }}>Items in {categories.find(c => c.id === activeCategory)?.name || 'Category'}</h3>
-            <div style={{ marginTop: 20 }}>
-              {items.filter(i => i.category_id === activeCategory).length === 0 && <p style={{ color: '#888' }}>No items in this sub category.</p>}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>
+                {activeCatObj?.name || 'Category'}
+              </h3>
+              {activeCategory && (
+                <button className="btn-primary" style={{ padding: '8px 16px', fontSize: 12 }}
+                  onClick={() => openAddItemForm()}>
+                  + Add Item
+                </button>
+              )}
+            </div>
+            <div>
+              {items.filter(i => i.category_id === activeCategory).length === 0 && (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: 36, marginBottom: 10 }}>🍽️</div>
+                  <p style={{ fontSize: 14, fontWeight: 600 }}>No items yet</p>
+                  <p style={{ fontSize: 12, margin: '6px 0 16px' }}>Add your first food item to this category</p>
+                  {activeCategory && (
+                    <button className="btn-primary" style={{ padding: '10px 20px', fontSize: 13 }}
+                      onClick={() => openAddItemForm()}>+ Add Item</button>
+                  )}
+                </div>
+              )}
               {items.filter(i => i.category_id === activeCategory).map(item => (
                 <div key={item.id} className="item-row" style={{ opacity: item.is_enabled === false ? 0.5 : 1 }}>
                   <img src={item.image_url} style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', background: '#F5F5F5', flexShrink: 0 }} />
@@ -406,11 +646,11 @@ export default function AdminMenuManager() {
                     </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 3 }}>
                       <span style={{ fontSize: 13, color: '#FF6B35', fontWeight: 700 }}>₹{item.price}</span>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: item.item_type === 'veg' ? '#1DB954' : item.item_type === 'non-veg' ? '#E53935' : '#F59E0B' }} />
                       <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: item.priority === 'high' ? '#FFEBEB' : item.priority === 'low' ? '#EBF5FF' : '#F5F5F5', color: item.priority === 'high' ? '#FF4B4B' : item.priority === 'low' ? '#3498DB' : '#888', fontWeight: 800, textTransform: 'uppercase' }}>{item.priority || 'med'}</span>
                     </div>
                   </div>
                   <div className="item-row-actions">
-                    {/* Toggle Switch */}
                     <div onClick={() => handleToggleItem(item)}
                       style={{ width: 44, height: 24, borderRadius: 24, cursor: 'pointer', background: item.is_enabled !== false ? '#1DB954' : '#CCC', position: 'relative', transition: '0.3s', flexShrink: 0 }}>
                       <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#FFF', position: 'absolute', top: 2, left: item.is_enabled !== false ? 22 : 2, transition: '0.3s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }} />
@@ -428,10 +668,10 @@ export default function AdminMenuManager() {
       </>
       )}
 
-      {/* Forms */}
+      {/* ═══ Main Category Modal ═══ */}
       {showMainCatForm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="card modal-card">
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowMainCatForm(false)}>
+          <div className="modal-card">
             <h3 style={{ fontSize: 22, fontWeight: 900 }}>New Main Category</h3>
             <form onSubmit={handleAddMainCategory} style={{ display: 'flex', flexDirection: 'column', gap: 15, marginTop: 20 }}>
               <input type="text" placeholder="Name (e.g. Indian, Arabic)" required style={{ background: '#F5F5F5' }}
@@ -445,9 +685,10 @@ export default function AdminMenuManager() {
         </div>
       )}
 
+      {/* ═══ Sub Category Modal ═══ */}
       {showCatForm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="card modal-card">
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowCatForm(false)}>
+          <div className="modal-card">
             <h3 style={{ fontSize: 22, fontWeight: 900 }}>New Sub Category</h3>
             <form onSubmit={handleAddCategory} style={{ display: 'flex', flexDirection: 'column', gap: 15, marginTop: 20 }}>
               <select required style={{ background: '#F5F5F5', padding: 15, borderRadius: 12, border: 'none' }}
@@ -480,224 +721,309 @@ export default function AdminMenuManager() {
         </div>
       )}
 
+      {/* ═══ Add / Edit Item Modal (3-Step Wizard) ═══ */}
       {showItemForm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="card modal-card">
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeItemForm()}>
+          <div className="modal-card">
             <div className="modal-head">
               <div>
-                <h3 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>{editItemId ? 'Edit Item' : 'New Item'}</h3>
-                <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '4px 0 0' }}>Fill in the details below</p>
+                <h3 style={{ fontSize: 20, fontWeight: 900, margin: 0, letterSpacing: -0.3 }}>{editItemId ? 'Edit Item' : 'Add New Item'}</h3>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '3px 0 0', fontWeight: 500 }}>
+                  Step {formStep} of 3 — {formStep === 1 ? 'Basic Information' : formStep === 2 ? 'Food Attributes' : 'AI & Customer Visibility'}
+                </p>
               </div>
               <button type="button" className="modal-close" onClick={closeItemForm} aria-label="Close">✕</button>
             </div>
-            <form onSubmit={handleAddItem} style={{ display: 'flex', flexDirection: 'column', gap: 15, marginTop: 18 }}>
 
-              <div className="section-header">Category</div>
-              <div className="form-grid-2">
-                <div className="field-group">
-                  <label className="field-label">Main Category <span className="req">*</span></label>
-                  <select required style={{ background: 'var(--input-bg)', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.main_category_id}
-                    onChange={e => setNewItem({ ...newItem, main_category_id: e.target.value, category_id: '' })}>
-                    <option value="">Select main category</option>
-                    {mainCategories.filter(mc => mc.id !== 'legacy-other').map(mc => <option key={mc.id} value={mc.id}>{mc.name}</option>)}
-                  </select>
-                  <span className="field-hint">Top-level group (e.g. Indian, Arabic)</span>
-                </div>
-                <div className="field-group">
-                  <label className="field-label">Sub Category <span className="req">*</span></label>
-                  <select required style={{ background: 'var(--input-bg)', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.category_id}
-                    onChange={e => setNewItem({ ...newItem, category_id: e.target.value })} disabled={!newItem.main_category_id}>
-                    <option value="">Select sub category</option>
-                    {categories.filter(c => c.main_category_id === newItem.main_category_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                  <span className="field-hint">Specific section under the main category</span>
-                </div>
-              </div>
+            {/* ── Stepper Navigation Tabs ── */}
+            <div className="stepper-nav">
+              <button type="button" className={`stepper-btn ${formStep === 1 ? 'active' : ''}`} onClick={() => setFormStep(1)}>
+                <span className="stepper-num">1</span> Basic Info
+              </button>
+              <button type="button" className={`stepper-btn ${formStep === 2 ? 'active' : ''}`} onClick={() => setFormStep(2)}>
+                <span className="stepper-num">2</span> Attributes
+              </button>
+              <button type="button" className={`stepper-btn ${formStep === 3 ? 'active' : ''}`} onClick={() => setFormStep(3)}>
+                <span className="stepper-num">3</span> AI & Visibility
+              </button>
+            </div>
 
-              <hr className="section-divider" />
-              <div className="section-header">Item Details</div>
-              <div className="field-group">
-                <label className="field-label">Food Name <span className="req">*</span></label>
-                <input type="text" placeholder="e.g. Chicken Biryani" required style={{ background: 'var(--input-bg)' }} value={newItem.name}
-                  onChange={e => setNewItem({ ...newItem, name: e.target.value })} />
-              </div>
-              <div className="field-group">
-                <label className="field-label">Description</label>
-                <textarea placeholder="Short description of the dish" value={newItem.description}
-                  style={{ background: 'var(--input-bg)', border: 'none', padding: 15, borderRadius: 12, minHeight: 80 }}
-                  onChange={e => setNewItem({ ...newItem, description: e.target.value })} />
-                <span className="field-hint">Shown to customers in the menu</span>
-              </div>
-              <div className="field-group">
-                <label className="field-label">Price (₹) <span className="req">*</span></label>
-                <input type="number" placeholder="0" required style={{ background: 'var(--input-bg)' }} value={newItem.price || ''}
-                  onChange={e => setNewItem({ ...newItem, price: parseFloat(e.target.value) })} />
-              </div>
+            <form onSubmit={handleAddItem} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-              <div className="field-group">
-                <label className="field-label">Item Image</label>
-                <div className="field-box">
-                  <input type="file" accept="image/*" onChange={handleImageUpload} />
-                  {newItem.image_url && (
-                    <img src={newItem.image_url} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, marginTop: 10 }} />
-                  )}
-                </div>
-                <span className="field-hint">Square image recommended</span>
-              </div>
-
-              <hr className="section-divider" />
-              <div className="section-header">Attributes</div>
-              <div className="form-grid-2">
-                <div className="field-group">
-                  <label className="field-label">Item Type</label>
-                  <select style={{ background: 'var(--input-bg)', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.item_type}
-                    onChange={e => setNewItem({ ...newItem, item_type: e.target.value })}>
-                    <option value="veg">Veg</option>
-                    <option value="non-veg">Non-Veg</option>
-                    <option value="mixed">Mixed (staples — shown to all)</option>
-                  </select>
-                  <span className="field-hint">Veg, Non-Veg, or Mixed (staples like breads/rice everyone eats)</span>
-                </div>
-                <div className="field-group">
-                  <label className="field-label">Spice Level</label>
-                  <select style={{ background: 'var(--input-bg)', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.spice_level || 3}
-                    onChange={e => setNewItem({ ...newItem, spice_level: parseInt(e.target.value) })}>
-                    <option value="1">Low</option>
-                    <option value="3">Medium</option>
-                    <option value="5">High</option>
-                  </select>
-                  <span className="field-hint">How hot the dish is</span>
-                </div>
-              </div>
-
-              <div className="form-grid-2">
-                <div className="field-group">
-                  <label className="field-label">Taste Profile</label>
-                  <select style={{ background: 'var(--input-bg)', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.taste || 'spicy'}
-                    onChange={e => setNewItem({ ...newItem, taste: e.target.value })}>
-                    <option value="spicy">Spicy</option>
-                    <option value="sweet">Sweet</option>
-                    <option value="sour">Sour</option>
-                    <option value="salty">Salty</option>
-                    <option value="creamy">Creamy</option>
-                  </select>
-                  <span className="field-hint">Primary flavor</span>
-                </div>
-                <div className="field-group">
-                  <label className="field-label">Heaviness</label>
-                  <select style={{ background: 'var(--input-bg)', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.heaviness}
-                    onChange={e => setNewItem({ ...newItem, heaviness: e.target.value })}>
-                    <option value="light">Light</option>
-                    <option value="medium">Medium</option>
-                    <option value="heavy">Heavy</option>
-                  </select>
-                  <span className="field-hint">How filling the dish is</span>
-                </div>
-              </div>
-
-              <hr className="section-divider" />
-              <div className="section-header">Visibility &amp; Ordering</div>
-              <div className="field-group">
-                <label className="field-label">Display Priority</label>
-                <div className="field-box">
-                  <select style={{ background: 'none', border: 'none', width: '100%', fontWeight: 600, padding: 0 }} value={newItem.priority || 'medium'}
-                    onChange={e => setNewItem({ ...newItem, priority: e.target.value })}>
-                    <option value="high">High (Show First)</option>
-                    <option value="medium">Medium (Standard)</option>
-                    <option value="low">Low (Show Last)</option>
-                  </select>
-                </div>
-                <span className="field-hint">Controls sort order shown to customers</span>
-              </div>
-
-              <div className="field-box" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                <div className="field-group" style={{ gap: 2 }}>
-                  <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Available to Customers</label>
-                  <span className="field-hint">Turn off to hide from the menu without deleting</span>
-                </div>
-                <div onClick={() => setNewItem({ ...newItem, is_enabled: newItem.is_enabled !== false ? false : true })}
-                  style={{ width: 44, height: 24, borderRadius: 24, cursor: 'pointer', background: newItem.is_enabled !== false ? '#1DB954' : '#CCC', position: 'relative', transition: '0.3s', flexShrink: 0 }}>
-                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#FFF', position: 'absolute', top: 2, left: newItem.is_enabled !== false ? 22 : 2, transition: '0.3s' }} />
-                </div>
-              </div>
-
-              {/* Associated Recommendations */}
-              <div className="section-divider" />
-              <div className="section-header">Associated Recommendations</div>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 15 }}>These items will be suggested in the chat when this item is selected.</p>
-
-                {['food_items', 'beverages'].map(type => {
-                  const label = type === 'food_items' ? 'Food Items' : 'Beverages';
-                  const recs = itemRecs[type] || {};
-                  const otherType = type === 'food_items' ? 'beverages' : 'food_items';
-                  const isBevSection = type === 'beverages';
-                  const beverageCatIds = new Set((categories || []).filter(c => (c.course_type || '').toLowerCase() === 'beverage').map(c => c.id));
-                  return (
-                    <div key={type} style={{ marginBottom: 16 }}>
-                      <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>{label}</label>
-                      {Object.keys(recs).length > 0 && (
-                        <div style={{ marginBottom: 8 }}>
-                          {Object.entries(recs).map(([recId, recData]) => {
-                            const item = items.find(i => i.id === recId);
-                            if (!item) return null;
-                            return (
-                              <div key={recId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-                                <img src={item.image_url} style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', background: 'var(--input-bg)', flexShrink: 0 }} />
-                                <span style={{ flex: 1, fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
-                                <span title={item.item_type} style={{ width: 9, height: 9, borderRadius: '50%', flexShrink: 0, background: item.item_type === 'veg' ? '#1DB954' : item.item_type === 'non-veg' ? '#E53935' : '#F59E0B' }} />
-                                <select value={recData.priority} onChange={e => setItemRecs(prev => ({ ...prev, [type]: { ...prev[type], [recId]: { priority: e.target.value } } }))}
-                                  style={{ background: 'var(--input-bg)', border: 'none', padding: '4px 6px', borderRadius: 6, fontSize: 11 }}>
-                                  <option value="high">High</option>
-                                  <option value="medium">Med</option>
-                                  <option value="low">Low</option>
-                                </select>
-                                <button type="button" onClick={() => {
-                                  const updated = { ...itemRecs[type] };
-                                  delete updated[recId];
-                                  setItemRecs(prev => ({ ...prev, [type]: updated }));
-                                }} style={{ background: 'none', border: 'none', color: '#FF4B4B', cursor: 'pointer', fontSize: 14, padding: 2 }}>✕</button>
-                              </div>
-                            );
-                          })}
+              {/* ═════ STEP 1: BASIC INFO ═════ */}
+              {formStep === 1 && (
+                <>
+                  {/* Category Context Banner */}
+                  {(() => {
+                    const selCat = categories.find(c => c.id === newItem.category_id);
+                    const selMainCat = mainCategories.find(mc => mc.id === newItem.main_category_id);
+                    if (!selCat && !selMainCat) return null;
+                    return (
+                      <div className="cat-context-banner">
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+                          {selMainCat && <span style={{ color: 'var(--text)' }}>{selMainCat.name}</span>}
+                          {selMainCat && selCat && <span style={{ opacity: 0.4 }}>/</span>}
+                          {selCat && <span style={{ color: 'var(--primary)', fontWeight: 700 }}>{selCat.name}</span>}
                         </div>
-                      )}
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', marginTop: 8 }}>
-                        {type === 'food_items' && (
-                        <div>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>Filter</div>
-                          <select value={recTypeFilter[type]} onChange={e => setRecTypeFilter(prev => ({ ...prev, [type]: e.target.value }))}
-                            style={{ background: 'var(--input-bg)', border: 'none', padding: '10px 8px', borderRadius: 8, fontSize: 12 }}>
-                            <option value="all">All</option>
-                            <option value="veg">Veg</option>
-                            <option value="non-veg">Non-Veg</option>
-                            <option value="mixed">Mixed</option>
-                          </select>
-                        </div>
+                        {editItemId && (
+                          <button type="button" style={{ background: 'none', border: 'none', fontSize: 11, fontWeight: 700, color: 'var(--primary)', cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'underline', textUnderlineOffset: 2 }}
+                            onClick={() => {
+                              Swal.fire({
+                                title: 'Change Category',
+                                html: `
+                                  <select id="swal-maincat" class="swal2-select" style="margin-bottom:8px;width:100%">
+                                    <option value="">Select Main Category</option>
+                                    ${mainCategories.filter(mc => mc.id !== 'legacy-other').map(mc => `<option value="${mc.id}" ${mc.id === newItem.main_category_id ? 'selected' : ''}>${mc.name}</option>`).join('')}
+                                  </select>
+                                  <select id="swal-subcat" class="swal2-select" style="width:100%">
+                                    <option value="">Select Sub Category</option>
+                                    ${categories.filter(c => c.main_category_id === newItem.main_category_id).map(c => `<option value="${c.id}" ${c.id === newItem.category_id ? 'selected' : ''}>${c.name}</option>`).join('')}
+                                  </select>
+                                `,
+                                preConfirm: () => ({
+                                  main_category_id: document.getElementById('swal-maincat').value,
+                                  category_id: document.getElementById('swal-subcat').value
+                                }),
+                                showCancelButton: true,
+                                confirmButtonColor: '#FF6B35'
+                              }).then(r => {
+                                if (r.isConfirmed && r.value.category_id) {
+                                  setNewItem(prev => ({ ...prev, main_category_id: r.value.main_category_id, category_id: r.value.category_id }));
+                                }
+                              });
+                            }}>
+                            Change
+                          </button>
                         )}
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>Add {label.slice(0, -1).toLowerCase()}</div>
-                          <select value={pendingRec[type] || ''} onChange={e => {
-                            const id = e.target.value;
-                            if (id) {
-                              setItemRecs(prev => ({ ...prev, [type]: { ...prev[type], [id]: { priority: 'medium' } } }));
-                              setPendingRec(prev => ({ ...prev, [type]: '' }));
-                            }
-                          }}
-                            style={{ width: '100%', background: 'var(--input-bg)', border: 'none', padding: '10px 12px', borderRadius: 8, fontSize: 13 }}>
-                            <option value="">Choose a {label.slice(0, -1).toLowerCase()} to add...</option>
-                            {items.filter(i => i.id !== editItemId && !recs[i.id] && !(itemRecs[otherType] || {})[i.id] && (recTypeFilter[type] === 'all' || i.item_type === recTypeFilter[type]) && (isBevSection ? beverageCatIds.has(i.category_id) : !beverageCatIds.has(i.category_id))).map(i => (
-                              <option key={i.id} value={i.id}>{i.name} ({i.item_type === 'veg' ? 'Veg' : i.item_type === 'non-veg' ? 'Non-Veg' : 'Mixed'})</option>
-                            ))}
-                          </select>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Name & Price Row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', gap: 10 }}>
+                    <div className="field-group">
+                      <label className="field-label">Name <span className="req">*</span></label>
+                      <input type="text" placeholder="e.g. Chicken Biryani" required style={{ background: 'var(--input-bg)' }} value={newItem.name}
+                        onChange={e => setNewItem({ ...newItem, name: e.target.value })} />
+                    </div>
+                    <div className="field-group">
+                      <label className="field-label">Price ₹ <span className="req">*</span></label>
+                      <input type="number" placeholder="0" required style={{ background: 'var(--input-bg)', textAlign: 'right', fontWeight: 700 }} value={newItem.price || ''}
+                        onChange={e => setNewItem({ ...newItem, price: parseFloat(e.target.value) })} />
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div className="field-group">
+                    <label className="field-label">Description <span style={{ fontWeight: 500, color: 'var(--text-muted)', fontSize: 11 }}>optional</span></label>
+                    <textarea placeholder="Brief description shown to customers in menu" value={newItem.description}
+                      style={{ background: 'var(--input-bg)', border: 'none', padding: '12px 15px', borderRadius: 12, minHeight: 70, resize: 'vertical', fontSize: 14 }}
+                      onChange={e => setNewItem({ ...newItem, description: e.target.value })} />
+                  </div>
+
+                  {/* Image Upload */}
+                  <div className="field-group">
+                    <label className="field-label">Image <span style={{ fontWeight: 500, color: 'var(--text-muted)', fontSize: 11 }}>optional</span></label>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      {newItem.image_url && (
+                        <img src={newItem.image_url} style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border)', flexShrink: 0 }} />
+                      )}
+                      <label style={{
+                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        padding: '12px 14px', borderRadius: 10, border: '1.5px dashed var(--border)',
+                        cursor: 'pointer', transition: 'all 0.15s', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)',
+                        background: 'var(--surface-alt)'
+                      }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        {newItem.image_url ? 'Change Image' : 'Upload Dish Image'}
+                        <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
+                      </label>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ═════ STEP 2: ATTRIBUTES ═════ */}
+              {formStep === 2 && (
+                <>
+                  <PillRadio
+                    label="Food Type"
+                    value={newItem.item_type}
+                    onChange={v => setNewItem({ ...newItem, item_type: v })}
+                    options={[
+                      { value: 'veg', label: 'Vegetarian', dot: '#1DB954' },
+                      { value: 'non-veg', label: 'Non-Veg', dot: '#E53935' },
+                      { value: 'mixed', label: 'Mixed', dot: '#F59E0B' }
+                    ]}
+                    hint="Mixed = staples like breads or rice shown to all customers"
+                  />
+
+                  <div className="form-grid-2">
+                    <PillRadio
+                      label="Spice Level"
+                      value={newItem.spice_level || 3}
+                      onChange={v => setNewItem({ ...newItem, spice_level: v })}
+                      options={[
+                        { value: 1, label: 'Mild' },
+                        { value: 3, label: 'Medium' },
+                        { value: 5, label: 'Hot' }
+                      ]}
+                    />
+
+                    <PillRadio
+                      label="Heaviness"
+                      value={newItem.heaviness}
+                      onChange={v => setNewItem({ ...newItem, heaviness: v })}
+                      options={[
+                        { value: 'light', label: 'Light' },
+                        { value: 'medium', label: 'Medium' },
+                        { value: 'heavy', label: 'Heavy' }
+                      ]}
+                    />
+                  </div>
+
+                  <PillRadio
+                    label="Taste Profile"
+                    value={newItem.taste || 'spicy'}
+                    onChange={v => setNewItem({ ...newItem, taste: v })}
+                    options={[
+                      { value: 'spicy', label: 'Spicy' },
+                      { value: 'sweet', label: 'Sweet' },
+                      { value: 'sour', label: 'Sour' },
+                      { value: 'salty', label: 'Salty' },
+                      { value: 'creamy', label: 'Creamy' }
+                    ]}
+                  />
+                </>
+              )}
+
+              {/* ═════ STEP 3: AI RECOMMENDATIONS & VISIBILITY ═════ */}
+              {formStep === 3 && (
+                <>
+                  <PillRadio
+                    label="Display Priority"
+                    value={newItem.priority || 'medium'}
+                    onChange={v => setNewItem({ ...newItem, priority: v })}
+                    options={[
+                      { value: 'high', label: 'High (Top of list)' },
+                      { value: 'medium', label: 'Standard' },
+                      { value: 'low', label: 'Low (Bottom)' }
+                    ]}
+                    hint="Controls the sort order shown to customers in the digital menu"
+                  />
+
+                  <div className="field-box" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, borderRadius: 10 }}>
+                    <div className="field-group" style={{ gap: 2 }}>
+                      <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Available to Customers</label>
+                      <span className="field-hint">Toggle off to temporarily hide from customer menus</span>
+                    </div>
+                    <div onClick={() => setNewItem({ ...newItem, is_enabled: newItem.is_enabled !== false ? false : true })}
+                      style={{ width: 44, height: 24, borderRadius: 24, cursor: 'pointer', background: newItem.is_enabled !== false ? '#1DB954' : '#CCC', position: 'relative', transition: '0.3s', flexShrink: 0 }}>
+                      <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#FFF', position: 'absolute', top: 2, left: newItem.is_enabled !== false ? 22 : 2, transition: '0.3s' }} />
+                    </div>
+                  </div>
+
+                  {/* Associated Recommendations */}
+                  <div className="section-divider" style={{ margin: '8px 0' }} />
+                  <div className="section-header">AI Chat Assistant Recommendations</div>
+                  <p style={{ fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 12 }}>Items suggested by the AI waiter when this dish is ordered.</p>
+
+                  {['food_items', 'beverages'].map(type => {
+                    const label = type === 'food_items' ? 'Food Items' : 'Beverages';
+                    const recs = itemRecs[type] || {};
+                    const otherType = type === 'food_items' ? 'beverages' : 'food_items';
+                    const isBevSection = type === 'beverages';
+                    const beverageCatIds = new Set((categories || []).filter(c => (c.course_type || '').toLowerCase() === 'beverage').map(c => c.id));
+                    return (
+                      <div key={type} style={{ marginBottom: 12 }}>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>{label}</label>
+                        {Object.keys(recs).length > 0 && (
+                          <div style={{ marginBottom: 6 }}>
+                            {Object.entries(recs).map(([recId, recData]) => {
+                              const item = items.find(i => i.id === recId);
+                              if (!item) return null;
+                              return (
+                                <div key={recId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
+                                  <img src={item.image_url} style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover', background: 'var(--input-bg)', flexShrink: 0 }} />
+                                  <span style={{ flex: 1, fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                  <select value={recData.priority} onChange={e => setItemRecs(prev => ({ ...prev, [type]: { ...prev[type], [recId]: { priority: e.target.value } } }))}
+                                    style={{ background: 'var(--input-bg)', border: 'none', padding: '3px 6px', borderRadius: 6, fontSize: 11 }}>
+                                    <option value="high">High</option>
+                                    <option value="medium">Med</option>
+                                    <option value="low">Low</option>
+                                  </select>
+                                  <button type="button" onClick={() => {
+                                    const updated = { ...itemRecs[type] };
+                                    delete updated[recId];
+                                    setItemRecs(prev => ({ ...prev, [type]: updated }));
+                                  }} style={{ background: 'none', border: 'none', color: '#FF4B4B', cursor: 'pointer', fontSize: 13, padding: 2 }}>✕</button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', marginTop: 4 }}>
+                          {type === 'food_items' && (
+                          <div>
+                            <select value={recTypeFilter[type]} onChange={e => setRecTypeFilter(prev => ({ ...prev, [type]: e.target.value }))}
+                              style={{ background: 'var(--input-bg)', border: 'none', padding: '8px 6px', borderRadius: 8, fontSize: 11 }}>
+                              <option value="all">All</option>
+                              <option value="veg">Veg</option>
+                              <option value="non-veg">Non-Veg</option>
+                              <option value="mixed">Mixed</option>
+                            </select>
+                          </div>
+                          )}
+                          <div style={{ flex: 1 }}>
+                            <select value={pendingRec[type] || ''} onChange={e => {
+                              const id = e.target.value;
+                              if (id) {
+                                setItemRecs(prev => ({ ...prev, [type]: { ...prev[type], [id]: { priority: 'medium' } } }));
+                                setPendingRec(prev => ({ ...prev, [type]: '' }));
+                              }
+                            }}
+                              style={{ width: '100%', background: 'var(--input-bg)', border: 'none', padding: '8px 10px', borderRadius: 8, fontSize: 12 }}>
+                              <option value="">+ Add recommended {label.slice(0, -1).toLowerCase()}...</option>
+                              {items.filter(i => i.id !== editItemId && !recs[i.id] && !(itemRecs[otherType] || {})[i.id] && (recTypeFilter[type] === 'all' || i.item_type === recTypeFilter[type]) && (isBevSection ? beverageCatIds.has(i.category_id) : !beverageCatIds.has(i.category_id))).map(i => (
+                                <option key={i.id} value={i.id}>{i.name}</option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </>
+              )}
 
-              <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={closeItemForm}>Cancel</button>
-                <button type="submit" className="btn-primary" style={{ flex: 1 }}>{editItemId ? 'Update Item' : 'Add Item'}</button>
+              {/* ── Wizard Footer Actions ── */}
+              <div style={{ display: 'flex', gap: 10, marginTop: 10, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+                {formStep > 1 ? (
+                  <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={() => setFormStep(s => s - 1)}>
+                    ← Back
+                  </button>
+                ) : (
+                  <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={closeItemForm}>
+                    Cancel
+                  </button>
+                )}
+
+                {formStep < 3 ? (
+                  <button type="button" className="btn-primary" style={{ flex: 1 }} onClick={() => {
+                    if (!newItem.name || !newItem.price) {
+                      Swal.fire({ title: 'Required Fields', text: 'Please fill in the item name and price before proceeding.', icon: 'warning', timer: 2000, showConfirmButton: false });
+                      return;
+                    }
+                    setFormStep(s => s + 1);
+                  }}>
+                    Next →
+                  </button>
+                ) : (
+                  <button type="submit" className="btn-primary" style={{ flex: 1 }}>
+                    {editItemId ? 'Save Changes' : 'Add Item'}
+                  </button>
+                )}
               </div>
             </form>
           </div>
