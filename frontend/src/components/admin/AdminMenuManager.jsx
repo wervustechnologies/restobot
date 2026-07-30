@@ -20,6 +20,7 @@ export default function AdminMenuManager() {
   const [recTypeFilter, setRecTypeFilter] = useState({ food_items: 'all', beverages: 'all' });
 
   const [expandedGroups, setExpandedGroups] = useState({});
+  const [menuLoading, setMenuLoading] = useState(true);
 
   const toggleGroup = (group) => {
     setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }));
@@ -37,6 +38,7 @@ export default function AdminMenuManager() {
   const [itemRecs, setItemRecs] = useState({ food_items: {}, beverages: {} });
 
   const fetchData = async () => {
+    setMenuLoading(true);
     const [mainCatRes, catRes, itemRes] = await Promise.all([
       fetch(`${API_BASE_URL}/admin/main_categories`, { headers: { 'Authorization': `Bearer ${token}` } }),
       fetch(`${API_BASE_URL}/admin/categories`, { headers: { 'Authorization': `Bearer ${token}` } }),
@@ -70,6 +72,7 @@ export default function AdminMenuManager() {
     } else if (catData.length > 0) {
       setExpandedGroups({ [catData[0].course_type || 'Other']: true });
     }
+    setMenuLoading(false);
   };
 
   useEffect(() => {
@@ -220,6 +223,64 @@ export default function AdminMenuManager() {
           .menu-manager-actions button { flex: 1; }
         }
       `}</style>
+
+      {menuLoading ? (
+        <>
+          {/* Header skeleton */}
+          <div className="menu-manager-header">
+            <div className="skeleton skeleton-text lg" style={{ width: 200 }} />
+            <div className="menu-manager-actions">
+              <div className="skeleton skeleton-rect" style={{ width: 120, height: 38 }} />
+              <div className="skeleton skeleton-rect" style={{ width: 120, height: 38 }} />
+              <div className="skeleton skeleton-rect" style={{ width: 110, height: 38 }} />
+            </div>
+          </div>
+
+          {/* Main category tabs skeleton */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+            {[90, 75, 100, 80].map((w, i) => (
+              <div key={i} className="skeleton skeleton-rect" style={{ width: w, height: 44 }} />
+            ))}
+          </div>
+
+          {/* Layout skeleton */}
+          <div className="menu-layout">
+            {/* Sidebar skeleton */}
+            <div className="menu-sidebar skeleton-card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: 15, borderBottom: '1px solid var(--border)' }}>
+                <div className="skeleton skeleton-text md" style={{ width: '70%' }} />
+              </div>
+              {[1,2,3,4,5].map(i => (
+                <div key={i} style={{ padding: '12px 15px', borderBottom: '1px solid var(--border)' }}>
+                  <div className="skeleton skeleton-text" style={{ width: `${60 + (i * 7) % 30}%` }} />
+                </div>
+              ))}
+            </div>
+
+            {/* Items panel skeleton */}
+            <div className="menu-items-panel">
+              <div className="skeleton-card" style={{ padding: 25 }}>
+                <div className="skeleton skeleton-text lg" style={{ width: '45%', marginBottom: 20 }} />
+                {[1,2,3,4,5].map(i => (
+                  <div key={i} className="skeleton-row" style={{ padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
+                    <div className="skeleton skeleton-rect" style={{ width: 56, height: 56, flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div className="skeleton skeleton-text md" style={{ width: `${50 + (i * 11) % 35}%`, marginBottom: 6 }} />
+                      <div className="skeleton skeleton-text sm" style={{ width: '30%' }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                      <div className="skeleton skeleton-rect" style={{ width: 44, height: 24 }} />
+                      <div className="skeleton skeleton-rect" style={{ width: 50, height: 28 }} />
+                      <div className="skeleton skeleton-rect" style={{ width: 40, height: 28 }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
       <div className="menu-manager-header">
         <h1 style={{ fontSize: 26, fontWeight: 900, margin: 0 }}>Menu Manager</h1>
         <div className="menu-manager-actions">
@@ -363,6 +424,9 @@ export default function AdminMenuManager() {
           </div>
         </div>
       </div>
+
+      </>
+      )}
 
       {/* Forms */}
       {showMainCatForm && (

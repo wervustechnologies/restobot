@@ -228,7 +228,90 @@ export default function WaiterHome() {
     navigate('/waiter/login');
   };
 
-  if (loading) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="loader" /></div>;
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      {/* Header skeleton */}
+      <div style={{
+        background: 'linear-gradient(135deg, #FF6B35 0%, #E85A20 100%)',
+        padding: '20px 24px'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div className="skeleton skeleton-text lg" style={{ width: 200, marginBottom: 8, '--skeleton-base': 'rgba(255,255,255,0.2)', '--skeleton-shine': 'rgba(255,255,255,0.35)' }} />
+            <div className="skeleton skeleton-text sm" style={{ width: 140, '--skeleton-base': 'rgba(255,255,255,0.15)', '--skeleton-shine': 'rgba(255,255,255,0.25)' }} />
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div className="skeleton skeleton-rect" style={{ width: 44, height: 40, '--skeleton-base': 'rgba(255,255,255,0.2)', '--skeleton-shine': 'rgba(255,255,255,0.35)' }} />
+            <div className="skeleton skeleton-rect" style={{ width: 80, height: 40, '--skeleton-base': 'rgba(255,255,255,0.2)', '--skeleton-shine': 'rgba(255,255,255,0.35)' }} />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: 20 }}>
+        {/* Section title skeleton */}
+        <div className="skeleton skeleton-text md" style={{ width: 160, marginBottom: 15 }} />
+
+        {/* Table cards skeleton */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 15, marginBottom: 30 }}>
+          {[1,2,3].map(i => (
+            <div key={i} className="skeleton-card" style={{ padding: 24, borderLeft: '4px solid var(--border)' }}>
+              <div className="skeleton-row" style={{ marginBottom: 15 }}>
+                <div className="skeleton skeleton-rect" style={{ width: 50, height: 50, borderRadius: 14, flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <div className="skeleton skeleton-text md" style={{ width: '55%', marginBottom: 6 }} />
+                  <div className="skeleton skeleton-text sm" style={{ width: '35%' }} />
+                </div>
+                <div className="skeleton skeleton-rect" style={{ width: 70, height: 32 }} />
+              </div>
+
+              {/* Order group skeleton */}
+              <div style={{ background: 'var(--surface-alt)', borderRadius: 14, padding: 16, marginBottom: 10 }}>
+                <div className="skeleton-row" style={{ marginBottom: 12 }}>
+                  <div className="skeleton skeleton-rect" style={{ width: 32, height: 32, borderRadius: 10 }} />
+                  <div style={{ flex: 1 }}>
+                    <div className="skeleton skeleton-text" style={{ width: '50%', marginBottom: 4 }} />
+                    <div className="skeleton skeleton-text sm" style={{ width: '30%' }} />
+                  </div>
+                  <div className="skeleton skeleton-text" style={{ width: 50, height: 16 }} />
+                </div>
+                <div style={{ background: 'var(--surface)', borderRadius: 10, padding: 12 }}>
+                  {[1,2].map(j => (
+                    <div key={j} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: j < 2 ? '1px solid var(--border)' : 'none' }}>
+                      <div className="skeleton skeleton-text" style={{ width: `${40 + j * 15}%` }} />
+                      <div className="skeleton skeleton-text sm" style={{ width: 50 }} />
+                    </div>
+                  ))}
+                </div>
+                <div className="skeleton skeleton-rect" style={{ width: '100%', height: 38, marginTop: 10 }} />
+              </div>
+              <div className="skeleton skeleton-rect" style={{ width: '100%', height: 42, marginTop: 4 }} />
+            </div>
+          ))}
+        </div>
+
+        {/* Available tables section skeleton */}
+        <div className="skeleton skeleton-text md" style={{ width: 180, marginBottom: 15 }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 15 }}>
+          {[1,2].map(i => (
+            <div key={i} className="skeleton-card" style={{ padding: 24, borderLeft: '4px solid var(--border)' }}>
+              <div className="skeleton-row" style={{ marginBottom: 14 }}>
+                <div className="skeleton skeleton-rect" style={{ width: 64, height: 64, borderRadius: 18, flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <div className="skeleton skeleton-text md" style={{ width: '65%', marginBottom: 6 }} />
+                  <div className="skeleton skeleton-text sm" style={{ width: '80%' }} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12, borderTop: '2px solid var(--border)' }}>
+                <div className="skeleton skeleton-text" style={{ width: 50, height: 15 }} />
+                <div className="skeleton skeleton-text lg" style={{ width: 60 }} />
+              </div>
+              <div className="skeleton skeleton-rect" style={{ width: '100%', height: 44, marginTop: 14 }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 
   const myTables = tables.filter(t => t.locked_by === waiter?.id);
   const availableTables = tables.filter(t => !t.locked_by && (t.has_pending || t.call_waiter));

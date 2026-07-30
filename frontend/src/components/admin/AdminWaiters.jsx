@@ -91,7 +91,34 @@ export default function AdminWaiters() {
     }
   };
 
-  if (loading) return <div style={{ height: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="loader" /></div>;
+  if (loading) return (
+    <div>
+      {/* Header skeleton */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 }}>
+        <div className="skeleton skeleton-text lg" style={{ width: 120 }} />
+        <div className="skeleton skeleton-rect" style={{ width: 160, height: 44 }} />
+      </div>
+
+      {/* Waiter cards skeleton */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+        {[1,2,3,4].map(i => (
+          <div key={i} className="skeleton-card" style={{ padding: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', gap: 15, alignItems: 'center' }}>
+                <div className="skeleton skeleton-rect" style={{ width: 50, height: 50, borderRadius: 14 }} />
+                <div>
+                  <div className="skeleton skeleton-text md" style={{ width: 120, marginBottom: 8 }} />
+                  <div className="skeleton skeleton-text sm" style={{ width: 150 }} />
+                </div>
+              </div>
+              <div className="skeleton skeleton-rect" style={{ width: 60, height: 32 }} />
+            </div>
+            <div className="skeleton skeleton-text sm" style={{ width: 100, marginTop: 15 }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div>

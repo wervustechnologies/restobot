@@ -118,7 +118,51 @@ export default function AdminOrders() {
   const servedOrders = tables.reduce((s, t) => s + t.orders.filter(o => o.status === 'served').length, 0);
   const readyToBill = tables.reduce((s, t) => s + t.orders.filter(o => o.status === 'completed').length, 0);
 
-  if (loading) return <div style={{ height: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="loader" /></div>;
+  if (loading) return (
+    <div>
+      {/* Header skeleton */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 }}>
+        <div className="skeleton skeleton-text lg" style={{ width: 200 }} />
+        <div className="skeleton skeleton-rect" style={{ width: 110, height: 40 }} />
+      </div>
+
+      {/* Stat cards skeleton */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 15, marginBottom: 30 }}>
+        {[1,2,3,4].map(i => (
+          <div key={i} className="skeleton-card" style={{ borderLeft: '4px solid var(--border)' }}>
+            <div className="skeleton skeleton-text sm" style={{ width: '70%', marginBottom: 12 }} />
+            <div className="skeleton skeleton-text xl" style={{ width: '40%' }} />
+          </div>
+        ))}
+      </div>
+
+      {/* Filter chips skeleton */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+        {[100,120,90,130,80,120].map((w, i) => (
+          <div key={i} className="skeleton skeleton-rect" style={{ width: w, height: 40 }} />
+        ))}
+      </div>
+
+      {/* Table cards skeleton */}
+      <div className="tables-grid">
+        {[1,2,3,4,5,6].map(i => (
+          <div key={i} className="skeleton-card" style={{ borderLeft: '4px solid var(--border)' }}>
+            <div className="skeleton-row" style={{ marginBottom: 15 }}>
+              <div className="skeleton skeleton-rect" style={{ width: 48, height: 48 }} />
+              <div style={{ flex: 1 }}>
+                <div className="skeleton skeleton-text md" style={{ width: '60%', marginBottom: 6 }} />
+                <div className="skeleton skeleton-text sm" style={{ width: '40%' }} />
+              </div>
+              <div className="skeleton skeleton-rect" style={{ width: 80, height: 30 }} />
+            </div>
+            <div className="skeleton skeleton-rect" style={{ width: '100%', height: 80, marginBottom: 10 }} />
+            <div className="skeleton skeleton-text" style={{ width: '90%' }} />
+            <div className="skeleton skeleton-text sm" style={{ width: '55%' }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div>
