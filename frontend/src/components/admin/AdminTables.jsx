@@ -8,9 +8,11 @@ export default function AdminTables() {
   const [tables, setTables] = useState([]);
   const [newTableNum, setNewTableNum] = useState('');
   const [qrCodes, setQrCodes] = useState({});
+  const [tablesLoading, setTablesLoading] = useState(true);
   const { token, user } = useAuth();
 
   const fetchData = async () => {
+    setTablesLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/admin/tables`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -37,6 +39,7 @@ export default function AdminTables() {
       console.error("Error fetching tables or server info:", error);
       setTables([]);
     }
+    setTablesLoading(false);
   };
 
   useEffect(() => {
@@ -94,6 +97,37 @@ export default function AdminTables() {
       fetchData();
     }
   };
+
+  if (tablesLoading) return (
+    <div style={{ padding: '20px' }}>
+      {/* Header skeleton */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 20 }}>
+        <div>
+          <div className="skeleton skeleton-text lg" style={{ width: 200, marginBottom: 8 }} />
+          <div className="skeleton skeleton-text sm" style={{ width: 280 }} />
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div className="skeleton skeleton-rect" style={{ width: 180, height: 44 }} />
+          <div className="skeleton skeleton-rect" style={{ width: 110, height: 44 }} />
+        </div>
+      </div>
+
+      {/* QR cards skeleton */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 25 }}>
+        {[1,2,3,4,5,6].map(i => (
+          <div key={i} className="skeleton-card" style={{ padding: 25, textAlign: 'center' }}>
+            <div className="skeleton skeleton-rect" style={{ width: 60, height: 22, position: 'absolute', top: 15, right: 15 }} />
+            <div className="skeleton skeleton-text md" style={{ width: '50%', margin: '0 auto 5px' }} />
+            <div className="skeleton skeleton-rect" style={{ width: 180, height: 180, margin: '20px auto', borderRadius: 12 }} />
+            <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+              <div className="skeleton skeleton-rect" style={{ flex: 1, height: 40 }} />
+              <div className="skeleton skeleton-rect" style={{ flex: 1, height: 40 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ padding: '20px' }}>

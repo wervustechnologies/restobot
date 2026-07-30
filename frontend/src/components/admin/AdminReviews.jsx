@@ -67,8 +67,40 @@ export default function AdminReviews() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-        <div className="loader" />
+      <div>
+        {/* Title skeleton */}
+        <div className="skeleton skeleton-text lg" style={{ width: 220, marginBottom: 24 }} />
+
+        {/* Review link card skeleton */}
+        <div className="skeleton-card" style={{ padding: 24, marginBottom: 24 }}>
+          <div className="skeleton skeleton-text md" style={{ width: '45%', marginBottom: 16 }} />
+          <div className="skeleton skeleton-text" style={{ width: '80%', marginBottom: 12 }} />
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div className="skeleton skeleton-rect" style={{ flex: 1, height: 48 }} />
+            <div className="skeleton skeleton-rect" style={{ width: 80, height: 48 }} />
+          </div>
+        </div>
+
+        {/* Feedback list skeleton */}
+        <div className="skeleton-card" style={{ padding: 24 }}>
+          <div className="skeleton skeleton-text md" style={{ width: '35%', marginBottom: 16 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {[1,2,3,4].map(i => (
+              <div key={i} style={{ padding: 16, borderRadius: 12, background: 'var(--surface-alt)', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {[1,2,3,4,5].map(s => (
+                      <div key={s} className="skeleton skeleton-rect" style={{ width: 18, height: 18 }} />
+                    ))}
+                  </div>
+                  <div className="skeleton skeleton-text sm" style={{ width: 100 }} />
+                </div>
+                <div className="skeleton skeleton-text" style={{ width: `${70 + (i * 8) % 25}%`, marginBottom: 6 }} />
+                <div className="skeleton skeleton-text sm" style={{ width: '45%' }} />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

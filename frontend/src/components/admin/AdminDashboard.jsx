@@ -126,7 +126,65 @@ export default function AdminDashboard() {
   };
 
   if (loadingBills || loadingMetrics) {
-    return <div style={{ height: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="loader" /></div>;
+    return (
+      <div>
+        {/* Header skeleton */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 }}>
+          <div className="skeleton skeleton-text lg" style={{ width: 240 }} />
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div className="skeleton skeleton-rect" style={{ width: 100, height: 40 }} />
+            <div className="skeleton skeleton-rect" style={{ width: 90, height: 40 }} />
+          </div>
+        </div>
+
+        {/* Analytics stat cards skeleton */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 30 }}>
+          {[1,2,3].map(i => (
+            <div key={i} className="skeleton-card" style={{ borderLeft: '4px solid var(--border)' }}>
+              <div className="skeleton skeleton-text sm" style={{ width: '65%', marginBottom: 12 }} />
+              <div className="skeleton skeleton-text xl" style={{ width: '45%' }} />
+            </div>
+          ))}
+        </div>
+
+        {/* Charts skeleton */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 30, marginBottom: 30 }}>
+          {[1,2].map(i => (
+            <div key={i} className="skeleton-card" style={{ height: 360 }}>
+              <div className="skeleton skeleton-text md" style={{ width: '50%', marginBottom: 24 }} />
+              <div className="skeleton skeleton-rect" style={{ width: '100%', height: 260 }} />
+            </div>
+          ))}
+        </div>
+
+        {/* Billed orders header skeleton */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+          <div className="skeleton skeleton-text lg" style={{ width: 160 }} />
+          <div className="skeleton skeleton-text sm" style={{ width: 200 }} />
+        </div>
+
+        {/* Billed table cards skeleton */}
+        <div className="tables-grid">
+          {[1,2,3,4].map(i => (
+            <div key={i} className="skeleton-card" style={{ borderLeft: '4px solid var(--border)' }}>
+              <div className="skeleton-row" style={{ marginBottom: 12 }}>
+                <div className="skeleton skeleton-rect" style={{ width: 44, height: 44 }} />
+                <div style={{ flex: 1 }}>
+                  <div className="skeleton skeleton-text md" style={{ width: '55%', marginBottom: 6 }} />
+                  <div className="skeleton skeleton-text sm" style={{ width: '70%' }} />
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div className="skeleton skeleton-text sm" style={{ width: 50, marginBottom: 6 }} />
+                  <div className="skeleton skeleton-text" style={{ width: 60, height: 18 }} />
+                </div>
+              </div>
+              <div className="skeleton skeleton-text" style={{ width: '85%' }} />
+              <div className="skeleton skeleton-text sm" style={{ width: '50%' }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   const totalBilledOrders = billedTables.reduce((s, t) => s + t.orders.filter(o => o.status === 'billed').length, 0);
