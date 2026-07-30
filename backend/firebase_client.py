@@ -47,10 +47,19 @@ def bump_rev(restaurant_id, *domains):
     (auth'd/scoped) REST endpoint instead of polling on a timer."""
     if not restaurant_id:
         return
-    updates = {
-        domain: db.ServerValue.increment(1)
-        for domain in domains
-        if domain in _REV_DOMAINS
-    }
-    if updates:
-        get_db().child(f'restaurants/{restaurant_id}/_rev').update(updates)
+    targets = [d for d in domains if d in _REV_DOMAINS]
+    if not targets:
+        return
+
+    def _bump(current):
+        # current may be None when the _rev node does not yet exist.
+        rev = dict(current or {})
+        for domain in targets:
+            rev[domain] = (rev.get(domain) or 0) + 1
+        return rev
+
+    # Atomic server-side increment via an RTDB transaction. firebase-admin's db
+    # module exposes no ServerValue helper (that's a JS-SDK API), so a
+    # transaction is the SDK-native way to bump these counters without a racy
+    # read-modify-write.
+    get_db().child(f'restaurants/{restaurant_id}/_rev').transaction(_bump)
