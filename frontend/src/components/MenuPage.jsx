@@ -487,9 +487,10 @@ function MenuItemCard({ item, qty, onAdd, onRemove, delay }) {
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-          <span style={{ width: 14, height: 14, borderRadius: 3, flexShrink: 0, border: `2.5px solid ${item.item_type === 'veg' ? '#1DB954' : '#E53935'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: item.item_type === 'veg' ? '#1DB954' : '#E53935' }} />
-          </span>
+          {(() => { const tc = item.item_type === 'veg' ? '#1DB954' : item.item_type === 'non-veg' ? '#E53935' : '#F59E0B'; return (
+          <span title={item.item_type === 'veg' ? 'Veg' : item.item_type === 'non-veg' ? 'Non-Veg' : 'Mixed'} style={{ width: 14, height: 14, borderRadius: 3, flexShrink: 0, border: `2.5px solid ${tc}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: tc }} />
+          </span>); })()}
           <span style={{ fontSize: 16, fontWeight: 800, color: '#1A1A1A' }}>{item.name}</span>
         </div>
         <p style={{ fontSize: 13, color: '#777', lineHeight: 1.5, marginBottom: 10, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{item.description}</p>

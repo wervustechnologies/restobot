@@ -17,6 +17,7 @@ export default function AdminMenuManager() {
   const [editItemId, setEditItemId] = useState(null);
   const { token } = useAuth();
   const [pendingRec, setPendingRec] = useState({ food_items: '', beverages: '' });
+  const [recTypeFilter, setRecTypeFilter] = useState({ food_items: 'all', beverages: 'all' });
 
   const [expandedGroups, setExpandedGroups] = useState({});
 
@@ -196,8 +197,19 @@ export default function AdminMenuManager() {
         .item-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
         .item-row-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .modal-card { width: 90vw; max-width: 480px; padding: 24px; max-height: 90vh; overflow-y: auto; }
-        .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        @media (max-width: 640px) {
+          .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+          .field-group { display: flex; flex-direction: column; gap: 6px; }
+          .field-label { font-size: 13px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 4px; }
+          .field-label .req { color: #FF4B4B; }
+          .field-hint { font-size: 11.5px; color: var(--text-muted); line-height: 1.3; margin-top: -2px; }
+          .section-header { font-size: 13px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.4px; margin: 18px 0 2px; display: flex; align-items: center; gap: 8px; }
+          .section-header:first-child { margin-top: 0; }
+          .section-divider { height: 1px; background: var(--border); margin: 18px 0 0; border: none; }
+          .field-box { background: var(--input-bg); padding: 13px 15px; border-radius: 12px; }
+          .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+          .modal-close { background: none; border: none; font-size: 22px; line-height: 1; color: var(--text-muted); cursor: pointer; padding: 0 4px; border-radius: 8px; }
+          .modal-close:hover { color: var(--text); background: var(--input-bg); }
+          @media (max-width: 640px) {
           .menu-layout { flex-direction: column !important; }
           .menu-sidebar { width: 100% !important; }
           .item-row { flex-wrap: wrap; gap: 10px; }
@@ -383,19 +395,17 @@ export default function AdminMenuManager() {
                 onChange={e => setNewCat({ ...newCat, name: e.target.value })} />
               <div style={{ background: '#FFF0EA', padding: '10px 15px', borderRadius: 12, border: '1px solid rgba(255,107,53,0.2)' }}>
                 <label style={{ fontSize: 12, fontWeight: 700, color: '#FF6B35', marginBottom: 8, display: 'block' }}>Course Type <span style={{ fontSize: 10, color: '#888' }}>(Used by AI Chat Guide)</span></label>
-                <input 
-                  list="course-types"
-                  placeholder="Enter or select Course Type" 
-                  required 
+                <select
+                  value={newCat.course_type}
+                  onChange={e => setNewCat({ ...newCat, course_type: e.target.value })}
+                  required
                   style={{ background: '#F5F5F5', border: 'none', padding: '10px 15px', borderRadius: 10, width: '100%', color: '#333', fontWeight: 600 }}
-                  value={newCat.course_type} 
-                  onChange={e => setNewCat({ ...newCat, course_type: e.target.value })} 
-                />
-                <datalist id="course-types">
-                  {[...new Set(categories.map(c => c.course_type).filter(Boolean))].map(ct => (
-                    <option key={ct} value={ct} />
-                  ))}
-                </datalist>
+                >
+                  <option value="">Select Course Type</option>
+                  <option value="starter">Starter</option>
+                  <option value="main">Full meal</option>
+                  <option value="beverage">Beverages</option>
+                </select>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
                 <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={() => setShowCatForm(false)}>Cancel</button>
@@ -409,109 +419,170 @@ export default function AdminMenuManager() {
       {showItemForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div className="card modal-card">
-            <h3 style={{ fontSize: 22, fontWeight: 900 }}>{editItemId ? 'Edit Item' : 'New Item'}</h3>
-            <form onSubmit={handleAddItem} style={{ display: 'flex', flexDirection: 'column', gap: 15, marginTop: 20 }}>
-              
+            <div className="modal-head">
+              <div>
+                <h3 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>{editItemId ? 'Edit Item' : 'New Item'}</h3>
+                <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '4px 0 0' }}>Fill in the details below</p>
+              </div>
+              <button type="button" className="modal-close" onClick={closeItemForm} aria-label="Close">✕</button>
+            </div>
+            <form onSubmit={handleAddItem} style={{ display: 'flex', flexDirection: 'column', gap: 15, marginTop: 18 }}>
+
+              <div className="section-header">Category</div>
               <div className="form-grid-2">
-                <select required style={{ background: '#F5F5F5', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.main_category_id}
-                  onChange={e => setNewItem({ ...newItem, main_category_id: e.target.value, category_id: '' })}>
-                  <option value="">Select Main Category</option>
-                  {mainCategories.filter(mc => mc.id !== 'legacy-other').map(mc => <option key={mc.id} value={mc.id}>{mc.name}</option>)}
-                </select>
-                <select required style={{ background: '#F5F5F5', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.category_id}
-                  onChange={e => setNewItem({ ...newItem, category_id: e.target.value })} disabled={!newItem.main_category_id}>
-                  <option value="">Select Sub Category</option>
-                  {categories.filter(c => c.main_category_id === newItem.main_category_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <div className="field-group">
+                  <label className="field-label">Main Category <span className="req">*</span></label>
+                  <select required style={{ background: 'var(--input-bg)', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.main_category_id}
+                    onChange={e => setNewItem({ ...newItem, main_category_id: e.target.value, category_id: '' })}>
+                    <option value="">Select main category</option>
+                    {mainCategories.filter(mc => mc.id !== 'legacy-other').map(mc => <option key={mc.id} value={mc.id}>{mc.name}</option>)}
+                  </select>
+                  <span className="field-hint">Top-level group (e.g. Indian, Arabic)</span>
+                </div>
+                <div className="field-group">
+                  <label className="field-label">Sub Category <span className="req">*</span></label>
+                  <select required style={{ background: 'var(--input-bg)', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.category_id}
+                    onChange={e => setNewItem({ ...newItem, category_id: e.target.value })} disabled={!newItem.main_category_id}>
+                    <option value="">Select sub category</option>
+                    {categories.filter(c => c.main_category_id === newItem.main_category_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                  <span className="field-hint">Specific section under the main category</span>
+                </div>
               </div>
 
-              <input type="text" placeholder="Food Name" required style={{ background: '#F5F5F5' }} value={newItem.name}
-                onChange={e => setNewItem({ ...newItem, name: e.target.value })} />
-              <textarea placeholder="Description" value={newItem.description}
-                style={{ background: '#F5F5F5', border: 'none', padding: 15, borderRadius: 12, minHeight: 80 }}
-                onChange={e => setNewItem({ ...newItem, description: e.target.value })} />
-              <input type="number" placeholder="Price" required style={{ background: '#F5F5F5' }} value={newItem.price || ''}
-                onChange={e => setNewItem({ ...newItem, price: parseFloat(e.target.value) })} />
-              
-              <div style={{ background: '#F5F5F5', padding: 15, borderRadius: 12 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 8, display: 'block' }}>Upload Image</label>
-                <input type="file" accept="image/*" onChange={handleImageUpload} />
-                {newItem.image_url && (
-                  <img src={newItem.image_url} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, marginTop: 10 }} />
-                )}
+              <hr className="section-divider" />
+              <div className="section-header">Item Details</div>
+              <div className="field-group">
+                <label className="field-label">Food Name <span className="req">*</span></label>
+                <input type="text" placeholder="e.g. Chicken Biryani" required style={{ background: 'var(--input-bg)' }} value={newItem.name}
+                  onChange={e => setNewItem({ ...newItem, name: e.target.value })} />
               </div>
+              <div className="field-group">
+                <label className="field-label">Description</label>
+                <textarea placeholder="Short description of the dish" value={newItem.description}
+                  style={{ background: 'var(--input-bg)', border: 'none', padding: 15, borderRadius: 12, minHeight: 80 }}
+                  onChange={e => setNewItem({ ...newItem, description: e.target.value })} />
+                <span className="field-hint">Shown to customers in the menu</span>
+              </div>
+              <div className="field-group">
+                <label className="field-label">Price (₹) <span className="req">*</span></label>
+                <input type="number" placeholder="0" required style={{ background: 'var(--input-bg)' }} value={newItem.price || ''}
+                  onChange={e => setNewItem({ ...newItem, price: parseFloat(e.target.value) })} />
+              </div>
+
+              <div className="field-group">
+                <label className="field-label">Item Image</label>
+                <div className="field-box">
+                  <input type="file" accept="image/*" onChange={handleImageUpload} />
+                  {newItem.image_url && (
+                    <img src={newItem.image_url} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, marginTop: 10 }} />
+                  )}
+                </div>
+                <span className="field-hint">Square image recommended</span>
+              </div>
+
+              <hr className="section-divider" />
+              <div className="section-header">Attributes</div>
               <div className="form-grid-2">
-                <select style={{ background: '#F5F5F5', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.item_type}
-                  onChange={e => setNewItem({ ...newItem, item_type: e.target.value })}>
-                  <option value="veg">Veg</option>
-                  <option value="non-veg">Non-Veg</option>
-                </select>
-                <select style={{ background: '#F5F5F5', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.spice_level || 3}
-                  onChange={e => setNewItem({ ...newItem, spice_level: parseInt(e.target.value) })}>
-                  <option value="1">Low {(newItem.taste || 'spicy').charAt(0).toUpperCase() + (newItem.taste || 'spicy').slice(1)}</option>
-                  <option value="3">Medium</option>
-                  <option value="5">High</option>
-                </select>
+                <div className="field-group">
+                  <label className="field-label">Item Type</label>
+                  <select style={{ background: 'var(--input-bg)', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.item_type}
+                    onChange={e => setNewItem({ ...newItem, item_type: e.target.value })}>
+                    <option value="veg">Veg</option>
+                    <option value="non-veg">Non-Veg</option>
+                    <option value="mixed">Mixed (staples — shown to all)</option>
+                  </select>
+                  <span className="field-hint">Veg, Non-Veg, or Mixed (staples like breads/rice everyone eats)</span>
+                </div>
+                <div className="field-group">
+                  <label className="field-label">Spice Level</label>
+                  <select style={{ background: 'var(--input-bg)', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.spice_level || 3}
+                    onChange={e => setNewItem({ ...newItem, spice_level: parseInt(e.target.value) })}>
+                    <option value="1">Low</option>
+                    <option value="3">Medium</option>
+                    <option value="5">High</option>
+                  </select>
+                  <span className="field-hint">How hot the dish is</span>
+                </div>
               </div>
 
               <div className="form-grid-2">
-                <select style={{ background: '#F5F5F5', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.taste || 'spicy'}
-                  onChange={e => setNewItem({ ...newItem, taste: e.target.value })}>
-                  <option value="spicy">Spicy</option>
-                  <option value="sweet">Sweet</option>
-                  <option value="sour">Sour</option>
-                  <option value="salty">Salty</option>
-                  <option value="creamy">Creamy</option>
-                </select>
-                <select style={{ background: '#F5F5F5', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.heaviness}
-                  onChange={e => setNewItem({ ...newItem, heaviness: e.target.value })}>
-                  <option value="light">Light</option>
-                  <option value="medium">Medium</option>
-                  <option value="heavy">Heavy</option>
-                </select>
+                <div className="field-group">
+                  <label className="field-label">Taste Profile</label>
+                  <select style={{ background: 'var(--input-bg)', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.taste || 'spicy'}
+                    onChange={e => setNewItem({ ...newItem, taste: e.target.value })}>
+                    <option value="spicy">Spicy</option>
+                    <option value="sweet">Sweet</option>
+                    <option value="sour">Sour</option>
+                    <option value="salty">Salty</option>
+                    <option value="creamy">Creamy</option>
+                  </select>
+                  <span className="field-hint">Primary flavor</span>
+                </div>
+                <div className="field-group">
+                  <label className="field-label">Heaviness</label>
+                  <select style={{ background: 'var(--input-bg)', border: 'none', padding: 15, borderRadius: 12 }} value={newItem.heaviness}
+                    onChange={e => setNewItem({ ...newItem, heaviness: e.target.value })}>
+                    <option value="light">Light</option>
+                    <option value="medium">Medium</option>
+                    <option value="heavy">Heavy</option>
+                  </select>
+                  <span className="field-hint">How filling the dish is</span>
+                </div>
               </div>
 
-              <div style={{ background: '#F5F5F5', padding: 15, borderRadius: 12 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 8, display: 'block' }}>Display Priority</label>
-                <select style={{ background: 'none', border: 'none', width: '100%', fontWeight: 600 }} value={newItem.priority || 'medium'}
-                  onChange={e => setNewItem({ ...newItem, priority: e.target.value })}>
-                  <option value="high">High (Show First)</option>
-                  <option value="medium">Medium (Standard)</option>
-                  <option value="low">Low (Show Last)</option>
-                </select>
+              <hr className="section-divider" />
+              <div className="section-header">Visibility &amp; Ordering</div>
+              <div className="field-group">
+                <label className="field-label">Display Priority</label>
+                <div className="field-box">
+                  <select style={{ background: 'none', border: 'none', width: '100%', fontWeight: 600, padding: 0 }} value={newItem.priority || 'medium'}
+                    onChange={e => setNewItem({ ...newItem, priority: e.target.value })}>
+                    <option value="high">High (Show First)</option>
+                    <option value="medium">Medium (Standard)</option>
+                    <option value="low">Low (Show Last)</option>
+                  </select>
+                </div>
+                <span className="field-hint">Controls sort order shown to customers</span>
               </div>
 
-              <div style={{ background: '#F5F5F5', padding: 15, borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: 13, fontWeight: 700, color: '#444' }}>Available to Customers</label>
+              <div className="field-box" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <div className="field-group" style={{ gap: 2 }}>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Available to Customers</label>
+                  <span className="field-hint">Turn off to hide from the menu without deleting</span>
+                </div>
                 <div onClick={() => setNewItem({ ...newItem, is_enabled: newItem.is_enabled !== false ? false : true })}
-                  style={{ width: 44, height: 24, borderRadius: 24, cursor: 'pointer', background: newItem.is_enabled !== false ? '#1DB954' : '#CCC', position: 'relative', transition: '0.3s' }}>
+                  style={{ width: 44, height: 24, borderRadius: 24, cursor: 'pointer', background: newItem.is_enabled !== false ? '#1DB954' : '#CCC', position: 'relative', transition: '0.3s', flexShrink: 0 }}>
                   <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#FFF', position: 'absolute', top: 2, left: newItem.is_enabled !== false ? 22 : 2, transition: '0.3s' }} />
                 </div>
               </div>
 
               {/* Associated Recommendations */}
-              <div style={{ borderTop: '2px solid #EEE', paddingTop: 15, marginTop: 15 }}>
-                <h4 style={{ fontSize: 15, fontWeight: 800, marginBottom: 4, color: '#FF6B35' }}>Associated Recommendations</h4>
-                <p style={{ fontSize: 12, color: '#888', marginBottom: 15 }}>These items will be suggested in the chat when this item is selected.</p>
+              <div className="section-divider" />
+              <div className="section-header">Associated Recommendations</div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 15 }}>These items will be suggested in the chat when this item is selected.</p>
 
                 {['food_items', 'beverages'].map(type => {
                   const label = type === 'food_items' ? 'Food Items' : 'Beverages';
                   const recs = itemRecs[type] || {};
                   const otherType = type === 'food_items' ? 'beverages' : 'food_items';
+                  const isBevSection = type === 'beverages';
+                  const beverageCatIds = new Set((categories || []).filter(c => (c.course_type || '').toLowerCase() === 'beverage').map(c => c.id));
                   return (
                     <div key={type} style={{ marginBottom: 16 }}>
-                      <label style={{ fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 6, display: 'block' }}>{label}</label>
+                      <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>{label}</label>
                       {Object.keys(recs).length > 0 && (
                         <div style={{ marginBottom: 8 }}>
                           {Object.entries(recs).map(([recId, recData]) => {
                             const item = items.find(i => i.id === recId);
                             if (!item) return null;
                             return (
-                              <div key={recId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #F5F5F5' }}>
-                                <img src={item.image_url} style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', background: '#EEE', flexShrink: 0 }} />
+                              <div key={recId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                                <img src={item.image_url} style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', background: 'var(--input-bg)', flexShrink: 0 }} />
                                 <span style={{ flex: 1, fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                <span title={item.item_type} style={{ width: 9, height: 9, borderRadius: '50%', flexShrink: 0, background: item.item_type === 'veg' ? '#1DB954' : item.item_type === 'non-veg' ? '#E53935' : '#F59E0B' }} />
                                 <select value={recData.priority} onChange={e => setItemRecs(prev => ({ ...prev, [type]: { ...prev[type], [recId]: { priority: e.target.value } } }))}
-                                  style={{ background: '#F5F5F5', border: 'none', padding: '4px 6px', borderRadius: 6, fontSize: 11 }}>
+                                  style={{ background: 'var(--input-bg)', border: 'none', padding: '4px 6px', borderRadius: 6, fontSize: 11 }}>
                                   <option value="high">High</option>
                                   <option value="medium">Med</option>
                                   <option value="low">Low</option>
@@ -526,26 +597,39 @@ export default function AdminMenuManager() {
                           })}
                         </div>
                       )}
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <select value={pendingRec[type] || ''} onChange={e => setPendingRec(prev => ({ ...prev, [type]: e.target.value }))}
-                          style={{ flex: 1, background: '#F5F5F5', border: 'none', padding: '8px 10px', borderRadius: 8, fontSize: 12 }}>
-                          <option value="">+ Add {label.slice(0, -1).toLowerCase()}...</option>
-                          {items.filter(i => i.id !== editItemId && !recs[i.id] && !(itemRecs[otherType] || {})[i.id]).map(i => (
-                            <option key={i.id} value={i.id}>{i.name}</option>
-                          ))}
-                        </select>
-                        <button type="button" onClick={() => {
-                          const id = pendingRec[type];
-                          if (id) {
-                            setItemRecs(prev => ({ ...prev, [type]: { ...prev[type], [id]: { priority: 'medium' } } }));
-                            setPendingRec(prev => ({ ...prev, [type]: '' }));
-                          }
-                        }} style={{ padding: '8px 14px', background: '#FF6B35', color: '#FFF', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>+</button>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', marginTop: 8 }}>
+                        {type === 'food_items' && (
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>Filter</div>
+                          <select value={recTypeFilter[type]} onChange={e => setRecTypeFilter(prev => ({ ...prev, [type]: e.target.value }))}
+                            style={{ background: 'var(--input-bg)', border: 'none', padding: '10px 8px', borderRadius: 8, fontSize: 12 }}>
+                            <option value="all">All</option>
+                            <option value="veg">Veg</option>
+                            <option value="non-veg">Non-Veg</option>
+                            <option value="mixed">Mixed</option>
+                          </select>
+                        </div>
+                        )}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>Add {label.slice(0, -1).toLowerCase()}</div>
+                          <select value={pendingRec[type] || ''} onChange={e => {
+                            const id = e.target.value;
+                            if (id) {
+                              setItemRecs(prev => ({ ...prev, [type]: { ...prev[type], [id]: { priority: 'medium' } } }));
+                              setPendingRec(prev => ({ ...prev, [type]: '' }));
+                            }
+                          }}
+                            style={{ width: '100%', background: 'var(--input-bg)', border: 'none', padding: '10px 12px', borderRadius: 8, fontSize: 13 }}>
+                            <option value="">Choose a {label.slice(0, -1).toLowerCase()} to add...</option>
+                            {items.filter(i => i.id !== editItemId && !recs[i.id] && !(itemRecs[otherType] || {})[i.id] && (recTypeFilter[type] === 'all' || i.item_type === recTypeFilter[type]) && (isBevSection ? beverageCatIds.has(i.category_id) : !beverageCatIds.has(i.category_id))).map(i => (
+                              <option key={i.id} value={i.id}>{i.name} ({i.item_type === 'veg' ? 'Veg' : i.item_type === 'non-veg' ? 'Non-Veg' : 'Mixed'})</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
-              </div>
 
               <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
                 <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={closeItemForm}>Cancel</button>
