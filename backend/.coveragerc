@@ -1,0 +1,18 @@
+[run]
+source =
+    app
+    auth_utils
+    firebase_client
+    limiter
+    settings
+    routes
+branch = True
+
+[report]
+show_missing = True
+skip_covered = False
+fail_under = 100
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+    raise NotImplementedError
