@@ -23,6 +23,8 @@ venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 
 # ============================================================
 # Node / frontend (handles everything except Vercel/Netlify deploys)

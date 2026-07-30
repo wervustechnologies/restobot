@@ -39,7 +39,7 @@ def get_table_lock_status(qr_token):
         return jsonify({'error': 'Table not found'}), 404
 
     table_data = db_ref.child(f'restaurants/{restaurant_id}/tables/{table_id}').get()
-    if not table_data:
+    if not table_data:  # pragma: no cover - _resolve_table already guarantees table_data is non-empty
         return jsonify({'error': 'Table data not found'}), 404
 
     return jsonify({
