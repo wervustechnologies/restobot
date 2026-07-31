@@ -36,6 +36,8 @@ export default function AdminMenuManager() {
   const [mainCategories, setMainCategories] = useState([]);
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
+  const [ingredients, setIngredients] = useState([]);
+  const [cuisines, setCuisines] = useState([]);
   
   const [activeMainCategory, setActiveMainCategory] = useState(null);
   const [activeCategory, setActiveCategory] = useState(null);
@@ -53,6 +55,11 @@ export default function AdminMenuManager() {
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [formStep, setFormStep] = useState(1);
 
+  // Menu Setup (ingredients + cuisines) management
+  const [showSetupForm, setShowSetupForm] = useState(false);
+  const [newIngredientName, setNewIngredientName] = useState('');
+  const [newCuisineName, setNewCuisineName] = useState('');
+
   const toggleGroup = (group) => {
     setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }));
   };
@@ -63,6 +70,7 @@ export default function AdminMenuManager() {
   const initialItemState = {
     name: '', description: '', price: 0, image_url: '', 
     item_type: 'veg', spice_level: 3, taste: 'spicy', heaviness: 'medium', category_id: '', main_category_id: '',
+    main_ingredient: '', cuisine: '',
     is_enabled: true, priority: 'medium'
   };
   const [newItem, setNewItem] = useState(initialItemState);
@@ -70,14 +78,18 @@ export default function AdminMenuManager() {
 
   const fetchData = async () => {
     setMenuLoading(true);
-    const [mainCatRes, catRes, itemRes] = await Promise.all([
+    const [mainCatRes, catRes, itemRes, ingRes, cuiRes] = await Promise.all([
       fetch(`${API_BASE_URL}/admin/main_categories`, { headers: { 'Authorization': `Bearer ${token}` } }),
       fetch(`${API_BASE_URL}/admin/categories`, { headers: { 'Authorization': `Bearer ${token}` } }),
-      fetch(`${API_BASE_URL}/admin/items`, { headers: { 'Authorization': `Bearer ${token}` } })
+      fetch(`${API_BASE_URL}/admin/items`, { headers: { 'Authorization': `Bearer ${token}` } }),
+      fetch(`${API_BASE_URL}/admin/ingredients`, { headers: { 'Authorization': `Bearer ${token}` } }),
+      fetch(`${API_BASE_URL}/admin/cuisines`, { headers: { 'Authorization': `Bearer ${token}` } })
     ]);
     const mainCatData = await mainCatRes.json();
     const catData = await catRes.json();
     const itemData = await itemRes.json();
+    const ingData = await ingRes.json();
+    const cuiData = await cuiRes.json();
     
     if (catData.some(c => !c.main_category_id)) {
       mainCatData.push({ id: 'legacy-other', name: 'Other' });
@@ -86,6 +98,8 @@ export default function AdminMenuManager() {
     setMainCategories(mainCatData);
     setCategories(catData);
     setItems(itemData);
+    setIngredients(Array.isArray(ingData) ? ingData : []);
+    setCuisines(Array.isArray(cuiData) ? cuiData : []);
     
     if (!activeMainCategory && mainCatData.length > 0) {
       setActiveMainCategory(mainCatData[0].id);
@@ -133,6 +147,47 @@ export default function AdminMenuManager() {
     setNewCat({ name: '', display_order: categories.length + 1, main_category_id: '', course_type: '' });
     setShowCatForm(false);
     Swal.fire({ title: 'Success!', text: 'Sub Category added successfully', icon: 'success', timer: 1500, showConfirmButton: false });
+    fetchData();
+  };
+
+  // ── Ingredients & Cuisines management ──
+  const handleAddIngredient = async (e) => {
+    e.preventDefault();
+    const name = newIngredientName.trim();
+    if (!name) return;
+    await fetch(`${API_BASE_URL}/admin/ingredients`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ name, display_order: ingredients.length })
+    });
+    setNewIngredientName('');
+    fetchData();
+  };
+
+  const handleDeleteIngredient = async (id) => {
+    await fetch(`${API_BASE_URL}/admin/ingredients/${id}`, {
+      method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
+    });
+    fetchData();
+  };
+
+  const handleAddCuisine = async (e) => {
+    e.preventDefault();
+    const name = newCuisineName.trim();
+    if (!name) return;
+    await fetch(`${API_BASE_URL}/admin/cuisines`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ name, display_order: cuisines.length })
+    });
+    setNewCuisineName('');
+    fetchData();
+  };
+
+  const handleDeleteCuisine = async (id) => {
+    await fetch(`${API_BASE_URL}/admin/cuisines/${id}`, {
+      method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
+    });
     fetchData();
   };
 
@@ -468,7 +523,8 @@ export default function AdminMenuManager() {
       <div className="menu-manager-header">
         <h1 style={{ fontSize: 26, fontWeight: 900, margin: 0 }}>Menu Manager</h1>
         <div className="menu-manager-actions">
-          <button className="btn-outline" onClick={() => setShowMainCatForm(true)}>+ Main Category</button>
+          <button className="btn-outline" onClick={() => setShowSetupForm(true)}>Menu Setup</button>
+          <button className="btn-outline" onClick={() => setShowMainCatForm(true)}>+ Category</button>
           <button className="btn-outline" onClick={() => setShowCatForm(true)}>+ Sub Category</button>
           <button className="btn-primary" onClick={() => openAddItemForm()}>+ Food Item</button>
         </div>
@@ -672,9 +728,9 @@ export default function AdminMenuManager() {
       {showMainCatForm && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowMainCatForm(false)}>
           <div className="modal-card">
-            <h3 style={{ fontSize: 22, fontWeight: 900 }}>New Main Category</h3>
+            <h3 style={{ fontSize: 22, fontWeight: 900 }}>New Category</h3>
             <form onSubmit={handleAddMainCategory} style={{ display: 'flex', flexDirection: 'column', gap: 15, marginTop: 20 }}>
-              <input type="text" placeholder="Name (e.g. Indian, Arabic)" required style={{ background: '#F5F5F5' }}
+              <input type="text" placeholder="Name (e.g. Food, Beverages, Desserts)" required style={{ background: '#F5F5F5' }}
                 onChange={e => setNewMainCat({ ...newMainCat, name: e.target.value })} />
               <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
                 <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={() => setShowMainCatForm(false)}>Cancel</button>
@@ -696,7 +752,7 @@ export default function AdminMenuManager() {
                 <option value="">Select Main Category</option>
                 {mainCategories.filter(mc => mc.id !== 'legacy-other').map(mc => <option key={mc.id} value={mc.id}>{mc.name}</option>)}
               </select>
-              <input type="text" placeholder="Name (e.g. Curries)" required style={{ background: '#F5F5F5' }}
+              <input type="text" placeholder="Name (e.g. Pizza, Curries, Coffee)" required style={{ background: '#F5F5F5' }}
                 onChange={e => setNewCat({ ...newCat, name: e.target.value })} />
               <div style={{ background: '#FFF0EA', padding: '10px 15px', borderRadius: 12, border: '1px solid rgba(255,107,53,0.2)' }}>
                 <label style={{ fontSize: 12, fontWeight: 700, color: '#FF6B35', marginBottom: 8, display: 'block' }}>Course Type <span style={{ fontSize: 10, color: '#888' }}>(Used by AI Chat Guide)</span></label>
@@ -860,6 +916,34 @@ export default function AdminMenuManager() {
                   />
 
                   <div className="form-grid-2">
+                    <div className="field-group">
+                      <label className="field-label">Main Ingredient <span style={{ fontWeight: 500, color: 'var(--text-muted)', fontSize: 11 }}>used by AI chat</span></label>
+                      <select
+                        value={newItem.main_ingredient || ''}
+                        onChange={e => setNewItem({ ...newItem, main_ingredient: e.target.value })}
+                        style={{ background: 'var(--input-bg)', border: 'none', padding: '13px 15px', borderRadius: 12, fontSize: 14, color: 'var(--text)', width: '100%' }}
+                      >
+                        <option value="">Select ingredient…</option>
+                        {ingredients.map(ing => <option key={ing.id} value={ing.name}>{ing.name}</option>)}
+                      </select>
+                      <span className="field-hint">Manage this list under “Menu Setup”</span>
+                    </div>
+
+                    <div className="field-group">
+                      <label className="field-label">Cuisine Label <span style={{ fontWeight: 500, color: 'var(--text-muted)', fontSize: 11 }}>optional</span></label>
+                      <select
+                        value={newItem.cuisine || ''}
+                        onChange={e => setNewItem({ ...newItem, cuisine: e.target.value })}
+                        style={{ background: 'var(--input-bg)', border: 'none', padding: '13px 15px', borderRadius: 12, fontSize: 14, color: 'var(--text)', width: '100%' }}
+                      >
+                        <option value="">None / Others</option>
+                        {cuisines.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                      <span className="field-hint">Shown as a chat filter only when cuisines are defined</span>
+                    </div>
+                  </div>
+
+                  <div className="form-grid-2">
                     <PillRadio
                       label="Spice Level"
                       value={newItem.spice_level || 3}
@@ -890,6 +974,8 @@ export default function AdminMenuManager() {
                     options={[
                       { value: 'spicy', label: 'Spicy' },
                       { value: 'sweet', label: 'Sweet' },
+                      { value: 'savoury', label: 'Savoury' },
+                      { value: 'tangy', label: 'Tangy' },
                       { value: 'sour', label: 'Sour' },
                       { value: 'salty', label: 'Salty' },
                       { value: 'creamy', label: 'Creamy' }
@@ -1026,6 +1112,71 @@ export default function AdminMenuManager() {
                 )}
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Menu Setup (Ingredients + Cuisines) Modal ═══ */}
+      {showSetupForm && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowSetupForm(false)}>
+          <div className="modal-card">
+            <div className="modal-head">
+              <h3 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>Menu Setup</h3>
+              <button type="button" className="modal-close" onClick={() => setShowSetupForm(false)} aria-label="Close">✕</button>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 16px' }}>
+              Manage the pickable lists the AI chat uses to recommend dishes.
+            </p>
+
+            <div className="form-grid-2">
+              {/* Ingredients */}
+              <div className="field-box">
+                <div className="section-header" style={{ margin: '0 0 10px' }}>Main Ingredients</div>
+                <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 10 }}>
+                  {ingredients.length === 0 && (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '6px 0' }}>No ingredients yet.</div>
+                  )}
+                  {ingredients.map(ing => (
+                    <div key={ing.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{ing.name}</span>
+                      <button type="button" onClick={() => handleDeleteIngredient(ing.id)} style={{ background: 'none', border: 'none', color: '#FF4B4B', cursor: 'pointer', fontSize: 13 }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+                <form onSubmit={handleAddIngredient} style={{ display: 'flex', gap: 6 }}>
+                  <input type="text" placeholder="Add ingredient…" value={newIngredientName}
+                    onChange={e => setNewIngredientName(e.target.value)}
+                    style={{ flex: 1, background: 'var(--input-bg)', border: 'none', padding: '10px 12px', borderRadius: 10, fontSize: 13 }} />
+                  <button type="submit" className="btn-primary" style={{ padding: '10px 16px', fontSize: 13 }}>Add</button>
+                </form>
+              </div>
+
+              {/* Cuisines */}
+              <div className="field-box">
+                <div className="section-header" style={{ margin: '0 0 10px' }}>Cuisines (optional)</div>
+                <span className="field-hint" style={{ display: 'block', marginBottom: 8 }}>Chat shows a cuisine filter only when this list has entries.</span>
+                <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 10 }}>
+                  {cuisines.length === 0 && (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '6px 0' }}>No cuisines yet.</div>
+                  )}
+                  {cuisines.map(c => (
+                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</span>
+                      <button type="button" onClick={() => handleDeleteCuisine(c.id)} style={{ background: 'none', border: 'none', color: '#FF4B4B', cursor: 'pointer', fontSize: 13 }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+                <form onSubmit={handleAddCuisine} style={{ display: 'flex', gap: 6 }}>
+                  <input type="text" placeholder="Add cuisine…" value={newCuisineName}
+                    onChange={e => setNewCuisineName(e.target.value)}
+                    style={{ flex: 1, background: 'var(--input-bg)', border: 'none', padding: '10px 12px', borderRadius: 10, fontSize: 13 }} />
+                  <button type="submit" className="btn-primary" style={{ padding: '10px 16px', fontSize: 13 }}>Add</button>
+                </form>
+              </div>
+            </div>
+
+            <button type="button" className="btn-primary" style={{ width: '100%', marginTop: 16 }}
+              onClick={() => setShowSetupForm(false)}>Done</button>
           </div>
         </div>
       )}

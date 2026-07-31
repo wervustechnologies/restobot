@@ -1,32 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { API_BASE_URL } from '../apiConfig';
 
-const DEFAULT_COURSE_ORDER = ['starter', 'main', 'bread', 'rice', 'dessert', 'beverage'];
-
-const getCourseInfo = (ct) => {
-  const labels = {
-    starter: 'Starter',
-    main: 'Full Meal',
-    bread: 'Bread',
-    rice: 'Rice',
-    dessert: 'Dessert',
-    beverage: 'Beverage'
-  };
-  const questions = {
-    starter: 'Pick a <b>starter</b> to begin your meal:',
-    main: 'Now choose your <b>full meal</b>:',
-    bread: 'Add a <b>bread</b> to go with it?',
-    rice: 'Would you like a <b>rice dish</b>?',
-    dessert: 'End on a sweet note? Pick a <b>dessert</b>:',
-    beverage: 'Pick a <b>beverage</b> to go with your meal:'
-  };
-  const skippable = !['starter', 'main'].includes(ct.toLowerCase());
-  return {
-    label: labels[ct.toLowerCase()] || ct.charAt(0).toUpperCase() + ct.slice(1),
-    question: questions[ct.toLowerCase()] || `How about some <b>${ct}</b>?`,
-    skippable
-  };
-};
+const TASTE_OPTIONS = [
+  { label: '🌶️ Spicy', val: 'spicy' },
+  { label: '🍯 Sweet', val: 'sweet' },
+  { label: '🧂 Savoury', val: 'savoury' },
+  { label: '🍋 Tangy', val: 'tangy' },
+  { label: '🍇 Sour', val: 'sour' },
+  { label: '🥨 Salty', val: 'salty' },
+  { label: '🥛 Creamy', val: 'creamy' },
+];
 
 // Inject styles once
 const CSS = `
@@ -99,7 +82,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
   const [items, setItems] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [step, setStep] = useState(0);
-  const [flow, setFlow] = useState({});
+  const [, setFlow] = useState({});
   const bottomRef = useRef(null);
   const mascotRef = useRef(null);
   const dragRef = useRef(null);
@@ -107,8 +90,6 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
   // Minimize / drag state
   const [userMinimized, setUserMinimized] = useState(false);
   const [fabCorner, setFabCorner] = useState('bottom-left');
-
-  const [dynamicCourses, setDynamicCourses] = useState([]);
 
   const inOrdersMode = mode === 'orders';
   const isEffectivelyMinimized = userMinimized || (inOrdersMode && !isOpen);
@@ -193,29 +174,8 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
   })();
 
   useEffect(() => {
-    if (menuData) {
-      // Extract unique course types
-      const types = new Set();
-      menuData.main_categories?.forEach(mc => {
-        mc.categories?.forEach(cat => {
-          if (cat.course_type) types.add(cat.course_type.toLowerCase());
-        });
-      });
-      const sortedTypes = Array.from(types).sort((a, b) => {
-        const idxA = DEFAULT_COURSE_ORDER.indexOf(a);
-        const idxB = DEFAULT_COURSE_ORDER.indexOf(b);
-        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-        if (idxA !== -1) return -1;
-        if (idxB !== -1) return 1;
-        return a.localeCompare(b);
-      });
-      setDynamicCourses(sortedTypes);
-    }
-  }, [menuData]);
-
-  useEffect(() => {
     if (isOpen && menuData && items.length === 0) {
-      startFlowWithName(menuData, resName);
+      startFlow(menuData, resName);
     } else if (isOpen && !menuData && restaurantId) {
       fetch(`${API_BASE_URL}/menu/${restaurantId}`)
         .then(r => r.json())
@@ -223,7 +183,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
           const name = d.restaurant?.name || 'Restaurant';
           setMenuData(d);
           setResName(name);
-          if (items.length === 0) startFlowWithName(d, name);
+          if (items.length === 0) startFlow(d, name);
         });
     }
   }, [isOpen, restaurantId, menuData, initialMenuData]);
@@ -244,272 +204,291 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
   const lockCards = (id, selName) => setItems(prev => prev.map(x => x.id === id ? { ...x, dis: true, selName } : x));
 
   // ── Flow ──────────────────────────────────────────────────────────────────
-  const startFlowWithName = async (mData, name) => {
-    setStep(1);
-    await botSay(`<div style="font-size:15px;font-weight:500;margin-bottom:4px;color:#333">👋 Namaskaram! Welcome to ${name}</div>I'm your personal menu guide. I'll help you build the perfect meal in just a few taps — no scrolling through a long menu!<br><br>Let's start with one simple question:`, 300);
-    await botSay('🍽️ Are you dining <b>veg, non-veg, or mix</b> today?', 400);
+  // Context object flows through the chain by value: { diet, cuisine, subcategory,
+  // subName, ingredient, taste, picks: [dish,...] }. Picks accumulate as the user
+  // accepts suggestions; onAddToCart fires for each pick immediately.
+  const allCats = (mData) => (mData?.main_categories || []).flatMap(mc => mc.categories || []);
+
+  const dietOk = (item, diet) => {
+    if (diet === 'veg') return item.item_type === 'veg' || item.item_type === 'mixed';
+    if (diet === 'non-veg') return item.item_type === 'non-veg' || item.item_type === 'mixed';
+    return true;
+  };
+  const cuisineOk = (item, cuisine) => (!cuisine || cuisine === 'any') ? true : item.cuisine === cuisine;
+
+  const ingredientOptionsFor = (mData, ctx) => {
+    const cat = allCats(mData).find(c => c.id === ctx.subcategory);
+    const matched = (cat?.items || []).filter(i => i.is_enabled !== false && dietOk(i, ctx.diet) && cuisineOk(i, ctx.cuisine));
+    const present = [];
+    matched.forEach(i => { if (i.main_ingredient && !present.includes(i.main_ingredient)) present.push(i.main_ingredient); });
+    return present;
+  };
+
+  const startFlow = async (mData, name) => {
+    setStep('diet');
+    setFlow({});
+    await botSay(`<div style="font-size:15px;font-weight:500;margin-bottom:4px;color:#333">👋 Welcome to ${name}!</div>I'm your AI menu guide. Answer a few quick questions and I'll suggest the perfect dishes — no scrolling through a long menu.`, 300);
+
+    const rtype = mData?.restaurant?.restaurant_type || 'mixed';
+    const base = { diet: 'mix', cuisine: '', picks: [] };
+    if (rtype === 'veg') {
+      // Pure-veg restaurant: auto-select veg and skip the diet question.
+      userSay('🥦 Pure Veg');
+      await afterDiet(mData, { ...base, diet: 'veg' });
+      return;
+    }
+
+    await botSay('🍽️ Are you dining <b>veg, non-veg, or open to both</b> today?', 400);
     showOpts([
       { label: '🥦 Pure Veg', val: 'veg' },
       { label: '🍗 Non-Veg', val: 'non-veg' },
-      { label: '🍲 Mix / Flexible', val: 'mix' },
+      { label: '🍲 Open to Both', val: 'mix' },
     ], async (o, id) => {
       lockOpts(id, o.val); userSay(o.label);
-      setFlow(prev => ({ ...prev, diet: o.val }));
-      await askCuisine(mData, o.val);
+      setFlow({ diet: o.val, picks: [] });
+      await afterDiet(mData, { ...base, diet: o.val });
     });
   };
 
-  const askCuisine = async (mData, diet) => {
-    setStep(2);
-    const mainCats = mData?.main_categories || [];
-    await botSay('🌍 What <b>cuisine</b> are you in the mood for?', 400);
-    showOpts(mainCats.map(mc => ({ label: `${mc.name}`, val: mc.id, mc })),
-      async (o, id) => {
-        lockOpts(id, o.val); userSay(`${o.mc.name}`);
-        setFlow(prev => ({ ...prev, mainCat: o.mc }));
-        await askSpice(mData, diet, o.mc);
-      },
-      async (id) => {
-        lockOpts(id, '__back'); userSay('Wait, go back ⬅️');
-        await startFlowWithName(mData, resName);
-      }
-    );
+  const afterDiet = async (mData, ctx) => {
+    const cuisines = mData?.cuisines || [];
+    if (cuisines.length) {
+      await askCuisine(mData, ctx);
+    } else {
+      await askSubcategory(mData, ctx);
+    }
   };
 
-  const askSpice = async (mData, diet, mainCat) => {
-    setStep(3);
-    await botSay('🌶️ How <b>bold</b> do you want the flavours?', 400);
-    showOpts([
-      { label: '😌 Mild & Gentle', val: 'mild' },
-      { label: '🌶️ Medium Kick', val: 'medium' },
-      { label: '🔥 Full Spice', val: 'spicy' },
-    ], async (o, id) => {
+  const askCuisine = async (mData, ctx) => {
+    setStep('cuisine');
+    const cuisines = mData?.cuisines || [];
+    await botSay('🌍 Do you have a <b>cuisine</b> in mind?', 400);
+    const opts = cuisines.map(c => ({ label: c.name, val: c.name }));
+    opts.push({ label: '🤷 Any', val: 'any' });
+    showOpts(opts, async (o, id) => {
       lockOpts(id, o.val); userSay(o.label);
-      setFlow(prev => ({ ...prev, spice: o.val }));
-      await askHunger(mData, diet, mainCat, o.val);
-    },
-      async (id) => {
-        lockOpts(id, '__back'); userSay('Let me change the cuisine ⬅️');
-        await askCuisine(mData, diet);
-      });
+      await askSubcategory(mData, { ...ctx, cuisine: o.val });
+    }, async (id) => {
+      lockOpts(id, '__back'); userSay('⬅️ Back');
+      await startFlow(mData, resName);
+    });
   };
 
-  const askHunger = async (mData, diet, mainCat, spice) => {
-    setStep(4);
-    await botSay('😋 How <b>hungry</b> are you?', 400);
-    showOpts([
-      { label: '👍 Light — starter only', val: 'light' },
-      { label: '🙋 Moderate — starter + main', val: 'moderate' },
-      { label: '🍱 Feast — full meal!', val: 'full' },
-    ], async (o, id) => {
-      lockOpts(id, o.val); userSay(o.label);
-      const hunger = o.val;
-      setFlow(prev => ({ ...prev, hunger, selections: {} }));
-
-      const courses = hunger === 'light' ? [dynamicCourses[0]] :
-        hunger === 'moderate' ? [dynamicCourses[0], dynamicCourses[1]].filter(Boolean) :
-          dynamicCourses;
-
-      await runCourses(mData, diet, mainCat, spice, hunger, courses, 0, {});
-    },
-      async (id) => {
-        lockOpts(id, '__back'); userSay('Change spice level ⬅️');
-        await askSpice(mData, diet, mainCat);
-      });
-  };
-
-  const runCourses = async (mData, diet, mainCat, spice, hunger, courses, idx, selections) => {
-    if (idx >= courses.length) {
-      await evaluateAndShowSummary(diet, mainCat, spice, hunger, selections);
+  const askSubcategory = async (mData, ctx) => {
+    setStep('subcategory');
+    const subs = allCats(mData).filter(cat => {
+      const items = (cat.items || []).filter(i => i.is_enabled !== false && dietOk(i, ctx.diet) && cuisineOk(i, ctx.cuisine));
+      return items.length > 0;
+    });
+    if (subs.length === 0) {
+      await botSay("I couldn't find dishes for those preferences. Let's start over. 😕", 300);
+      showOpts([{ label: '🔄 Start Over', val: 'restart' }], () => restart());
       return;
     }
-    const courseKey = courses[idx];
-    const info = getCourseInfo(courseKey);
-    const stepNum = 5 + idx;
-    setStep(stepNum);
-
-    const subCats = (mainCat.categories || []).filter(c => c.course_type?.toLowerCase() === courseKey);
-    let dishes = subCats.flatMap(c => (c.items || []).filter(i => i.is_enabled !== false));
-    if (diet === 'veg') {
-      dishes = dishes.filter(i => i.item_type === 'veg' || i.item_type === 'mixed');
-    } else if (diet === 'non-veg') {
-      const strictDishes = dishes.filter(i => i.item_type === 'non-veg' || i.item_type === 'mixed');
-      if (strictDishes.length > 0) dishes = strictDishes;
-    }
-    const spiceCap = spice === 'mild' ? 2 : spice === 'medium' ? 4 : 5;
-    const spiceOk = dishes.filter(i => (Number(i.spice_level) || 3) <= spiceCap);
-    if (spiceOk.length > 0) dishes = spiceOk;
-
-    if (dishes.length === 0) {
-      await runCourses(mData, diet, mainCat, spice, hunger, courses, idx + 1, selections);
-      return;
-    }
-
-    await botSay(`${info.question}`, 500);
-
-    const handleBack = async (backId) => {
-      lockCards(backId, '__back'); userSay('Wait, go back ⬅️');
-      if (idx === 0) {
-        await askHunger(mData, diet, mainCat, spice);
-      } else {
-        const newSel = { ...selections };
-        delete newSel[courses[idx - 1]];
-        setFlow(prev => ({ ...prev, selections: newSel }));
-        await runCourses(mData, diet, mainCat, spice, hunger, courses, idx - 1, newSel);
-      }
-    };
-
-    const handleSkip = info.skippable ? async (skipId) => {
-      lockCards(skipId, '__skip'); userSay(`No ${info.label} thanks ⏭️`);
-      await runCourses(mData, diet, mainCat, spice, hunger, courses, idx + 1, selections);
-    } : null;
-
-    showCards(dishes, async (dish, cardId) => {
-      lockCards(cardId, dish.name); userSay(`✓ ${dish.name}`);
-      const newSel = { ...selections, [courseKey]: dish };
-      setFlow(prev => ({ ...prev, selections: newSel }));
-
-      try {
-        const res = await fetch(`${API_BASE_URL}/chat/suggest`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            restaurant_id: restaurantId,
-            current_item: dish,
-            course_type: courseKey,
-            diet: diet,
-            spice: spice
-          })
-        });
-        const data = await res.json();
-        if (data.suggestions && data.suggestions.length) {
-          await botSay(data.message, 400);
-          showCards(data.suggestions, async (sugDish, sugId) => {
-            lockCards(sugId, sugDish.name); userSay(`✓ Add ${sugDish.name}`);
-            const updatedSel = { ...newSel, [`suggested_${courseKey}`]: sugDish };
-            setFlow(prev => ({ ...prev, selections: updatedSel }));
-            if (onAddToCart) onAddToCart(sugDish);
-            await runCourses(mData, diet, mainCat, spice, hunger, courses, idx + 1, updatedSel);
-          }, null, async (skipId) => {
-            lockCards(skipId, '__skip'); userSay('No thanks');
-            await runCourses(mData, diet, mainCat, spice, hunger, courses, idx + 1, newSel);
-          }, 'No thanks');
-        } else {
-          await runCourses(mData, diet, mainCat, spice, hunger, courses, idx + 1, newSel);
-        }
-      } catch {
-        await runCourses(mData, diet, mainCat, spice, hunger, courses, idx + 1, newSel);
-      }
-    }, handleBack, handleSkip, `Skip ${info.label}`);
+    await botSay('🍽️ What <b>type of dish</b> are you in the mood for?', 400);
+    showOpts(subs.map(s => ({ label: s.name, val: s.id, name: s.name })), async (o, id) => {
+      lockOpts(id, o.val); userSay(o.name);
+      await askIngredient(mData, { ...ctx, subcategory: o.val, subName: o.name });
+    }, async (id) => {
+      lockOpts(id, '__back'); userSay('⬅️ Back');
+      const cuisines = mData?.cuisines || [];
+      if (cuisines.length) await askCuisine(mData, ctx);
+      else await startFlow(mData, resName);
+    });
   };
 
-  const evaluateAndShowSummary = async (diet, mainCat, spice, hunger, selections) => {
-    const totalSteps = 4 + dynamicCourses.length;
-    setStep(totalSteps);
+  const askIngredient = async (mData, ctx) => {
+    const present = ingredientOptionsFor(mData, ctx);
+    if (present.length === 0) {
+      // No ingredient data for this selection -> skip the step.
+      await askTaste(mData, { ...ctx, ingredient: 'any' });
+      return;
+    }
+    setStep('ingredient');
+    await botSay('🥩 Pick a <b>main ingredient</b> you fancy:', 400);
+    const opts = present.map(p => ({ label: p, val: p }));
+    opts.push({ label: '🤷 Any', val: 'any' });
+    showOpts(opts, async (o, id) => {
+      lockOpts(id, o.val); userSay(o.label);
+      await askTaste(mData, { ...ctx, ingredient: o.val });
+    }, async (id) => {
+      lockOpts(id, '__back'); userSay('⬅️ Back');
+      await askSubcategory(mData, ctx);
+    });
+  };
 
-    if (Object.keys(selections).length === 0) {
-      await botSay("Oops! I couldn't find any items matching those exact preferences. 😕", 300);
-      await botSay("Would you like to try again with a different cuisine or dining type?", 400);
+  const askTaste = async (mData, ctx) => {
+    setStep('taste');
+    await botSay('👅 What <b>flavour</b> are you craving?', 400);
+    showOpts(TASTE_OPTIONS, async (o, id) => {
+      lockOpts(id, o.val); userSay(o.label);
+      await runDiscover(mData, { ...ctx, taste: o.val });
+    }, async (id) => {
+      lockOpts(id, '__back'); userSay('⬅️ Back');
+      await askIngredient(mData, ctx);
+    });
+  };
+
+  const runDiscover = async (mData, ctx) => {
+    setStep('results');
+    await botSay('🔎 Finding the best matches for you…', 300);
+    let suggestions = [];
+    let message = '';
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat/discover`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurant_id: restaurantId,
+          diet: ctx.diet,
+          cuisine: ctx.cuisine || '',
+          subcategory_id: ctx.subcategory,
+          ingredient: ctx.ingredient || 'any',
+          taste: ctx.taste
+        })
+      });
+      const data = await res.json();
+      suggestions = data.suggestions || [];
+      message = data.message || '';
+    } catch { /* keep empty */ }
+
+    if (suggestions.length === 0) {
+      await botSay(message || "Hmm, no exact match. Try a different flavour or ingredient?", 400);
       showOpts([
         { label: '🔄 Start Over', val: 'restart' },
-        { label: '📖 Show All Menu', val: 'menu' }
-      ], (o) => {
+        { label: '⬅️ Change Flavour', val: 'back' }
+      ], (o, id) => {
+        lockOpts(id, o.val);
         if (o.val === 'restart') restart();
-        else setIsOpen(false);
+        else askTaste(mData, { ...ctx, taste: undefined });
       });
       return;
     }
 
-    console.log("Evaluating meal for suggestions...", selections);
+    await botSay(message, 400);
+    showCards(suggestions, async (dish, cardId) => {
+      lockCards(cardId, dish.name); userSay(`✓ ${dish.name}`);
+      const picks = [...ctx.picks, dish];
+      setFlow(prev => ({ ...prev, picks }));
+      if (onAddToCart) onAddToCart(dish);
+      await chainOrBeverage(mData, { ...ctx, picks }, 0);
+    }, null, async (skipId) => {
+      lockCards(skipId, '__skip'); userSay('None of these');
+      showOpts([{ label: '🔄 Start Over', val: 'restart' }, { label: '⬅️ Change Flavour', val: 'back' }],
+        (o, id) => { lockOpts(id, o.val); if (o.val === 'restart') restart(); else askTaste(mData, { ...ctx, taste: undefined }); });
+    }, 'None of these');
+  };
+
+  // After a pick, suggest associated items (chat chain) up to 2 rounds, then beverage.
+  const chainOrBeverage = async (mData, ctx, round) => {
+    setStep('results');
+    const last = ctx.picks[ctx.picks.length - 1];
+    let suggestions = [];
+    let message = '';
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat/suggest`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restaurant_id: restaurantId, current_item: last, diet: ctx.diet })
+      });
+      const data = await res.json();
+      suggestions = data.suggestions || [];
+      message = data.message || '';
+    } catch { /* keep empty */ }
+
+    if (suggestions.length === 0) {
+      await beverageOrSummary(mData, ctx);
+      return;
+    }
+    if (message) await botSay(message, 400);
+    const canChain = round < 1; // 1 extra chain round after the first associated pick
+    showCards(suggestions, async (dish, cardId) => {
+      lockCards(cardId, dish.name); userSay(`✓ Add ${dish.name}`);
+      const picks = [...ctx.picks, dish];
+      setFlow(prev => ({ ...prev, picks }));
+      if (onAddToCart) onAddToCart(dish);
+      if (canChain) await chainOrBeverage(mData, { ...ctx, picks }, round + 1);
+      else await beverageOrSummary(mData, { ...ctx, picks });
+    }, null, async (skipId) => {
+      lockCards(skipId, '__skip'); userSay('No thanks');
+      await beverageOrSummary(mData, ctx);
+    }, 'No thanks');
+  };
+
+  const beverageOrSummary = async (mData, ctx) => {
+    setStep('results');
+    let bevs = []; let text = '';
     try {
       const r = await fetch(`${API_BASE_URL}/chat/evaluate`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ restaurant_id: restaurantId, selections, diet })
+        body: JSON.stringify({
+          restaurant_id: restaurantId,
+          selections: ctx.picks.reduce((acc, d, i) => { acc[i] = d; return acc; }, {})
+        })
       });
-      
-      if (!r.ok) {
-        console.error("AI Evaluation failed:", await r.text());
-        throw new Error("Evaluation failed");
-      }
-
       const d = await r.json();
-      console.log("AI Recommendation response:", d);
+      bevs = d.suggestions || [];
+      text = d.suggestion_text || '';
+    } catch { /* keep empty */ }
 
-      if (d.suggestions && d.suggestions.length) {
-        await botSay(d.suggestion_text, 400);
-        showCards(d.suggestions, async (dish, cardId) => {
-          lockCards(cardId, dish.name); userSay(`Yes, add ${dish.name}`);
-          const newSel = { ...selections, suggested: dish };
-          setFlow(prev => ({ ...prev, selections: newSel }));
-          await showSummary(diet, mainCat, spice, hunger, newSel);
-        }, async (backId) => {
-          lockCards(backId, '__back'); userSay('Wait, let me change my choices ⬅️');
-          const hungerCourses = hunger === 'light' ? [dynamicCourses[0]] : hunger === 'moderate' ? [dynamicCourses[0], dynamicCourses[1]].filter(Boolean) : dynamicCourses;
-          await runCourses(menuData, diet, mainCat, spice, hunger, hungerCourses, hungerCourses.length - 1, selections);
-        }, async (skipId) => {
-          lockCards(skipId, '__skip'); userSay('No, just confirm my meal');
-          await showSummary(diet, mainCat, spice, hunger, selections);
-        }, "No thanks");
-      } else {
-        if (d.suggestion_text) await botSay(d.suggestion_text, 400);
-        await showSummary(diet, mainCat, spice, hunger, selections);
-      }
-    } catch {
-      await showSummary(diet, mainCat, spice, hunger, selections);
-    }
+    if (bevs.length === 0) { await showSummary(ctx); return; }
+    await botSay(text || 'How about a drink to go with that? 🥤', 400);
+    showCards(bevs, async (dish, cardId) => {
+      lockCards(cardId, dish.name); userSay(`✓ Add ${dish.name}`);
+      const picks = [...ctx.picks, dish];
+      setFlow(prev => ({ ...prev, picks }));
+      if (onAddToCart) onAddToCart(dish);
+      await showSummary({ ...ctx, picks });
+    }, null, async (skipId) => {
+      lockCards(skipId, '__skip'); userSay('No drink, thanks');
+      await showSummary(ctx);
+    }, 'No thanks');
   };
 
-  const showSummary = async (diet, mainCat, spice, hunger, selections) => {
-    const totalSteps = 4 + dynamicCourses.length + 1;
-    setStep(totalSteps);
-    await botSay('🎉 <b>Your perfect meal is ready!</b> Here\'s what we\'ve put together for you:', 600);
-    push({ type: 'summary', diet, mainCat, spice, hunger, selections, id: 'sum-' + Date.now() });
+  const showSummary = async (ctx) => {
+    setStep('summary');
+    await botSay('🎉 <b>Here’s your selection!</b> Review and add everything to your wishlist.', 500);
+    push({ type: 'summary', ctx, id: 'sum-' + Date.now() });
   };
 
   const confirmAndUnlock = async (sumItem) => {
     setItems(prev => prev.map(x => x.id === sumItem.id ? { ...x, confirmed: true } : x));
-    userSay('✅ Confirmed! Add to my Wishlist!');
+    userSay('✅ Add to Wishlist!');
 
     if (onAddToCart) {
-      Object.values(sumItem.selections).forEach(dish => {
-        if (dish) onAddToCart(dish);
-      });
-      if (onShowWishlist) setTimeout(() => onShowWishlist(), 1500);
+      (sumItem.ctx?.picks || []).forEach(dish => { if (dish) onAddToCart(dish); });
+      if (onShowWishlist) setTimeout(() => onShowWishlist(), 1200);
     }
 
-    push({ type: 'bot', html: '🎉 <b>Wonderful! I have added everything to your Wishlist.</b>' });
+    push({ type: 'bot', html: '🎉 <b>Added everything to your Wishlist!</b>' });
     showOpts([
-      { label: '➕ Add another meal', val: 'add_more' },
+      { label: '➕ Find more dishes', val: 'add_more' },
       { label: '❌ Close', val: 'close' },
     ], async (o, id) => {
       lockOpts(id, o.val);
-      if (o.val === 'add_more') {
-        userSay('Add another meal');
-        restart();
-      } else {
-        userSay('Close');
-        setIsOpen(false);
-      }
+      if (o.val === 'add_more') { userSay('Find more dishes'); restart(); }
+      else { userSay('Close'); setIsOpen(false); }
     });
   };
 
   const restart = () => {
-    setItems([]); setStep(0); setFlow({});
-    setTimeout(() => startFlowWithName(menuData, resName), 100);
+    setItems([]); setStep('diet'); setFlow({});
+    setTimeout(() => startFlow(menuData, resName), 100);
   };
 
-  const totalPossibleSteps = 4 + dynamicCourses.length + 1;
-  const pct = Math.round((step / totalPossibleSteps) * 100);
+  const stepList = () => {
+    const list = ['diet'];
+    if ((menuData?.cuisines || []).length) list.push('cuisine');
+    list.push('subcategory', 'ingredient', 'taste', 'results', 'summary');
+    return list;
+  };
+  const stepIdx = stepList().indexOf(step);
+  const pct = stepIdx < 0 ? 0 : Math.round(((stepIdx + 1) / stepList().length) * 100);
 
   const getStepLabel = () => {
-    if (step === 1) return 'Food Type';
-    if (step === 2) return 'Cuisine';
-    if (step === 3) return 'Spice Level';
-    if (step === 4) return 'Hunger';
-    if (step > 4 && step <= 4 + dynamicCourses.length) {
-      return getCourseInfo(dynamicCourses[step - 5]).label;
-    }
-    return 'Your Meal';
+    const map = {
+      diet: 'Food Type', cuisine: 'Cuisine', subcategory: 'Dish Type',
+      ingredient: 'Ingredient', taste: 'Flavour', results: 'Suggestions', summary: 'Your Picks'
+    };
+    return map[step] || '';
   };
 
   const renderItem = (item, idx) => {
@@ -571,29 +550,22 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
     );
 
     if (item.type === 'summary') {
-      const sel = item.selections;
-      const rows = [];
-      dynamicCourses.forEach(k => {
-        if (sel[k]) rows.push({ label: getCourseInfo(k).label, dish: sel[k] });
-        const sug = sel[`suggested_${k}`];
-        if (sug) rows.push({ label: 'Recommended', dish: sug });
-      });
-      if (sel.suggested) rows.push({ label: 'Recommended', dish: sel.suggested });
+      const picks = item.ctx?.picks || [];
+      const rows = picks.map((d, i) => ({ label: `Dish ${i + 1}`, dish: d }));
 
       return (
         <div key={item.id} style={{ paddingLeft: 34 }}>
           <div style={{ background: '#fff', border: '0.5px solid #eee', borderRadius: 12, padding: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: '#666', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 8 }}>Your complete meal</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: '#666', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 8 }}>Your selection</div>
+            {rows.length === 0 && (
+              <div style={{ fontSize: 12, color: '#999', padding: '6px 0' }}>No dishes selected.</div>
+            )}
             {rows.map((r, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '0.5px solid #eee', fontSize: 12 }}>
                 <span style={{ color: '#666' }}>{r.label}</span>
                 <span>🍽️ {r.dish.name}</span>
               </div>
             ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '0.5px solid #eee', fontSize: 12 }}>
-              <span style={{ color: '#666' }}>Cuisine</span>
-              <span style={{ textTransform: 'capitalize' }}>{item.mainCat?.name}</span>
-            </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 2px', fontWeight: 500, fontSize: 13 }}>
               <span style={{ color: '#666' }}>Total</span>
               <span style={{ color: '#c05c28' }}>₹{rows.reduce((s, r) => s + (r.dish.price || 0), 0)}</span>
@@ -601,12 +573,12 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
             {!item.confirmed ? (
               <>
                 <button style={{ width: '100%', marginTop: 10, padding: '11px', background: '#c05c28', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
-                  onClick={() => confirmAndUnlock(item)}>✅ Confirm this meal</button>
+                  onClick={() => confirmAndUnlock(item)}>✅ Add all to Wishlist</button>
                 <button style={{ width: '100%', marginTop: 6, padding: '8px', background: 'transparent', border: '0.5px solid #ddd', borderRadius: 10, fontSize: 12, color: '#666', cursor: 'pointer' }}
                   onClick={restart}>🔄 Start over</button>
               </>
             ) : (
-              <div style={{ textAlign: 'center', padding: '10px 0', color: '#1DB954', fontWeight: 500 }}>✅ Confirmed!</div>
+              <div style={{ textAlign: 'center', padding: '10px 0', color: '#1DB954', fontWeight: 500 }}>✅ Added!</div>
             )}
           </div>
         </div>

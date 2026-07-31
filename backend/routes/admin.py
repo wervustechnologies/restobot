@@ -79,6 +79,74 @@ def delete_category(id):
     db_ref.child(f'restaurants/{request.restaurant_id}/categories/{id}').delete()
     return jsonify({'message': 'Category deleted'}), 200
 
+# --- Main Ingredients (controlled, per-restaurant vocabulary) ---
+@admin_bp.route('/admin/ingredients', methods=['GET'])
+@token_required
+def get_ingredients():
+    db_ref = get_db()
+    ingredients = db_ref.child(f'restaurants/{request.restaurant_id}/ingredients').get()
+    ing_list = format_list(ingredients)
+    ing_list.sort(key=lambda x: x.get('display_order', 0))
+    return jsonify(ing_list), 200
+
+@admin_bp.route('/admin/ingredients', methods=['POST'])
+@token_required
+def add_ingredient():
+    db_ref = get_db()
+    data = request.get_json()
+    ing_ref = db_ref.child(f'restaurants/{request.restaurant_id}/ingredients').push(data)
+    return jsonify({'id': ing_ref.key, **data}), 201
+
+@admin_bp.route('/admin/ingredients/<id>', methods=['PUT'])
+@token_required
+def update_ingredient(id):
+    db_ref = get_db()
+    data = request.get_json()
+    db_ref.child(f'restaurants/{request.restaurant_id}/ingredients/{id}').update(data)
+    return jsonify({'message': 'Ingredient updated', 'id': id, 'data': data}), 200
+
+@admin_bp.route('/admin/ingredients/<id>', methods=['DELETE'])
+@token_required
+def delete_ingredient(id):
+    db_ref = get_db()
+    db_ref.child(f'restaurants/{request.restaurant_id}/ingredients/{id}').delete()
+    return jsonify({'message': 'Ingredient deleted'}), 200
+
+
+# --- Cuisines (optional per-restaurant labels) ---
+@admin_bp.route('/admin/cuisines', methods=['GET'])
+@token_required
+def get_cuisines():
+    db_ref = get_db()
+    cuisines = db_ref.child(f'restaurants/{request.restaurant_id}/cuisines').get()
+    c_list = format_list(cuisines)
+    c_list.sort(key=lambda x: x.get('display_order', 0))
+    return jsonify(c_list), 200
+
+@admin_bp.route('/admin/cuisines', methods=['POST'])
+@token_required
+def add_cuisine():
+    db_ref = get_db()
+    data = request.get_json()
+    c_ref = db_ref.child(f'restaurants/{request.restaurant_id}/cuisines').push(data)
+    return jsonify({'id': c_ref.key, **data}), 201
+
+@admin_bp.route('/admin/cuisines/<id>', methods=['PUT'])
+@token_required
+def update_cuisine(id):
+    db_ref = get_db()
+    data = request.get_json()
+    db_ref.child(f'restaurants/{request.restaurant_id}/cuisines/{id}').update(data)
+    return jsonify({'message': 'Cuisine updated', 'id': id, 'data': data}), 200
+
+@admin_bp.route('/admin/cuisines/<id>', methods=['DELETE'])
+@token_required
+def delete_cuisine(id):
+    db_ref = get_db()
+    db_ref.child(f'restaurants/{request.restaurant_id}/cuisines/{id}').delete()
+    return jsonify({'message': 'Cuisine deleted'}), 200
+
+
 # --- Items ---
 @admin_bp.route('/admin/items', methods=['GET'])
 @token_required

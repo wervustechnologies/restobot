@@ -76,6 +76,44 @@ def test_create_restaurant_success(client, db, auth_headers):
     assert owner["password"] != "secret"
 
 
+def test_create_restaurant_rejects_bad_type(client, db, auth_headers):
+    resp = client.post("/api/superadmin/create-restaurant", json={
+        "restaurant_name": "R", "owner_name": "O", "email": "t@x.com", "password": "p",
+        "restaurant_type": "bogus",
+    }, headers=auth_headers)
+    assert resp.status_code == 400
+
+
+def test_create_restaurant_seeds_type_and_ingredients(client, db, auth_headers):
+    resp = client.post("/api/superadmin/create-restaurant", json={
+        "restaurant_name": "Veg House", "owner_name": "Owner", "email": "veg@x.com",
+        "password": "secret", "restaurant_type": "veg",
+    }, headers=auth_headers)
+    assert resp.status_code == 201
+    rid = resp.get_json()["rid"]
+    assert db.read(f"restaurants/{rid}/restaurant_type") == "veg"
+    ingredients = db.read(f"restaurants/{rid}/ingredients") or {}
+    names = sorted(i["name"] for i in ingredients.values())
+    assert "Paneer" in names and "Mushroom" in names
+    assert "Chicken" not in names  # veg set has no meat
+
+
+def test_list_restaurants_returns_type(client, db, auth_headers):
+    db.seed("restaurants/r1", {"name": "R1", "restaurant_type": "veg", "created_at": 1})
+    rows = client.get("/api/superadmin/restaurants", headers=auth_headers).get_json()
+    row = next(r for r in rows if r["rid"] == "r1")
+    assert row["restaurant_type"] == "veg"
+
+
+def test_update_restaurant_type(client, db, auth_headers):
+    db.seed("restaurants/r1", {"name": "R", "restaurant_type": "mixed"})
+    resp = client.put("/api/superadmin/restaurant/r1", json={
+        "restaurant_name": "R", "owner_name": "O", "email": "o@x.com", "restaurant_type": "veg",
+    }, headers=auth_headers)
+    assert resp.status_code == 200
+    assert db.read("restaurants/r1/restaurant_type") == "veg"
+
+
 # -------------------------- update_restaurant -------------------------
 def test_update_restaurant_missing_fields(client, db, auth_headers):
     db.seed("restaurants/r1", {"name": "R"})

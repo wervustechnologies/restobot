@@ -60,6 +60,22 @@ def test_get_menu_empty_collections(client, db):
     body = client.get("/api/menu/r1").get_json()
     assert body["main_categories"] == []
     assert body["restaurant"]["review_link"] == ""
+    assert body["restaurant"]["restaurant_type"] == "mixed"
+    assert body["ingredients"] == []
+    assert body["cuisines"] == []
+
+
+def test_get_menu_returns_vocab_and_type(client, db):
+    db.seed("restaurants/r1", {
+        "name": "R", "restaurant_type": "veg",
+        "ingredients": {"a": {"name": "Mushroom", "display_order": 2},
+                        "b": {"name": "Paneer", "display_order": 1}},
+        "cuisines": {"k": {"name": "Kerala", "display_order": 1}},
+    })
+    body = client.get("/api/menu/r1").get_json()
+    assert body["restaurant"]["restaurant_type"] == "veg"
+    assert [i["name"] for i in body["ingredients"]] == ["Paneer", "Mushroom"]
+    assert [c["name"] for c in body["cuisines"]] == ["Kerala"]
 
 
 # --------------------------- recommend ---------------------------------

@@ -56,6 +56,48 @@ def test_add_and_delete_category(client, db, auth_headers):
     assert db.read(f"restaurants/r1/categories/{cid}") is None
 
 
+# ----------------------------- ingredients ----------------------------
+def test_ingredients_sorted(client, db, auth_headers):
+    db.seed("restaurants/r1/ingredients", {
+        "a": {"name": "Chicken", "display_order": 2},
+        "b": {"name": "Paneer", "display_order": 1},
+    })
+    resp = client.get("/api/admin/ingredients", headers=auth_headers)
+    assert [i["name"] for i in resp.get_json()] == ["Paneer", "Chicken"]
+
+
+def test_add_update_delete_ingredient(client, auth_headers, db):
+    resp = client.post("/api/admin/ingredients", json={"name": "Tofu", "display_order": 1}, headers=auth_headers)
+    assert resp.status_code == 201
+    iid = resp.get_json()["id"]
+    assert db.read(f"restaurants/r1/ingredients/{iid}")["name"] == "Tofu"
+
+    assert client.put(f"/api/admin/ingredients/{iid}", json={"name": "Soya"}, headers=auth_headers).status_code == 200
+    assert db.read(f"restaurants/r1/ingredients/{iid}")["name"] == "Soya"
+
+    assert client.delete(f"/api/admin/ingredients/{iid}", headers=auth_headers).status_code == 200
+    assert db.read(f"restaurants/r1/ingredients/{iid}") is None
+
+
+# ------------------------------ cuisines ------------------------------
+def test_cuisines_sorted(client, db, auth_headers):
+    db.seed("restaurants/r1/cuisines", {
+        "a": {"name": "Indian", "display_order": 2},
+        "b": {"name": "Kerala", "display_order": 1},
+    })
+    resp = client.get("/api/admin/cuisines", headers=auth_headers)
+    assert [c["name"] for c in resp.get_json()] == ["Kerala", "Indian"]
+
+
+def test_add_and_delete_cuisine(client, auth_headers, db):
+    resp = client.post("/api/admin/cuisines", json={"name": "Chinese", "display_order": 1}, headers=auth_headers)
+    assert resp.status_code == 201
+    cid = resp.get_json()["id"]
+    assert db.read(f"restaurants/r1/cuisines/{cid}")["name"] == "Chinese"
+    assert client.delete(f"/api/admin/cuisines/{cid}", headers=auth_headers).status_code == 200
+    assert db.read(f"restaurants/r1/cuisines/{cid}") is None
+
+
 # -------------------------------- items -------------------------------
 def test_get_items(client, db, auth_headers):
     db.seed("restaurants/r1/items", {"i1": {"name": "Item1", "price": 5}})

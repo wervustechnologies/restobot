@@ -11,7 +11,7 @@ export default function Dashboard() {
   const [editingRestaurant, setEditingRestaurant] = useState(null);
   
   // Form state
-  const [formData, setFormData] = useState({ restaurant_name: '', owner_name: '', email: '', password: '' });
+  const [formData, setFormData] = useState({ restaurant_name: '', owner_name: '', email: '', password: '', restaurant_type: 'mixed' });
   
   const navigate = useNavigate();
 
@@ -66,11 +66,12 @@ export default function Dashboard() {
         restaurant_name: restaurant.name || '', 
         owner_name: restaurant.admin?.name || '', 
         email: restaurant.admin?.email || '', 
-        password: '' 
+        password: '',
+        restaurant_type: restaurant.restaurant_type || 'mixed'
       });
     } else {
       setEditingRestaurant(null);
-      setFormData({ restaurant_name: '', owner_name: '', email: '', password: '' });
+      setFormData({ restaurant_name: '', owner_name: '', email: '', password: '', restaurant_type: 'mixed' });
     }
     setIsModalOpen(true);
   };
@@ -178,6 +179,7 @@ export default function Dashboard() {
             <tr>
               <th>ID</th>
               <th>Name</th>
+              <th>Type</th>
               <th>Email</th>
               <th>Status</th>
               <th>Actions</th>
@@ -186,7 +188,7 @@ export default function Dashboard() {
           <tbody>
             {restaurants.length === 0 ? (
               <tr>
-                <td colSpan="5" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                <td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                   No restaurants found. Create one to get started.
                 </td>
               </tr>
@@ -195,6 +197,11 @@ export default function Dashboard() {
                 <tr key={r.rid}>
                   <td style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{r.rid.substring(0, 8)}...</td>
                   <td style={{ fontWeight: 500 }}>{r.name}</td>
+                  <td>
+                    <span className={`status-badge ${r.restaurant_type === 'veg' ? 'status-active' : ''}`} style={{ textTransform: 'capitalize' }}>
+                      {r.restaurant_type || 'mixed'}
+                    </span>
+                  </td>
                   <td>{r.admin?.email || 'N/A'}</td>
                   <td>
                     <span 
@@ -234,6 +241,18 @@ export default function Dashboard() {
                   onChange={e => setFormData({...formData, restaurant_name: e.target.value})}
                   required 
                 />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Restaurant Type</label>
+                <select
+                  className="input-field"
+                  value={formData.restaurant_type}
+                  onChange={e => setFormData({...formData, restaurant_type: e.target.value})}
+                >
+                  <option value="veg">Veg</option>
+                  <option value="non-veg">Non-Veg</option>
+                  <option value="mixed">Mixed (Veg &amp; Non-Veg)</option>
+                </select>
               </div>
               <div className="input-group">
                 <label className="input-label">Owner Name</label>
