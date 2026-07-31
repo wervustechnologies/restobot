@@ -4,8 +4,11 @@ import time
 from firebase_client import get_db
 from auth_utils import generate_token, token_required
 from limiter import limiter, LIMIT_AUTH
+from default_ingredients import build_default_ingredients
 
 superadmin_bp = Blueprint('superadmin', __name__)
+
+VALID_RESTAURANT_TYPES = ('veg', 'non-veg', 'mixed')
 
 SUPERADMIN_EMAIL = "sanalshijilkk52@gmail.com"
 SUPERADMIN_HASH = b'$2b$12$cuCI8t7nwl2Ol3CER8vce.uZhgU9w922jT8inRmS17ra81ttI39Ne'
@@ -46,6 +49,7 @@ def list_restaurants():
         result.append({
             'rid': rid,
             'name': rdata.get('name', ''),
+            'restaurant_type': rdata.get('restaurant_type', 'mixed'),
             'created_at': rdata.get('created_at'),
             'admin': {
                 'uid': admin.get('uid') if admin else None,
@@ -67,9 +71,13 @@ def create_restaurant_admin():
     owner_name = data.get('owner_name')
     email = data.get('email')
     password = data.get('password')
+    restaurant_type = (data.get('restaurant_type') or 'mixed').strip().lower()
 
     if not all([res_name, owner_name, email, password]):
         return jsonify({'message': 'Missing fields'}), 400
+
+    if restaurant_type not in VALID_RESTAURANT_TYPES:
+        return jsonify({'message': 'Invalid restaurant_type'}), 400
 
     exists = db_ref.child('users').order_by_child('email').equal_to(email).get()
     if exists:
@@ -77,9 +85,16 @@ def create_restaurant_admin():
 
     res_ref = db_ref.child('restaurants').push({
         'name': res_name,
+        'restaurant_type': restaurant_type,
         'created_at': time.time()
     })
     rid = res_ref.key
+
+    # Seed a default main-ingredient list (tailored to restaurant_type) so the
+    # menu admin can tag items immediately without typing each ingredient.
+    ingredients_ref = db_ref.child(f'restaurants/{rid}/ingredients')
+    for entry in build_default_ingredients(restaurant_type):
+        ingredients_ref.push(entry)
 
     hashed_pw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     db_ref.child('users').push({
@@ -111,7 +126,15 @@ def update_restaurant(rid):
     if not all([res_name, owner_name, email]):
         return jsonify({'message': 'Missing fields'}), 400
 
-    db_ref.child('restaurants').child(rid).update({'name': res_name})
+    res_update = {'name': res_name}
+    restaurant_type = data.get('restaurant_type')
+    if restaurant_type:
+        restaurant_type = restaurant_type.strip().lower()
+        if restaurant_type not in VALID_RESTAURANT_TYPES:
+            return jsonify({'message': 'Invalid restaurant_type'}), 400
+        res_update['restaurant_type'] = restaurant_type
+
+    db_ref.child('restaurants').child(rid).update(res_update)
 
     users = db_ref.child('users').get() or {}
     admin_uid = None

@@ -25,6 +25,14 @@ def get_menu(restaurant_id):
     cats.sort(key=lambda x: x.get('display_order', 0))
     
     items = format_list(res_data.get('items'))
+
+    # Controlled vocabularies surfaced to the AI chat so it can render pickable
+    # options client-side. Cuisines are optional (chat cuisine step only shows
+    # when this list is non-empty).
+    ingredients = format_list(res_data.get('ingredients'))
+    ingredients.sort(key=lambda x: x.get('display_order', 0))
+    cuisines = format_list(res_data.get('cuisines'))
+    cuisines.sort(key=lambda x: x.get('display_order', 0))
     
     main_categories = []
     for mc in main_cats:
@@ -79,8 +87,11 @@ def get_menu(restaurant_id):
             'id': restaurant_id,
             'name': res_data.get('name'),
             'address': res_data.get('address'),
-            'review_link': res_data.get('review_link', '')
+            'review_link': res_data.get('review_link', ''),
+            'restaurant_type': res_data.get('restaurant_type', 'mixed')
         },
+        'ingredients': ingredients,
+        'cuisines': cuisines,
         'main_categories': main_categories
     }), 200
 

@@ -1,4 +1,92 @@
-"""Tests for routes/chat.py (AI suggestion + meal evaluation logic)."""
+"""Tests for routes/chat.py (discovery + suggestion chaining + meal evaluation)."""
+
+
+# =============================== discover ==============================
+def test_discover_missing_fields(client):
+    resp = client.post("/api/chat/discover", json={"restaurant_id": "r1"})
+    assert resp.status_code == 400
+
+
+def test_discover_restaurant_not_found(client):
+    resp = client.post("/api/chat/discover", json={
+        "restaurant_id": "r1", "subcategory_id": "c1"
+    })
+    assert resp.status_code == 404
+
+
+def test_discover_filters_and_scores(client, db):
+    db.seed("restaurants/r1", {
+        "categories": {"c1": {"id": "c1", "course_type": "main"}},
+        "items": {
+            "a": {"name": "A", "category_id": "c1", "item_type": "non-veg",
+                  "main_ingredient": "Chicken", "cuisine": "Indian", "taste": "spicy",
+                  "spice_level": 4, "priority": "high", "is_bestseller": True},
+            "b": {"name": "B", "category_id": "c1", "item_type": "veg",
+                  "main_ingredient": "Paneer", "cuisine": "Indian", "taste": "creamy",
+                  "spice_level": 2, "priority": "medium"},                       # wrong diet
+            "c": {"name": "C", "category_id": "c1", "item_type": "non-veg",
+                  "main_ingredient": "Chicken", "cuisine": "Kerala", "taste": "spicy",
+                  "spice_level": 3, "priority": "medium"},
+            "d": {"name": "D", "category_id": "c1", "item_type": "non-veg",
+                  "main_ingredient": "Fish", "cuisine": "Indian", "taste": "sour",
+                  "spice_level": 3, "priority": "low"},                          # wrong ingredient
+            "off": {"name": "Off", "category_id": "c1", "item_type": "non-veg",
+                    "main_ingredient": "Chicken", "is_enabled": False},          # disabled
+            "othercat": {"name": "Other", "category_id": "c9", "item_type": "non-veg",
+                         "main_ingredient": "Chicken", "taste": "spicy"},        # wrong subcategory
+        },
+    })
+    body = client.post("/api/chat/discover", json={
+        "restaurant_id": "r1", "diet": "non-veg", "subcategory_id": "c1",
+        "ingredient": "Chicken", "taste": "spicy"
+    }).get_json()
+    names = [s["name"] for s in body["suggestions"]]
+    assert names == ["A", "C"]  # 'a' (high+bestseller+spicy) beats 'c'
+    assert "top" in body["message"]
+
+
+def test_discover_cuisine_others_bucket(client, db):
+    db.seed("restaurants/r1", {
+        "items": {
+            "labeled": {"name": "Labeled", "category_id": "c1", "item_type": "veg",
+                        "main_ingredient": "Paneer", "cuisine": "Indian", "taste": "creamy"},
+            "plain": {"name": "Plain", "category_id": "c1", "item_type": "veg",
+                      "main_ingredient": "Paneer", "taste": "creamy"},  # no cuisine -> Others
+        }
+    })
+    body = client.post("/api/chat/discover", json={
+        "restaurant_id": "r1", "diet": "veg", "subcategory_id": "c1",
+        "ingredient": "any", "cuisine": "others", "taste": "creamy"
+    }).get_json()
+    names = [s["name"] for s in body["suggestions"]]
+    assert names == ["Plain"]
+
+
+def test_discover_veg_restaurant_forces_veg(client, db):
+    db.seed("restaurants/r1", {
+        "restaurant_type": "veg",
+        "items": {
+            "nv": {"name": "NV", "category_id": "c1", "item_type": "non-veg",
+                   "main_ingredient": "Chicken", "taste": "spicy"},
+            "v": {"name": "V", "category_id": "c1", "item_type": "veg",
+                  "main_ingredient": "Paneer", "taste": "spicy"},
+        }
+    })
+    body = client.post("/api/chat/discover", json={
+        "restaurant_id": "r1", "diet": "mix", "subcategory_id": "c1",
+        "ingredient": "any", "taste": "spicy"
+    }).get_json()
+    names = [s["name"] for s in body["suggestions"]]
+    assert names == ["V"]  # non-veg excluded even though diet=mix
+
+
+def test_discover_no_match_message(client, db):
+    db.seed("restaurants/r1", {"items": {}})
+    body = client.post("/api/chat/discover", json={
+        "restaurant_id": "r1", "subcategory_id": "c1", "taste": "spicy"
+    }).get_json()
+    assert body["suggestions"] == []
+    assert "couldn't find" in body["message"].lower()
 
 
 # =============================== suggest ===============================
@@ -28,8 +116,8 @@ def test_suggest_admin_food_recommendation(client, db):
     })
     assert resp.status_code == 200
     body = resp.get_json()
-    assert body["suggestion"]["name"] == "Naan"  # high priority wins
-    assert "<b>Naan</b>" in body["message"]
+    assert body["suggestions"][0]["name"] == "Naan"  # high priority sorts first
+    assert "<b>Curry</b>" in body["message"]
 
 
 def test_suggest_admin_rec_no_match_falls_back(client, db):
@@ -40,21 +128,21 @@ def test_suggest_admin_rec_no_match_falls_back(client, db):
             "cur": {"name": "Curry", "category_id": "c1", "item_type": "non-veg",
                     "spice_level": 3, "priority": "high", "is_bestseller": True,
                     "recommendations": {"food_items": {"ghost": {"priority": "high"}}}},
-            "dry": {"name": "Dry", "category_id": "c1", "item_type": "non-veg", "spice_level": 3, "priority": "medium"},
+            "dry": {"name": "Dry", "category_id": "c1", "item_type": "non-veg",
+                    "spice_level": 3, "priority": "medium"},
         },
     })
     body = client.post("/api/chat/suggest", json={
         "restaurant_id": "r1",
-        "current_item": {"id": "cur", "name": "Curry", "spice_level": 3, "item_type": "non-veg"},
+        "current_item": {"id": "cur", "name": "Curry", "spice_level": 3, "item_type": "non-veg",
+                         "category_id": "c1"},
         "course_type": "main",
     }).get_json()
-    assert body["suggestion"]["name"] == "Dry"
+    assert body["suggestions"][0]["name"] == "Dry"
 
 
 def test_suggest_fallback_filters(client, db):
     db.seed("restaurants/r1", {
-        # 'c9' (non-matching course) is inserted FIRST so the category loop
-        # iterates a non-match before finding 'c1'.
         "categories": {
             "c9": {"id": "c9", "course_type": "other"},
             "c1": {"id": "c1", "course_type": "main"},
@@ -64,48 +152,33 @@ def test_suggest_fallback_filters(client, db):
             "ok": {"name": "Ok", "category_id": "c1", "item_type": "non-veg", "spice_level": 3,
                    "priority": "medium", "is_bestseller": True},
             "veg": {"name": "Veg", "category_id": "c1", "item_type": "veg", "spice_level": 3},       # wrong type
-            "far": {"name": "Far", "category_id": "c1", "item_type": "non-veg", "spice_level": 5},    # spice diff 2
             "off": {"name": "Off", "category_id": "c1", "item_type": "non-veg", "spice_level": 3, "is_enabled": False},
             "other": {"name": "Other", "category_id": "c9", "item_type": "non-veg", "spice_level": 3},  # wrong category
         },
     })
     body = client.post("/api/chat/suggest", json={
         "restaurant_id": "r1",
-        "current_item": {"id": "cur", "name": "Curry", "spice_level": 3, "item_type": "non-veg"},
+        "current_item": {"id": "cur", "name": "Curry", "spice_level": 3, "item_type": "non-veg",
+                         "category_id": "c1"},
         "course_type": "main",
     }).get_json()
     # 'ok' is the only viable candidate (bestseller bonus applied) and must win
-    assert body["suggestion"]["name"] == "Ok"
-    assert body["suggestion"]["score"] == 3  # medium(2) + bestseller(1)
-    assert body["suggestion"]["name"] != "Off"
+    assert body["suggestions"][0]["name"] == "Ok"
+    assert body["suggestions"][0]["score"] == 3  # medium(2) + bestseller(1)
 
 
-def test_suggest_unmatched_course_type(client, db):
-    # course_type matches no category -> category loop exhausts (current_cat_id None)
-    # -> every item's category_id != None -> no suggestions
-    db.seed("restaurants/r1", {
-        "categories": {"c1": {"id": "c1", "course_type": "main"}},
-        "items": {"a": {"name": "A", "category_id": "c1", "item_type": "non-veg", "spice_level": 3}},
-    })
-    body = client.post("/api/chat/suggest", json={
-        "restaurant_id": "r1",
-        "current_item": {"id": "a", "name": "A", "spice_level": 3, "item_type": "non-veg"},
-        "course_type": "dessert",
-    }).get_json()
-    assert body["suggestion"] is None
-
-
-def test_suggest_no_match_returns_none(client, db):
+def test_suggest_no_match_returns_empty(client, db):
     db.seed("restaurants/r1", {
         "categories": {"c1": {"id": "c1", "course_type": "main"}},
         "items": {"cur": {"name": "Curry", "category_id": "c1", "item_type": "non-veg", "spice_level": 3}},
     })
     body = client.post("/api/chat/suggest", json={
         "restaurant_id": "r1",
-        "current_item": {"id": "cur", "name": "Curry", "spice_level": 3, "item_type": "non-veg"},
+        "current_item": {"id": "cur", "name": "Curry", "spice_level": 3, "item_type": "non-veg",
+                         "category_id": "c1"},
         "course_type": "main",
     }).get_json()
-    assert body["suggestion"] is None
+    assert body["suggestions"] == []
     assert body["message"] == ""
 
 
@@ -125,7 +198,7 @@ def test_evaluate_no_selections(client, db):
     body = client.post("/api/chat/evaluate", json={
         "restaurant_id": "r1", "selections": {"s1": None, "s2": {}}
     }).get_json()
-    assert body["suggestion"] is None
+    assert body["suggestions"] == []
     assert body["suggestion_text"] == ""
 
 
@@ -133,8 +206,6 @@ def test_evaluate_beverage_recommendation(client, db):
     db.seed("restaurants/r1", {
         "items": {
             "m1": {"name": "Main1", "recommendations": {"beverages": {
-                # 'ghost' is listed first and has no matching active item -> match
-                # None -> inner loop continues; then 'b1' matches.
                 "ghost": {"priority": "high"},
                 "b1": {"priority": "high"},
             }}},
@@ -144,12 +215,11 @@ def test_evaluate_beverage_recommendation(client, db):
     body = client.post("/api/chat/evaluate", json={
         "restaurant_id": "r1", "selections": {"s1": {"id": "m1", "name": "Main1"}},
     }).get_json()
-    assert body["suggestion"]["name"] == "Coke"
-    assert "<b>Coke</b>" in body["suggestion_text"]
+    assert body["suggestions"][0]["name"] == "Coke"
+    assert "<b>Main1</b>" in body["suggestion_text"]
 
 
 def test_evaluate_beverage_skips_already_selected(client, db):
-    # rec points at an item the user already selected -> ignored, falls to fallback
     db.seed("restaurants/r1", {
         "categories": {"bevs": {"id": "bevs", "course_type": "beverage"}},
         "items": {
@@ -164,21 +234,26 @@ def test_evaluate_beverage_skips_already_selected(client, db):
                        "s2": {"id": "b1", "name": "Coke", "item_type": "non-veg", "category_id": "bevs"}},
     }).get_json()
     # b1 already selected -> no beverage candidate, fallback also finds nothing
-    assert body["suggestion"] is None
+    assert body["suggestions"] == []
 
 
-def test_evaluate_fallback_excludes_same_course(client, db):
+def test_evaluate_fallback_suggests_beverage(client, db):
+    # No admin beverage recs -> fallback suggests drinks, detected by the
+    # "Beverages" main category name (course_type is gone).
     db.seed("restaurants/r1", {
+        "main_categories": {
+            "mc_food": {"id": "mc_food", "name": "Food"},
+            "mc_bev": {"id": "mc_bev", "name": "Beverages"},
+        },
         "categories": {
-            "main": {"id": "main", "course_type": "main"},
-            "bevs": {"id": "bevs", "course_type": "beverage"},
+            "main": {"id": "main", "main_category_id": "mc_food"},
+            "bevs": {"id": "bevs", "main_category_id": "mc_bev"},
         },
         "items": {
             "m1": {"name": "M1", "category_id": "main", "item_type": "non-veg", "priority": "medium"},
             "cand": {"name": "Cand", "category_id": "bevs", "item_type": "non-veg",
                      "priority": "high", "is_bestseller": True},
-            "wc": {"name": "WC", "category_id": "main", "item_type": "non-veg"},  # same course -> excluded
-            # category_id references no category -> inner category loop exhausts
+            "wc": {"name": "WC", "category_id": "main", "item_type": "non-veg"},  # food, not a beverage
             "orphan": {"name": "Orphan", "category_id": "unknowncat", "item_type": "non-veg", "priority": "low"},
         },
     })
@@ -186,33 +261,41 @@ def test_evaluate_fallback_excludes_same_course(client, db):
         "restaurant_id": "r1",
         "selections": {"s1": {"id": "m1", "name": "M1", "item_type": "non-veg", "category_id": "main"}},
     }).get_json()
-    assert body["suggestion"]["name"] == "Cand"
+    # Only the beverage item ('Cand') is suggested; food items are excluded.
+    assert [s["name"] for s in body["suggestions"]] == ["Cand"]
 
 
-def test_evaluate_prefers_veg_when_all_veg(client, db):
+def test_evaluate_fallback_drinks_suit_any_meal(client, db):
+    # Beverages are not filtered by the meal's diet, so a drink is always offered.
     db.seed("restaurants/r1", {
-        "categories": {"bevs": {"id": "bevs", "course_type": "beverage"}},
+        "main_categories": {"mc_food": {"id": "mc_food", "name": "Food"},
+                            "mc_bev": {"id": "mc_bev", "name": "Drinks"}},
+        "categories": {"bevs": {"id": "bevs", "main_category_id": "mc_bev"}},
         "items": {
             "veg_main": {"name": "VM", "category_id": "mainx", "item_type": "veg"},
             "veg_drink": {"name": "VD", "category_id": "bevs", "item_type": "veg", "priority": "high"},
-            "nv_drink": {"name": "ND", "category_id": "bevs", "item_type": "non-veg", "priority": "high"},
+            "nv_drink": {"name": "ND", "category_id": "bevs", "item_type": "non-veg", "priority": "medium"},
         },
     })
     body = client.post("/api/chat/evaluate", json={
         "restaurant_id": "r1",
         "selections": {"s1": {"id": "veg_main", "name": "VM", "item_type": "veg", "category_id": "mainx"}},
     }).get_json()
-    # preferred_type veg -> ND (non-veg) excluded
-    assert body["suggestion"]["name"] == "VD"
+    names = [s["name"] for s in body["suggestions"]]
+    # Both drinks are candidates; higher-priority VD sorts first.
+    assert names[0] == "VD"
+    assert set(names) == {"VD", "ND"}
 
 
-def test_evaluate_no_candidate(client, db):
+def test_evaluate_no_beverage_main_category(client, db):
+    # No main category named like a beverage -> nothing to suggest as a drink.
     db.seed("restaurants/r1", {
-        "categories": {"main": {"id": "main", "course_type": "main"}},
+        "main_categories": {"mc_food": {"id": "mc_food", "name": "Food"}},
+        "categories": {"main": {"id": "main", "main_category_id": "mc_food"}},
         "items": {"m1": {"name": "M1", "category_id": "main", "item_type": "non-veg"}},
     })
     body = client.post("/api/chat/evaluate", json={
         "restaurant_id": "r1",
         "selections": {"s1": {"id": "m1", "name": "M1", "item_type": "non-veg", "category_id": "main"}},
     }).get_json()
-    assert body["suggestion"] is None
+    assert body["suggestions"] == []

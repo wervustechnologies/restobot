@@ -26,13 +26,121 @@ def _spice_cap(spice):
         return 4
     return 5
 
+
+def _is_beverage_name(name):
+    """Heuristic: does a (main) category name represent drinks?
+
+    course_type was removed from the model, so beverage categories are detected
+    by the parent main category's name instead (e.g. "Beverages", "Drinks").
+    """
+    n = (name or '').lower()
+    return any(k in n for k in ('beverage', 'drink', 'juice'))
+
+
+def _beverage_category_ids(res_data):
+    """Return the set of subcategory ids that belong to a beverage main category."""
+    main_categories = format_list(res_data.get('main_categories'))
+    beverage_mc_ids = {mc['id'] for mc in main_categories if _is_beverage_name(mc.get('name', ''))}
+    categories = format_list(res_data.get('categories'))
+    return {c['id'] for c in categories if c.get('main_category_id') in beverage_mc_ids}
+
+
+
+@chat_bp.route('/chat/discover', methods=['POST'])
+@limiter.limit(LIMIT_AI)
+def discover_items():
+    """Smart discovery: diet (+ optional cuisine) + subcategory + main
+    ingredient + taste -> top 3 scored items.
+
+    Body: {restaurant_id, diet, cuisine?, subcategory_id, ingredient, taste}
+      - diet: 'veg' | 'non-veg' | 'mix' (veg-only restaurant forces veg)
+      - cuisine: cuisine name/key, 'others' (no label), or ''/omitted (no filter)
+      - subcategory_id: category id to filter on
+      - ingredient: ingredient name/key or 'any'
+      - taste: spicy/sweet/savoury/tangy/sour/salty/creamy
+    """
+    data = request.get_json() or {}
+    restaurant_id = data.get('restaurant_id')
+    diet = (data.get('diet') or '').strip().lower()
+    cuisine = (data.get('cuisine') or '').strip()
+    subcategory_id = data.get('subcategory_id', '')
+    ingredient = (data.get('ingredient') or 'any').strip()
+    taste = (data.get('taste') or '').strip().lower()
+
+    if not restaurant_id or not subcategory_id:
+        return jsonify({'error': 'Missing required fields'}), 400
+
+    db_ref = get_db()
+    res_data = db_ref.child(f'restaurants/{restaurant_id}').get()
+    if not res_data:
+        return jsonify({'error': 'Restaurant not found'}), 404
+
+    restaurant_type = (res_data.get('restaurant_type') or 'mixed').strip().lower()
+    if restaurant_type == 'veg':
+        diet = 'veg'
+
+    items = format_list(res_data.get('items'))
+    active_items = [i for i in items if i.get('is_enabled') is not False]
+
+    cuisine_norm = cuisine.lower()
+    ingredient_norm = ingredient.lower()
+
+    # --- Hard filters ---
+    candidates = []
+    for item in active_items:
+        itype = item.get('item_type')
+        if diet == 'veg' and itype not in ('veg', 'mixed'):
+            continue
+        if diet == 'non-veg' and itype not in ('non-veg', 'mixed'):
+            continue
+        if str(item.get('category_id', '')) != str(subcategory_id):
+            continue
+        if ingredient_norm and ingredient_norm != 'any':
+            if str(item.get('main_ingredient', '')).lower() != ingredient_norm:
+                continue
+        if cuisine_norm and cuisine_norm != 'others':
+            if str(item.get('cuisine', '')).lower() != cuisine_norm:
+                continue
+        elif cuisine_norm == 'others':
+            if item.get('cuisine'):
+                continue
+        candidates.append(item)
+
+    # --- Score ---
+    priority_map = {'high': 3, 'medium': 2, 'low': 1}
+    scored = []
+    for item in candidates:
+        score = priority_map.get(item.get('priority', 'medium'), 2)
+        if item.get('is_bestseller'):
+            score += 1
+        if taste and str(item.get('taste', '')).lower() == taste:
+            score += 3
+        spice_level = int(item.get('spice_level') or 3)
+        if taste == 'spicy' and spice_level >= 3:
+            score += 1
+        scored.append({**item, 'match_score': score})
+
+    # tie-break: higher score first; spicy taste prefers hotter items, others milder
+    if taste == 'spicy':
+        scored.sort(key=lambda x: (x['match_score'], int(x.get('spice_level') or 3)), reverse=True)
+    else:
+        scored.sort(key=lambda x: (x['match_score'], -int(x.get('spice_level') or 3)), reverse=True)
+
+    top = scored[:3]
+
+    if top:
+        message = f"Based on what you're craving, here are my top <b>{len(top)}</b> picks for you!"
+    else:
+        message = "Hmm, I couldn't find an exact match. Try a different taste or ingredient?"
+
+    return jsonify({'suggestions': top, 'message': message}), 200
+
 @chat_bp.route('/chat/suggest', methods=['POST'])
 @limiter.limit(LIMIT_AI)
 def suggest_item():
     data = request.get_json()
     restaurant_id = data.get('restaurant_id')
     current_item = data.get('current_item', {})
-    course_type = data.get('course_type', '')
     diet = data.get('diet', '')
     spice = data.get('spice', '')
 
@@ -162,37 +270,21 @@ def evaluate_meal():
             'suggestion_text': f"Along with <b>{selected_names}</b>, these would be perfect combinations!"
         }), 200
 
-    # Fallback: hardcoded matching logic
-    categories = format_list(res_data.get('categories'))
-
-    selected_types = {v.get('item_type', 'non-veg') for v in selected_items}
-    preferred_type = 'non-veg' if 'non-veg' in selected_types else 'veg'
-
-    selected_course_types = set()
-    for v in selected_items:
-        cat_id = v.get('category_id')
-        for cat in categories:
-            if cat.get('id') == cat_id and cat.get('course_type'):
-                selected_course_types.add(cat['course_type'].lower())
+    # Fallback: suggest beverages, detected by their main category's name
+    # (course_type was removed from the model). A drink suits any meal, so we
+    # don't filter by item_type here.
+    beverage_cat_ids = _beverage_category_ids(res_data)
 
     candidates = []
     for item in active_items:
         if str(item.get('id', '')) in selected_ids:
             continue
-        if item.get('item_type') != preferred_type:
-            continue
-        item_cat_id = item.get('category_id')
-        item_course_type = ''
-        for cat in categories:
-            if cat.get('id') == item_cat_id:
-                item_course_type = cat.get('course_type', '').lower()
-                break
-        if item_course_type in selected_course_types:
+        if item.get('category_id') not in beverage_cat_ids:
             continue
         priority_score = {'high': 3, 'medium': 2, 'low': 1}.get(item.get('priority', 'medium'), 2)
         if item.get('is_bestseller'):
             priority_score += 1
-        candidates.append({**item, 'score': priority_score, 'course_type': item_course_type})
+        candidates.append({**item, 'score': priority_score})
 
     candidates.sort(key=lambda x: x.get('score', 0), reverse=True)
 
