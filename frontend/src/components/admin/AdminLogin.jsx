@@ -7,11 +7,14 @@ export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
@@ -28,6 +31,7 @@ export default function AdminLogin() {
     } catch (err) {
       setError('Login failed');
     }
+    setLoading(false);
   };
 
   return (
@@ -112,8 +116,22 @@ export default function AdminLogin() {
           cursor: pointer;
           margin-top: 10px;
           transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
         }
         .admin-login-page .al-submit:hover { background: #E85A20; }
+        .admin-login-page .al-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+        .admin-login-page .al-spinner {
+          width: 18px;
+          height: 18px;
+          border: 2px solid rgba(255,255,255,0.3);
+          border-top-color: #FFF;
+          border-radius: 50%;
+          animation: al-spin 0.6s linear infinite;
+        }
+        @keyframes al-spin { to { transform: rotate(360deg); } }
         .admin-login-page .al-footer {
           text-align: center;
           margin-top: 20px;
@@ -144,15 +162,17 @@ export default function AdminLogin() {
         <form onSubmit={handleSubmit}>
           <div className="al-field">
             <label className="al-label">Email Address</label>
-            <input className="al-input" type="email" placeholder="owner@restaurant.com" required 
-              onChange={e => setEmail(e.target.value)} />
+           <input className="al-input" type="email" placeholder="owner@restaurant.com" required 
+               onChange={e => setEmail(e.target.value)} disabled={loading} />
           </div>
           <div className="al-field">
             <label className="al-label">Password</label>
             <input className="al-input" type="password" placeholder="••••••••" required 
-              onChange={e => setPassword(e.target.value)} />
+               onChange={e => setPassword(e.target.value)} disabled={loading} />
           </div>
-          <button type="submit" className="al-submit">Login</button>
+          <button type="submit" className="al-submit" disabled={loading}>
+            {loading ? <><div className="al-spinner"></div>Logging in...</> : 'Login'}
+          </button>
         </form>
         <p className="al-footer">
           Are you a waiter? <a href="/waiter/login">Waiter Login</a>

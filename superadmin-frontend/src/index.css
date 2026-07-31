@@ -238,6 +238,8 @@ body {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+@keyframes al-spin { to { transform: rotate(360deg); } }
+
 /* Layout Utilities */
 .flex-between {
   display: flex;

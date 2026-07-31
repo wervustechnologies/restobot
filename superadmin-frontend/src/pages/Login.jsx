@@ -59,6 +59,7 @@ export default function Login() {
               onChange={e => setEmail(e.target.value)}
               placeholder="admin@example.com"
               required 
+              disabled={loading}
             />
           </div>
           <div className="input-group">
@@ -70,9 +71,11 @@ export default function Login() {
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
               required 
+              disabled={loading}
             />
           </div>
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled={loading}>
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} disabled={loading}>
+            {loading && <span style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#FFF', borderRadius: '50%', animation: 'al-spin 0.6s linear infinite', display: 'inline-block' }} />}
             {loading ? 'Authenticating...' : 'Sign In'}
           </button>
         </form>
