@@ -50,7 +50,6 @@ export default function AdminMenuManager() {
   const [pendingRec, setPendingRec] = useState({ food_items: '', beverages: '' });
   const [recTypeFilter, setRecTypeFilter] = useState({ food_items: 'all', beverages: 'all' });
 
-  const [expandedGroups, setExpandedGroups] = useState({});
   const [menuLoading, setMenuLoading] = useState(true);
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [formStep, setFormStep] = useState(1);
@@ -60,12 +59,8 @@ export default function AdminMenuManager() {
   const [newIngredientName, setNewIngredientName] = useState('');
   const [newCuisineName, setNewCuisineName] = useState('');
 
-  const toggleGroup = (group) => {
-    setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }));
-  };
-
   const [newMainCat, setNewMainCat] = useState({ name: '', display_order: 0 });
-  const [newCat, setNewCat] = useState({ name: '', display_order: 0, main_category_id: '', course_type: '' });
+  const [newCat, setNewCat] = useState({ name: '', display_order: 0, main_category_id: '' });
   
   const initialItemState = {
     name: '', description: '', price: 0, image_url: '', 
@@ -108,15 +103,6 @@ export default function AdminMenuManager() {
       setActiveCategory(catData[0].id);
     }
     
-    // Auto-expand the group that contains the active category
-    if (activeCategory) {
-      const activeCat = catData.find(c => c.id === activeCategory);
-      if (activeCat) {
-        setExpandedGroups(prev => ({ ...prev, [activeCat.course_type || 'Other']: true }));
-      }
-    } else if (catData.length > 0) {
-      setExpandedGroups({ [catData[0].course_type || 'Other']: true });
-    }
     setMenuLoading(false);
   };
 
@@ -144,7 +130,7 @@ export default function AdminMenuManager() {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(newCat)
     });
-    setNewCat({ name: '', display_order: categories.length + 1, main_category_id: '', course_type: '' });
+    setNewCat({ name: '', display_order: categories.length + 1, main_category_id: '' });
     setShowCatForm(false);
     Swal.fire({ title: 'Success!', text: 'Sub Category added successfully', icon: 'success', timer: 1500, showConfirmButton: false });
     fetchData();
@@ -591,72 +577,35 @@ export default function AdminMenuManager() {
               ? mcCats.filter(c => c.name.toLowerCase().includes(sidebarSearch.toLowerCase()))
               : mcCats;
 
-            // Group sub-categories by course_type
-            const grouped = {};
-            filteredCats.forEach(cat => {
-              const ct = cat.course_type || 'Other';
-              if (!grouped[ct]) grouped[ct] = [];
-              grouped[ct].push(cat);
-            });
-            
-            const orderedKeys = Object.keys(grouped).sort((a, b) => {
-              const orderA = Math.min(...grouped[a].map(c => c.display_order || 999));
-              const orderB = Math.min(...grouped[b].map(c => c.display_order || 999));
-              return orderA - orderB || a.localeCompare(b);
-            });
+            // Sort sub-categories by display order
+            const sortedCats = [...filteredCats].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
-            const courseTypeIcons = { 'starter': '🥗', 'main': '🍛', 'beverage': '🥤', 'Other': '📋' };
-            
             return (
               <div>
-                {orderedKeys.length === 0 && (
+                {sortedCats.length === 0 && (
                   <div style={{ padding: '20px 15px', fontSize: 13, color: '#999', textAlign: 'center' }}>
                     {sidebarSearch ? 'No matching categories' : 'No sub categories yet'}
                   </div>
                 )}
-                {orderedKeys.map((courseKey) => {
-                  const isExpanded = expandedGroups[courseKey];
-                  const totalItems = grouped[courseKey].reduce((sum, cat) => sum + items.filter(i => i.category_id === cat.id).length, 0);
+                {sortedCats.map(cat => {
+                  const catItemCount = items.filter(i => i.category_id === cat.id).length;
                   return (
-                    <div key={courseKey} className="sidebar-course-group">
-                      <div className="sidebar-course-header" onClick={() => toggleGroup(courseKey)}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 15 }}>{courseTypeIcons[courseKey] || '📋'}</span>
-                          <span style={{ fontSize: 12, fontWeight: 900, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{courseKey}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', background: 'var(--surface-alt)', padding: '2px 7px', borderRadius: 5 }}>
-                            {totalItems}
-                          </span>
-                          <span style={{ fontSize: 10, color: 'var(--text-muted)', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
-                        </div>
+                    <div key={cat.id}>
+                      <div
+                        onClick={() => setActiveCategory(cat.id)}
+                        className={`sidebar-cat-item ${activeCategory === cat.id ? 'active' : ''}`}
+                      >
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.name}</span>
+                        <span className="cat-count">{catItemCount}</span>
                       </div>
-                      {isExpanded && (
-                        <div>
-                          {grouped[courseKey].map(cat => {
-                            const catItemCount = items.filter(i => i.category_id === cat.id).length;
-                            return (
-                              <div key={cat.id}>
-                                <div
-                                  onClick={() => setActiveCategory(cat.id)}
-                                  className={`sidebar-cat-item ${activeCategory === cat.id ? 'active' : ''}`}
-                                >
-                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.name}</span>
-                                  <span className="cat-count">{catItemCount}</span>
-                                </div>
-                                {/* Inline + Add Item button under each subcategory */}
-                                {activeCategory === cat.id && (
-                                  <button
-                                    className="sidebar-add-btn"
-                                    onClick={(e) => { e.stopPropagation(); openAddItemForm(cat.id, cat.main_category_id); }}
-                                  >
-                                    <span style={{ fontSize: 14, lineHeight: 1 }}>＋</span> Add food item here
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
+                      {/* Inline + Add Item button under each subcategory */}
+                      {activeCategory === cat.id && (
+                        <button
+                          className="sidebar-add-btn"
+                          onClick={(e) => { e.stopPropagation(); openAddItemForm(cat.id, cat.main_category_id); }}
+                        >
+                          <span style={{ fontSize: 14, lineHeight: 1 }}>＋</span> Add food item here
+                        </button>
                       )}
                     </div>
                   );
@@ -754,20 +703,6 @@ export default function AdminMenuManager() {
               </select>
               <input type="text" placeholder="Name (e.g. Pizza, Curries, Coffee)" required style={{ background: '#F5F5F5' }}
                 onChange={e => setNewCat({ ...newCat, name: e.target.value })} />
-              <div style={{ background: '#FFF0EA', padding: '10px 15px', borderRadius: 12, border: '1px solid rgba(255,107,53,0.2)' }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#FF6B35', marginBottom: 8, display: 'block' }}>Course Type <span style={{ fontSize: 10, color: '#888' }}>(Used by AI Chat Guide)</span></label>
-                <select
-                  value={newCat.course_type}
-                  onChange={e => setNewCat({ ...newCat, course_type: e.target.value })}
-                  required
-                  style={{ background: '#F5F5F5', border: 'none', padding: '10px 15px', borderRadius: 10, width: '100%', color: '#333', fontWeight: 600 }}
-                >
-                  <option value="">Select Course Type</option>
-                  <option value="starter">Starter</option>
-                  <option value="main">Full meal</option>
-                  <option value="beverage">Beverages</option>
-                </select>
-              </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
                 <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={() => setShowCatForm(false)}>Cancel</button>
                 <button type="submit" className="btn-primary" style={{ flex: 1 }}>Add</button>
@@ -1020,7 +955,8 @@ export default function AdminMenuManager() {
                     const recs = itemRecs[type] || {};
                     const otherType = type === 'food_items' ? 'beverages' : 'food_items';
                     const isBevSection = type === 'beverages';
-                    const beverageCatIds = new Set((categories || []).filter(c => (c.course_type || '').toLowerCase() === 'beverage').map(c => c.id));
+                    const beverageMainIds = new Set((mainCategories || []).filter(mc => /beverage|drink|juice/i.test(mc.name || '')).map(mc => mc.id));
+                    const beverageCatIds = new Set((categories || []).filter(c => beverageMainIds.has(c.main_category_id)).map(c => c.id));
                     return (
                       <div key={type} style={{ marginBottom: 12 }}>
                         <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>{label}</label>

@@ -27,6 +27,25 @@ def _spice_cap(spice):
     return 5
 
 
+def _is_beverage_name(name):
+    """Heuristic: does a (main) category name represent drinks?
+
+    course_type was removed from the model, so beverage categories are detected
+    by the parent main category's name instead (e.g. "Beverages", "Drinks").
+    """
+    n = (name or '').lower()
+    return any(k in n for k in ('beverage', 'drink', 'juice'))
+
+
+def _beverage_category_ids(res_data):
+    """Return the set of subcategory ids that belong to a beverage main category."""
+    main_categories = format_list(res_data.get('main_categories'))
+    beverage_mc_ids = {mc['id'] for mc in main_categories if _is_beverage_name(mc.get('name', ''))}
+    categories = format_list(res_data.get('categories'))
+    return {c['id'] for c in categories if c.get('main_category_id') in beverage_mc_ids}
+
+
+
 @chat_bp.route('/chat/discover', methods=['POST'])
 @limiter.limit(LIMIT_AI)
 def discover_items():
@@ -122,7 +141,6 @@ def suggest_item():
     data = request.get_json()
     restaurant_id = data.get('restaurant_id')
     current_item = data.get('current_item', {})
-    course_type = data.get('course_type', '')
     diet = data.get('diet', '')
     spice = data.get('spice', '')
 
@@ -252,37 +270,21 @@ def evaluate_meal():
             'suggestion_text': f"Along with <b>{selected_names}</b>, these would be perfect combinations!"
         }), 200
 
-    # Fallback: hardcoded matching logic
-    categories = format_list(res_data.get('categories'))
-
-    selected_types = {v.get('item_type', 'non-veg') for v in selected_items}
-    preferred_type = 'non-veg' if 'non-veg' in selected_types else 'veg'
-
-    selected_course_types = set()
-    for v in selected_items:
-        cat_id = v.get('category_id')
-        for cat in categories:
-            if cat.get('id') == cat_id and cat.get('course_type'):
-                selected_course_types.add(cat['course_type'].lower())
+    # Fallback: suggest beverages, detected by their main category's name
+    # (course_type was removed from the model). A drink suits any meal, so we
+    # don't filter by item_type here.
+    beverage_cat_ids = _beverage_category_ids(res_data)
 
     candidates = []
     for item in active_items:
         if str(item.get('id', '')) in selected_ids:
             continue
-        if item.get('item_type') != preferred_type:
-            continue
-        item_cat_id = item.get('category_id')
-        item_course_type = ''
-        for cat in categories:
-            if cat.get('id') == item_cat_id:
-                item_course_type = cat.get('course_type', '').lower()
-                break
-        if item_course_type in selected_course_types:
+        if item.get('category_id') not in beverage_cat_ids:
             continue
         priority_score = {'high': 3, 'medium': 2, 'low': 1}.get(item.get('priority', 'medium'), 2)
         if item.get('is_bestseller'):
             priority_score += 1
-        candidates.append({**item, 'score': priority_score, 'course_type': item_course_type})
+        candidates.append({**item, 'score': priority_score})
 
     candidates.sort(key=lambda x: x.get('score', 0), reverse=True)
 

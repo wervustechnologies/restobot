@@ -237,17 +237,23 @@ def test_evaluate_beverage_skips_already_selected(client, db):
     assert body["suggestions"] == []
 
 
-def test_evaluate_fallback_excludes_same_course(client, db):
+def test_evaluate_fallback_suggests_beverage(client, db):
+    # No admin beverage recs -> fallback suggests drinks, detected by the
+    # "Beverages" main category name (course_type is gone).
     db.seed("restaurants/r1", {
+        "main_categories": {
+            "mc_food": {"id": "mc_food", "name": "Food"},
+            "mc_bev": {"id": "mc_bev", "name": "Beverages"},
+        },
         "categories": {
-            "main": {"id": "main", "course_type": "main"},
-            "bevs": {"id": "bevs", "course_type": "beverage"},
+            "main": {"id": "main", "main_category_id": "mc_food"},
+            "bevs": {"id": "bevs", "main_category_id": "mc_bev"},
         },
         "items": {
             "m1": {"name": "M1", "category_id": "main", "item_type": "non-veg", "priority": "medium"},
             "cand": {"name": "Cand", "category_id": "bevs", "item_type": "non-veg",
                      "priority": "high", "is_bestseller": True},
-            "wc": {"name": "WC", "category_id": "main", "item_type": "non-veg"},  # same course -> excluded
+            "wc": {"name": "WC", "category_id": "main", "item_type": "non-veg"},  # food, not a beverage
             "orphan": {"name": "Orphan", "category_id": "unknowncat", "item_type": "non-veg", "priority": "low"},
         },
     })
@@ -255,29 +261,37 @@ def test_evaluate_fallback_excludes_same_course(client, db):
         "restaurant_id": "r1",
         "selections": {"s1": {"id": "m1", "name": "M1", "item_type": "non-veg", "category_id": "main"}},
     }).get_json()
-    assert body["suggestions"][0]["name"] == "Cand"
+    # Only the beverage item ('Cand') is suggested; food items are excluded.
+    assert [s["name"] for s in body["suggestions"]] == ["Cand"]
 
 
-def test_evaluate_prefers_veg_when_all_veg(client, db):
+def test_evaluate_fallback_drinks_suit_any_meal(client, db):
+    # Beverages are not filtered by the meal's diet, so a drink is always offered.
     db.seed("restaurants/r1", {
-        "categories": {"bevs": {"id": "bevs", "course_type": "beverage"}},
+        "main_categories": {"mc_food": {"id": "mc_food", "name": "Food"},
+                            "mc_bev": {"id": "mc_bev", "name": "Drinks"}},
+        "categories": {"bevs": {"id": "bevs", "main_category_id": "mc_bev"}},
         "items": {
             "veg_main": {"name": "VM", "category_id": "mainx", "item_type": "veg"},
             "veg_drink": {"name": "VD", "category_id": "bevs", "item_type": "veg", "priority": "high"},
-            "nv_drink": {"name": "ND", "category_id": "bevs", "item_type": "non-veg", "priority": "high"},
+            "nv_drink": {"name": "ND", "category_id": "bevs", "item_type": "non-veg", "priority": "medium"},
         },
     })
     body = client.post("/api/chat/evaluate", json={
         "restaurant_id": "r1",
         "selections": {"s1": {"id": "veg_main", "name": "VM", "item_type": "veg", "category_id": "mainx"}},
     }).get_json()
-    # preferred_type veg -> ND (non-veg) excluded
-    assert body["suggestions"][0]["name"] == "VD"
+    names = [s["name"] for s in body["suggestions"]]
+    # Both drinks are candidates; higher-priority VD sorts first.
+    assert names[0] == "VD"
+    assert set(names) == {"VD", "ND"}
 
 
-def test_evaluate_no_candidate(client, db):
+def test_evaluate_no_beverage_main_category(client, db):
+    # No main category named like a beverage -> nothing to suggest as a drink.
     db.seed("restaurants/r1", {
-        "categories": {"main": {"id": "main", "course_type": "main"}},
+        "main_categories": {"mc_food": {"id": "mc_food", "name": "Food"}},
+        "categories": {"main": {"id": "main", "main_category_id": "mc_food"}},
         "items": {"m1": {"name": "M1", "category_id": "main", "item_type": "non-veg"}},
     })
     body = client.post("/api/chat/evaluate", json={
