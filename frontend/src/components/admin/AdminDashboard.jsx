@@ -148,9 +148,9 @@ export default function AdminDashboard() {
         </div>
 
         {/* Charts skeleton */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 30, marginBottom: 30 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 30, marginBottom: 30 }}>
           {[1,2].map(i => (
-            <div key={i} className="skeleton-card" style={{ height: 360 }}>
+            <div key={i} className="skeleton-card chart-card">
               <div className="skeleton skeleton-text md" style={{ width: '50%', marginBottom: 24 }} />
               <div className="skeleton skeleton-rect" style={{ width: '100%', height: 260 }} />
             </div>
@@ -191,6 +191,29 @@ export default function AdminDashboard() {
 
   return (
     <div>
+      <style>{`
+        .chart-card { height: 360px; padding: 25px; }
+        @media (max-width: 640px) {
+          .chart-card { height: 280px !important; padding: 15px !important; }
+          .filter-panel {
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            width: 90% !important;
+            max-width: 340px !important;
+            z-index: 10000 !important;
+          }
+          .filter-overlay {
+            display: block !important;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+          }
+        }
+        .filter-overlay { display: none; }
+      `}</style>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30, flexWrap: 'wrap', gap: 16 }}>
         <h1 style={{ fontWeight: 900, margin: 0 }}>Dashboard Overview</h1>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -216,6 +239,7 @@ export default function AdminDashboard() {
               )}
             </button>
 
+            {showFilter && <div className="filter-overlay" onClick={() => setShowFilter(false)} />}
             {showFilter && (
               <div className="filter-panel" style={{
                 position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 300,
@@ -293,8 +317,8 @@ export default function AdminDashboard() {
 
       {/* Charts */}
       {metrics && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 30, marginBottom: 30 }}>
-          <div className="card" style={{ padding: 25, height: 360 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 30, marginBottom: 30 }}>
+          <div className="card chart-card">
             <h3 style={{ marginBottom: 20, fontWeight: 800 }}>{getChartTitle()}</h3>
             <ResponsiveContainer width="100%" height="85%">
               <LineChart data={metrics.billed_daily_revenue || []}>
@@ -307,7 +331,7 @@ export default function AdminDashboard() {
             </ResponsiveContainer>
           </div>
 
-          <div className="card" style={{ padding: 25, height: 360 }}>
+          <div className="card chart-card">
             <h3 style={{ marginBottom: 20, fontWeight: 800 }}>Top 5 Popular Items</h3>
             <ResponsiveContainer width="100%" height="85%">
               <BarChart data={metrics.popular_items || []} layout="vertical">

@@ -438,9 +438,35 @@ export default function AdminMenuManager() {
             margin-bottom: 4px;
           }
 
-          @media (max-width: 640px) {
+          @media (max-width: 900px) {
           .menu-layout { flex-direction: column !important; }
           .menu-sidebar { width: 100% !important; }
+          
+          /* Make sidebar a horizontal scrollable bar on tablets/mobile */
+          .menu-sidebar .hide-scroll > div {
+            display: flex;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 8px;
+          }
+          .menu-sidebar .hide-scroll > div > div {
+            display: flex;
+            align-items: center;
+          }
+          .sidebar-cat-item {
+            white-space: nowrap;
+            border-left: none !important;
+            border-bottom: 3px solid transparent;
+            padding: 10px 14px !important;
+          }
+          .sidebar-cat-item.active {
+            border-left: none !important;
+            border-bottom-color: #FF6B35 !important;
+          }
+          .menu-sidebar .hide-scroll {
+            max-height: none !important;
+          }
+          
           .item-row { flex-wrap: wrap; gap: 10px; }
           .item-row-info { min-width: 0; flex: 1 1 calc(100% - 70px); }
           .item-row-actions { width: 100%; justify-content: flex-end; }
@@ -517,7 +543,7 @@ export default function AdminMenuManager() {
       </div>
 
       {/* Main Categories Tabs */}
-      <div style={{ display: 'flex', gap: 10, overflowX: 'auto', marginBottom: 20 }} className="hide-scroll">
+      <div style={{ display: 'flex', gap: 10, overflowX: 'auto', marginBottom: 20, WebkitOverflowScrolling: 'touch' }} className="hide-scroll">
         {mainCategories.map(mc => (
           <button key={mc.id} onClick={() => {
             setActiveMainCategory(mc.id);

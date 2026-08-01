@@ -107,6 +107,13 @@ export default function AdminReviews() {
 
   return (
     <div>
+      <style>{`
+        .review-link-form { display: flex; gap: 12px; }
+        @media (max-width: 640px) {
+          .review-link-form { flex-direction: column; }
+          .review-link-form button { width: 100%; }
+        }
+      `}</style>
       <h1 style={{ fontSize: 24, fontWeight: 900, marginBottom: 24 }}>Reviews & Feedback</h1>
 
       <div className="card" style={{ padding: 24, marginBottom: 24 }}>
@@ -114,13 +121,13 @@ export default function AdminReviews() {
         <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
           Set the Google Reviews URL for your restaurant. Customers will be redirected here when they tap "Reviews" on the menu page.
         </p>
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div className="review-link-form">
           <input
             type="text"
             value={reviewLink}
             onChange={e => setReviewLink(e.target.value)}
             placeholder="https://search.google.com/local/writereview?placeid=..."
-            style={{ flex: 1 }}
+            style={{ flex: 1, padding: '14px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--input-bg)' }}
           />
           <button onClick={saveReviewLink} className="btn-primary" disabled={saving} style={{ whiteSpace: 'nowrap', padding: '14px 24px' }}>
             {saving ? 'Saving...' : 'Save'}
