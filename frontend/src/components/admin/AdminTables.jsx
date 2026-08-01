@@ -131,14 +131,22 @@ export default function AdminTables() {
 
   return (
     <div style={{ padding: '20px' }}>
+      <style>{`
+        .add-table-form { display: flex; gap: 10px; }
+        .add-table-input { text-align: left; background: #F5F5F5; min-width: 180px; flex: 1; }
+        @media (max-width: 640px) {
+          .add-table-form { width: 100%; flex-direction: column; }
+          .add-table-input { width: 100%; box-sizing: border-box; }
+          .add-table-form button { width: 100%; box-sizing: border-box; }
+        }
+      `}</style>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 20 }}>
-        <div>
+        <div style={{ flex: '1 1 300px' }}>
           <h1 style={{ fontSize: 32, fontWeight: 900, marginBottom: 5 }}>Table Manager</h1>
           <p style={{ color: '#666' }}>Generate and download QR codes for your tables.</p>
         </div>
-        <form onSubmit={handleAddTable} style={{ display: 'flex', gap: 10 }}>
-          <input type="text" placeholder="Table Name/Number" required className="btn-outline"
-            style={{ textAlign: 'left', background: '#F5F5F5', minWidth: '180px' }}
+        <form onSubmit={handleAddTable} className="add-table-form">
+          <input type="text" placeholder="Table Name/Number" required className="btn-outline add-table-input"
             value={newTableNum} onChange={e => setNewTableNum(e.target.value)} />
           <button type="submit" className="btn-primary" style={{ whiteSpace: 'nowrap' }}>+ Add Table</button>
         </form>

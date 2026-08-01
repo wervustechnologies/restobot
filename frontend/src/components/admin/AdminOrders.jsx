@@ -166,6 +166,28 @@ export default function AdminOrders() {
 
   return (
     <div>
+      <style>{`
+        .checkout-modal {
+          background: #FFF;
+          border-radius: 16px;
+          padding: 24px;
+          width: 90%;
+          max-width: 400px;
+          max-height: 80vh;
+          display: flex;
+          flex-direction: column;
+        }
+        @media (max-width: 640px) {
+          .checkout-modal {
+            width: 100% !important;
+            max-width: none !important;
+            height: 100vh !important;
+            max-height: 100vh !important;
+            border-radius: 0 !important;
+            padding: 20px !important;
+          }
+        }
+      `}</style>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30, flexWrap: 'wrap', gap: 15 }}>
         <h1 style={{ fontWeight: 900, margin: 0 }}>Active Orders</h1>
         <button onClick={fetchTables} style={{ padding: '10px 20px', background: '#FF6B35', color: '#FFF', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer' }}>
@@ -246,7 +268,7 @@ export default function AdminOrders() {
 
       {checkoutTable && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: '#FFF', borderRadius: 16, padding: 24, width: '90%', maxWidth: 400, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+          <div className="checkout-modal">
             <h3 style={{ fontSize: 20, fontWeight: 900, marginBottom: 15, textAlign: 'center' }}>Checkout Table {checkoutTable.table_number}</h3>
             <div style={{ flex: 1, overflowY: 'auto', marginBottom: 20 }}>
               {(() => {
@@ -425,7 +447,7 @@ function TableCard({ table, onCheckout }) {
       background: pillKind === 'available' ? 'var(--surface-alt)' : undefined,
       transition: 'all 0.3s'
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, gap: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, gap: 10, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
           <div style={{
             width: 48, height: 48, borderRadius: 14, flexShrink: 0,
@@ -442,7 +464,7 @@ function TableCard({ table, onCheckout }) {
             </p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
           <span style={{
             padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap',
             background: accent.bg, color: accent.color
