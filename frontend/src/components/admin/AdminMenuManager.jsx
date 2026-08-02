@@ -200,8 +200,11 @@ export default function AdminMenuManager() {
     setShowItemForm(true);
   };
 
-  const handleAddItem = async (e) => {
-    e.preventDefault();
+  const handleSave = async () => {
+    if (!newItem.name || !newItem.price) {
+      Swal.fire({ title: 'Required Fields', text: 'Please fill in the item name and price before proceeding.', icon: 'warning', timer: 2000, showConfirmButton: false });
+      return;
+    }
     const url = editItemId ? `${API_BASE_URL}/admin/items/${editItemId}` : `${API_BASE_URL}/admin/items`;
     const method = editItemId ? 'PUT' : 'POST';
     
@@ -230,6 +233,28 @@ export default function AdminMenuManager() {
       console.error("Save failed:", err);
       Swal.fire({ title: 'Error', text: err.error || 'Failed to save item', icon: 'error' });
     }
+  };
+
+  const submitOrAdvance = () => {
+    if (formStep === 1) {
+      if (!newItem.name || !newItem.price) {
+        Swal.fire({ title: 'Required Fields', text: 'Please fill in the item name and price before proceeding.', icon: 'warning', timer: 2000, showConfirmButton: false });
+        return;
+      }
+      setFormStep(2);
+    } else if (formStep === 2) {
+      setFormStep(3);
+    } else {
+      handleSave();
+    }
+  };
+
+  const handleEnter = (e) => {
+    if (e.key !== 'Enter') return;
+    const tag = (e.target?.tagName || '').toLowerCase();
+    if (tag !== 'input') return;
+    e.preventDefault();
+    submitOrAdvance();
   };
 
   const closeItemForm = () => {
@@ -765,7 +790,7 @@ export default function AdminMenuManager() {
               </button>
             </div>
 
-            <form onSubmit={handleAddItem} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <form onSubmit={(e) => { e.preventDefault(); submitOrAdvance(); }} onKeyDown={handleEnter} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
               {/* ═════ STEP 1: BASIC INFO ═════ */}
               {formStep === 1 && (
@@ -1058,17 +1083,11 @@ export default function AdminMenuManager() {
                 )}
 
                 {formStep < 3 ? (
-                  <button type="button" className="btn-primary" style={{ flex: 1 }} onClick={() => {
-                    if (!newItem.name || !newItem.price) {
-                      Swal.fire({ title: 'Required Fields', text: 'Please fill in the item name and price before proceeding.', icon: 'warning', timer: 2000, showConfirmButton: false });
-                      return;
-                    }
-                    setFormStep(s => s + 1);
-                  }}>
+                  <button key="next-btn" type="button" className="btn-primary" style={{ flex: 1 }} onClick={submitOrAdvance}>
                     Next →
                   </button>
                 ) : (
-                  <button type="submit" className="btn-primary" style={{ flex: 1 }}>
+                  <button key="submit-btn" type="submit" className="btn-primary" style={{ flex: 1 }}>
                     {editItemId ? 'Save Changes' : 'Add Item'}
                   </button>
                 )}
