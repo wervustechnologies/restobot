@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from firebase_client import get_db
 from limiter import limiter, LIMIT_AI
+from rec_utils import normalize_recs
 
 chat_bp = Blueprint('chat', __name__)
 
@@ -25,25 +26,6 @@ def _spice_cap(spice):
     if spice == 'medium':
         return 4
     return 5
-
-
-def _is_beverage_name(name):
-    """Heuristic: does a (main) category name represent drinks?
-
-    course_type was removed from the model, so beverage categories are detected
-    by the parent main category's name instead (e.g. "Beverages", "Drinks").
-    """
-    n = (name or '').lower()
-    return any(k in n for k in ('beverage', 'drink', 'juice'))
-
-
-def _beverage_category_ids(res_data):
-    """Return the set of subcategory ids that belong to a beverage main category."""
-    main_categories = format_list(res_data.get('main_categories'))
-    beverage_mc_ids = {mc['id'] for mc in main_categories if _is_beverage_name(mc.get('name', ''))}
-    categories = format_list(res_data.get('categories'))
-    return {c['id'] for c in categories if c.get('main_category_id') in beverage_mc_ids}
-
 
 
 @chat_bp.route('/chat/discover', methods=['POST'])
@@ -157,12 +139,11 @@ def suggest_item():
 
     current_id = str(current_item.get('id', ''))
 
-    # Check for admin-defined food recommendations on the current item
-    recs = res_data.get('items', {}).get(current_id, {}).get('recommendations', {})
-    food_recs = recs.get('food_items', {})
-    if food_recs:
+    # Check for admin-defined recommendations (flat map) on the current item.
+    recs = normalize_recs(res_data.get('items', {}).get(current_id, {}).get('recommendations', {}))
+    if recs:
         candidates = []
-        for rec_id, rec_data in food_recs.items():
+        for rec_id, rec_data in recs.items():
             match = next((i for i in active_items if str(i.get('id', '')) == rec_id), None)
             if match:
                 priority_score = {'high': 3, 'medium': 2, 'low': 1}.get(rec_data.get('priority', 'medium'), 2)
@@ -176,7 +157,7 @@ def suggest_item():
         if candidates:
             return jsonify({
                 'suggestions': candidates,
-                'message': f"If you liked <b>{current_item.get('name', 'that')}</b>, you might also enjoy these!"
+                'message': f"Others love to buy these together with <b>{current_item.get('name', 'that')}</b>!"
             }), 200
 
     # Fallback: match using item attributes — the guest's spice band, plus
@@ -210,89 +191,7 @@ def suggest_item():
     if suggestions:
         return jsonify({
             'suggestions': suggestions,
-            'message': f"If you liked <b>{current_item.get('name', 'that')}</b>, you might also enjoy these!"
+            'message': f"Others love to buy these together with <b>{current_item.get('name', 'that')}</b>!"
         }), 200
 
     return jsonify({'suggestions': [], 'message': ''}), 200
-
-@chat_bp.route('/chat/evaluate', methods=['POST'])
-@limiter.limit(LIMIT_AI)
-def evaluate_meal():
-    data = request.get_json()
-    restaurant_id = data.get('restaurant_id')
-    selections = data.get('selections', {})
-
-    if not restaurant_id:
-        return jsonify({'error': 'Restaurant ID required'}), 400
-
-    db_ref = get_db()
-    res_data = db_ref.child(f'restaurants/{restaurant_id}').get()
-    if not res_data:
-        return jsonify({'error': 'Restaurant not found'}), 404
-
-    items = format_list(res_data.get('items'))
-    active_items = [i for i in items if i.get('is_enabled') is not False]
-
-    selected_items = [v for v in selections.values() if v]
-    if not selected_items:
-        return jsonify({'suggestions': [], 'suggestion_text': ''}), 200
-
-    selected_ids = {str(v.get('id', '')) for v in selected_items}
-
-    # Check for admin-defined beverage recommendations across all selected items
-    beverage_candidates = []
-    for v in selected_items:
-        sel_id = str(v.get('id', ''))
-        recs = res_data.get('items', {}).get(sel_id, {}).get('recommendations', {})
-        bev_recs = recs.get('beverages', {})
-        for rec_id, rec_data in bev_recs.items():
-            if rec_id in selected_ids:
-                continue
-            match = next((i for i in active_items if str(i.get('id', '')) == rec_id), None)
-            if match:
-                priority_score = {'high': 3, 'medium': 2, 'low': 1}.get(rec_data.get('priority', 'medium'), 2)
-                beverage_candidates.append({**match, 'score': priority_score})
-
-    if beverage_candidates:
-        beverage_candidates.sort(key=lambda x: x.get('score', 0), reverse=True)
-        deduped = []
-        seen_ids = set()
-        for c in beverage_candidates:
-            cid = c.get('id')
-            if cid in seen_ids:
-                continue
-            seen_ids.add(cid)
-            deduped.append(c)
-        beverage_candidates = deduped
-        selected_names = ', '.join([v.get('name', '') for v in selected_items])
-        return jsonify({
-            'suggestions': beverage_candidates,
-            'suggestion_text': f"Along with <b>{selected_names}</b>, these would be perfect combinations!"
-        }), 200
-
-    # Fallback: suggest beverages, detected by their main category's name
-    # (course_type was removed from the model). A drink suits any meal, so we
-    # don't filter by item_type here.
-    beverage_cat_ids = _beverage_category_ids(res_data)
-
-    candidates = []
-    for item in active_items:
-        if str(item.get('id', '')) in selected_ids:
-            continue
-        if item.get('category_id') not in beverage_cat_ids:
-            continue
-        priority_score = {'high': 3, 'medium': 2, 'low': 1}.get(item.get('priority', 'medium'), 2)
-        if item.get('is_bestseller'):
-            priority_score += 1
-        candidates.append({**item, 'score': priority_score})
-
-    candidates.sort(key=lambda x: x.get('score', 0), reverse=True)
-
-    if candidates:
-        selected_names = ', '.join([v.get('name', '') for v in selected_items])
-        return jsonify({
-            'suggestions': candidates,
-            'suggestion_text': f"Along with <b>{selected_names}</b>, these would be perfect combinations!"
-        }), 200
-
-    return jsonify({'suggestions': [], 'suggestion_text': ''}), 200

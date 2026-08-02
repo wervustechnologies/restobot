@@ -137,22 +137,29 @@ def test_get_recommendations_default(client, db, auth_headers):
     db.seed("restaurants/r1/items/i1", {"name": "X"})
     resp = client.get("/api/admin/items/i1/recommendations", headers=auth_headers)
     assert resp.status_code == 200
-    assert resp.get_json() == {"food_items": {}, "beverages": {}}
+    assert resp.get_json() == {}
 
 
 def test_get_recommendations_existing(client, db, auth_headers):
-    db.seed("restaurants/r1/items/i1/recommendations", {"food_items": {"a": {"priority": "high"}}})
+    db.seed("restaurants/r1/items/i1/recommendations", {"a": {"priority": "high"}})
     resp = client.get("/api/admin/items/i1/recommendations", headers=auth_headers)
-    assert resp.get_json()["food_items"]["a"]["priority"] == "high"
+    assert resp.get_json()["a"]["priority"] == "high"
+
+
+def test_get_recommendations_normalizes_legacy(client, db, auth_headers):
+    db.seed("restaurants/r1/items/i1/recommendations",
+            {"food_items": {"a": {"priority": "high"}}, "beverages": {"b": {"priority": "low"}}})
+    resp = client.get("/api/admin/items/i1/recommendations", headers=auth_headers)
+    assert resp.get_json() == {"a": {"priority": "high"}, "b": {"priority": "low"}}
 
 
 def test_update_recommendations_uses_set(client, db, auth_headers):
     db.seed("restaurants/r1/items/i1/recommendations", {"old": "data"})
     resp = client.put("/api/admin/items/i1/recommendations",
-                      json={"food_items": {"a": {"priority": "medium"}}}, headers=auth_headers)
+                      json={"a": {"priority": "medium"}}, headers=auth_headers)
     assert resp.status_code == 200
     stored = db.read("restaurants/r1/items/i1/recommendations")
-    assert stored == {"food_items": {"a": {"priority": "medium"}}}  # set replaces, not merges
+    assert stored == {"a": {"priority": "medium"}}  # set replaces, not merges
 
 
 # ------------------------------- tables -------------------------------

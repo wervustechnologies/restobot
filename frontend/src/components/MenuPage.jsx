@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ChatAssistant from './ChatAssistant';
+import CompanionRecs from './CompanionRecs';
 import { useGuest } from '../context/GuestContext';
 import { API_BASE_URL as API } from '../apiConfig';
 import { useInvalidation } from '../hooks/useInvalidation';
@@ -464,6 +465,8 @@ export default function MenuPage() {
           navigate={navigate}
           restaurantId={restaurantId || data?.restaurant?.id}
           qrToken={qrToken}
+          itemsById={Object.fromEntries(allItems.map(i => [i.id, i]))}
+          cartIds={new Set(Object.keys(cart))}
         />
       )}
 
@@ -622,7 +625,7 @@ function FeedbackModal({ restaurantId, guestId, onClose }) {
   );
 }
 
-function WishlistDrawer({ items, total, onAdd, onRemove, onClose, onSave, isModified, wishlistId, navigate, restaurantId, qrToken }) {
+function WishlistDrawer({ items, total, onAdd, onRemove, onClose, onSave, isModified, wishlistId, navigate, restaurantId, qrToken, itemsById = {}, cartIds = new Set() }) {
   const showViewOnly = !isModified && wishlistId;
   const handleAction = () => {
     if (showViewOnly) {
@@ -640,9 +643,12 @@ function WishlistDrawer({ items, total, onAdd, onRemove, onClose, onSave, isModi
         <div style={{ padding: '10px 24px 20px', borderBottom: '1px solid #F5F5F5' }}><h2 style={{ fontSize: 22, fontWeight: 900, color: '#1A1A1A' }}>My Selections</h2></div>
         <div style={{ overflowY: 'auto', padding: '10px 24px', flex: 1 }}>
           {items.map(item => (
-            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: '1px solid #F5F5F5' }}>
-              <div style={{ flex: 1 }}><p style={{ fontSize: 15, fontWeight: 700, color: '#1A1A1A' }}>{item.name}</p><p style={{ fontSize: 13, color: '#888', marginTop: 2 }}>₹{item.price}</p></div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}><QtyControl qty={item.quantity} onAdd={() => onAdd(item)} onRemove={() => onRemove(item)} /><span style={{ fontSize: 16, fontWeight: 800, color: '#1A1A1A', minWidth: 70, textAlign: 'right' }}>₹{(item.price * item.quantity).toFixed(0)}</span></div>
+            <div key={item.id} style={{ padding: '16px 0', borderBottom: '1px solid #F5F5F5' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ flex: 1 }}><p style={{ fontSize: 15, fontWeight: 700, color: '#1A1A1A' }}>{item.name}</p><p style={{ fontSize: 13, color: '#888', marginTop: 2 }}>₹{item.price}</p></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}><QtyControl qty={item.quantity} onAdd={() => onAdd(item)} onRemove={() => onRemove(item)} /><span style={{ fontSize: 16, fontWeight: 800, color: '#1A1A1A', minWidth: 70, textAlign: 'right' }}>₹{(item.price * item.quantity).toFixed(0)}</span></div>
+              </div>
+              <CompanionRecs recommendations={item.recommendations} itemsById={itemsById} excludeIds={cartIds} onAdd={onAdd} />
             </div>
           ))}
         </div>

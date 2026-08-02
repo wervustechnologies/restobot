@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from firebase_client import get_db
 from auth_utils import token_required
+from rec_utils import normalize_recs
 import uuid
 import socket
 
@@ -185,7 +186,7 @@ def delete_item(id):
 def get_item_recommendations(id):
     db_ref = get_db()
     recs = db_ref.child(f'restaurants/{request.restaurant_id}/items/{id}/recommendations').get()
-    return jsonify(recs or {'food_items': {}, 'beverages': {}}), 200
+    return jsonify(normalize_recs(recs)), 200
 
 @admin_bp.route('/admin/items/<id>/recommendations', methods=['PUT'])
 @token_required

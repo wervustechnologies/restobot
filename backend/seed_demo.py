@@ -128,30 +128,26 @@ def seed_demo():
     I['masala_tea'] = add('Masala Chai', 'Cardamom spiced milk tea', 25, tea_cat,
                           'veg', 'Vegetables', 'Indian', 'sweet', 1, 'light', 'high', IMG_TEA)
 
-    # --- Recommendations (chat chain: food_items + beverages) ---
-    def set_recs(item_key, food_items=None, beverages=None):
-        data = {}
-        if food_items:
-            data['food_items'] = {fid: {'priority': p} for fid, p in food_items.items()}
-        if beverages:
-            data['beverages'] = {bid: {'priority': p} for bid, p in beverages.items()}
+    # --- Recommendations (flat single map per item) ---
+    def set_recs(item_key, recs):
+        data = {rid: {'priority': p} for rid, p in (recs or {}).items()}
         if data:
             items_ref.child(f'{item_key}/recommendations').set(data)
 
-    set_recs(I['butter_chicken'], {I['butter_naan']: 'high', I['ghee_rice']: 'medium'},
-             {I['masala_tea']: 'high'})
-    set_recs(I['chicken_curry'], {I['parotta']: 'high', I['ghee_rice']: 'medium'},
-             {I['black_tea']: 'high'})
-    set_recs(I['chicken_biryani'], {I['butter_naan']: 'medium'},
-             {I['filter_coffee']: 'high', I['masala_tea']: 'medium'})
-    set_recs(I['paneer_masala'], {I['butter_naan']: 'high', I['ghee_rice']: 'medium'},
-             {I['masala_tea']: 'high'})
-    set_recs(I['fish_curry'], {I['parotta']: 'high', I['ghee_rice']: 'high'},
-             {I['black_tea']: 'high'})
-    set_recs(I['chicken_tikka'], {I['butter_naan']: 'medium'},
-             {I['filter_coffee']: 'high'})
-    set_recs(I['veg_biryani'], {I['paneer_tikka']: 'medium'},
-             {I['masala_tea']: 'high'})
+    set_recs(I['butter_chicken'], {I['butter_naan']: 'high', I['ghee_rice']: 'medium',
+             I['masala_tea']: 'high'})
+    set_recs(I['chicken_curry'], {I['parotta']: 'high', I['ghee_rice']: 'medium',
+             I['black_tea']: 'high'})
+    set_recs(I['chicken_biryani'], {I['butter_naan']: 'medium',
+             I['filter_coffee']: 'high', I['masala_tea']: 'medium'})
+    set_recs(I['paneer_masala'], {I['butter_naan']: 'high', I['ghee_rice']: 'medium',
+             I['masala_tea']: 'high'})
+    set_recs(I['fish_curry'], {I['parotta']: 'high', I['ghee_rice']: 'high',
+             I['black_tea']: 'high'})
+    set_recs(I['chicken_tikka'], {I['butter_naan']: 'medium',
+             I['filter_coffee']: 'high'})
+    set_recs(I['veg_biryani'], {I['paneer_tikka']: 'medium',
+             I['masala_tea']: 'high'})
 
     print("Demo menu seeded: Category -> Subcategory -> Items with ingredient/cuisine/taste + recommendations.")
 
