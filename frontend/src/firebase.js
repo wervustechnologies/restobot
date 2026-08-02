@@ -2,14 +2,14 @@ import { initializeApp } from "firebase/app";
 import { getDatabase, ref, onValue } from "firebase/database";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCStS8j1u6NA66zE-4SGdeXS-JawSr-kQo",
-  authDomain: "restobot-80b61.firebaseapp.com",
-  projectId: "restobot-80b61",
-  databaseURL: "https://restobot-80b61-default-rtdb.firebaseio.com/",
-  storageBucket: "restobot-80b61.firebasestorage.app",
-  messagingSenderId: "161239523782",
-  appId: "1:161239523782:web:170c52fdc7c189ac7052c7",
-  measurementId: "G-BEWLHC1YS6"
+  apiKey: "AIzaSyDiChYqZ7otrW-B1nGx-2pigNMsdoyN4iw",
+  authDomain: "restobot-9cc82.firebaseapp.com",
+  databaseURL: "https://restobot-9cc82-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "restobot-9cc82",
+  storageBucket: "restobot-9cc82.firebasestorage.app",
+  messagingSenderId: "1013973131823",
+  appId: "1:1013973131823:web:a490c61bde75408f0d9cda",
+  measurementId: "G-V5P47W3RC9"
 };
 
 const app = initializeApp(firebaseConfig);
