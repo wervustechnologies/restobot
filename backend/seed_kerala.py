@@ -102,60 +102,65 @@ def seed_kerala():
     I['buttermilk'] = add('Buttermilk', 'Plain spiced buttermilk, a classic digestive after a heavy meal', 20, bev_cat.key, 'veg', 'sour', 1, 'light', 'medium', IMG_JUICE)
     I['toddy'] = add('Toddy (Kallu)', 'Traditional Kerala palm wine with a mild sweet-sour taste', 40, bev_cat.key, 'veg', 'sweet', 1, 'light', 'low', IMG_JUICE)
 
-    # ---- Recommendations ----
+    # ---- Recommendations (flat single map per item) ----
     recs_ref = db_ref.child(f'restaurants/{res_id}/items')
 
-    def set_recs(item_key, food_items, beverages):
-        data = {}
-        if food_items:
-            data['food_items'] = {fid: {'priority': p} for fid, p in food_items.items()}
-        if beverages:
-            data['beverages'] = {bid: {'priority': p} for bid, p in beverages.items()}
+    def set_recs(item_key, recs):
+        data = {rid: {'priority': p} for rid, p in (recs or {}).items()}
         if data:
             recs_ref.child(f'{item_key}/recommendations').set(data)
 
     set_recs(I['puttu'], {
         I['kadala_curry']: 'high', I['banana']: 'medium', I['papadam']: 'low',
-        I['chammanthi']: 'medium'
-    }, {I['black_tea']: 'high'})
+        I['chammanthi']: 'medium', I['black_tea']: 'high'
+    })
 
     set_recs(I['appam'], {
-        I['veg_stew']: 'high', I['chicken_stew']: 'high', I['egg_curry']: 'medium'
-    }, {I['tea']: 'high'})
+        I['veg_stew']: 'high', I['chicken_stew']: 'high', I['egg_curry']: 'medium',
+        I['tea']: 'high'
+    })
 
     set_recs(I['idiyappam'], {
-        I['egg_curry']: 'high', I['chicken_curry']: 'high', I['veg_stew']: 'medium'
-    }, {I['tea']: 'high'})
+        I['egg_curry']: 'high', I['chicken_curry']: 'high', I['veg_stew']: 'medium',
+        I['tea']: 'high'
+    })
 
     set_recs(I['parotta'], {
-        I['beef_roast']: 'high', I['chicken_curry']: 'high', I['egg_roast']: 'medium'
-    }, {I['lime_juice']: 'high'})
+        I['beef_roast']: 'high', I['chicken_curry']: 'high', I['egg_roast']: 'medium',
+        I['lime_juice']: 'high'
+    })
 
     set_recs(I['kappa'], {
-        I['meen_curry']: 'high', I['beef_curry']: 'high', I['chammanthi']: 'medium'
-    }, {I['black_tea']: 'high', I['toddy']: 'low'})
+        I['meen_curry']: 'high', I['beef_curry']: 'high', I['chammanthi']: 'medium',
+        I['black_tea']: 'high', I['toddy']: 'low'
+    })
 
     set_recs(I['neychoru'], {
-        I['chicken_curry']: 'high', I['beef_curry']: 'high', I['pickle']: 'medium'
-    }, {I['mint_lime']: 'high'})
+        I['chicken_curry']: 'high', I['beef_curry']: 'high', I['pickle']: 'medium',
+        I['mint_lime']: 'high'
+    })
 
     set_recs(I['sadya'], {
         I['sambar']: 'high', I['avial']: 'high', I['thoran']: 'medium',
         I['olan']: 'medium', I['kalan']: 'medium', I['pachadi']: 'medium',
-        I['pickle']: 'low', I['papadam']: 'low', I['payasam']: 'high'
-    }, {I['sambharam']: 'high'})
+        I['pickle']: 'low', I['papadam']: 'low', I['payasam']: 'high',
+        I['sambharam']: 'high'
+    })
 
     set_recs(I['dosa'], {
-        I['sambar']: 'high', I['coconut_chutney']: 'high', I['tomato_chutney']: 'medium'
-    }, {I['filter_coffee']: 'high'})
+        I['sambar']: 'high', I['coconut_chutney']: 'high', I['tomato_chutney']: 'medium',
+        I['filter_coffee']: 'high'
+    })
 
     set_recs(I['pathiri'], {
-        I['chicken_curry']: 'high', I['mutton_curry']: 'high', I['fish_curry']: 'medium'
-    }, {I['tea']: 'high'})
+        I['chicken_curry']: 'high', I['mutton_curry']: 'high', I['fish_curry']: 'medium',
+        I['tea']: 'high'
+    })
 
     set_recs(I['kanji'], {
-        I['payar']: 'high', I['chammanthi']: 'medium', I['pickle']: 'low', I['papadam']: 'low'
-    }, {I['buttermilk']: 'high'})
+        I['payar']: 'high', I['chammanthi']: 'medium', I['pickle']: 'low', I['papadam']: 'low',
+        I['buttermilk']: 'high'
+    })
 
     print("Kerala cuisine seeded successfully with recommendations!")
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useGuest } from '../context/GuestContext';
 import { API_BASE_URL as API } from '../apiConfig';
+import CompanionRecs from './CompanionRecs';
 import Swal from 'sweetalert2';
 
 
@@ -14,6 +15,7 @@ export default function WishlistPage() {
   const [loading, setLoading] = useState(true);
   const [orderSubmitted, setOrderSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [menuItems, setMenuItems] = useState({});
   const navigate = useNavigate();
   const { guest, guestName, saveGuestName } = useGuest();
 
@@ -27,6 +29,40 @@ export default function WishlistPage() {
     };
     fetchWishlist();
   }, [wishlistId, rid]);
+
+  // Fetch the menu once so we can resolve each item's recommendations and
+  // companion details (image/price) for the "buy together" strip.
+  useEffect(() => {
+    if (!rid) return;
+    fetch(`${API}/menu/${rid}`)
+      .then(r => r.json())
+      .then(d => {
+        const map = {};
+        (d.main_categories || []).forEach(mc =>
+          (mc.categories || []).forEach(c =>
+            (c.items || []).forEach(i => { map[i.id] = i; })
+          )
+        );
+        setMenuItems(map);
+      })
+      .catch(() => { /* companions simply stay hidden */ });
+  }, [rid]);
+
+  const addCompanion = async (companion) => {
+    if (!wishlist || !wishlist.items || !guest?.guest_id) {
+      navigate(`/menu?rid=${rid}&t=${qrToken}`);
+      return;
+    }
+    const cartMap = {};
+    wishlist.items.forEach(it => { cartMap[it.menu_item_id] = it.quantity; });
+    cartMap[companion.id] = (cartMap[companion.id] || 0) + 1;
+    await fetch(`${API}/cart`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ restaurant_id: rid, guest_id: guest.guest_id, cart: cartMap })
+    });
+    navigate(`/menu?rid=${rid}&t=${qrToken}`);
+  };
 
   const handleEditSelection = async () => {
     if (wishlist && wishlist.items) {
@@ -231,18 +267,27 @@ export default function WishlistPage() {
             <span className="wl-card-count">{wishlist?.items?.length} Items</span>
           </div>
 
-          {wishlist?.items?.map((item, idx) => (
-            <div key={idx} className="wl-item">
-              <div className="wl-item-left">
-                <div className="wl-item-dot" />
-                <div className="wl-item-info">
-                  <span className="wl-item-name">{item.name}</span>
-                  <div className="wl-item-qty">Qty: {item.quantity}</div>
+          {wishlist?.items?.map((item, idx) => {
+            const fullItem = menuItems[item.menu_item_id];
+            const excludeIds = new Set((wishlist?.items || []).map(i => i.menu_item_id));
+            return (
+              <div key={idx} style={{ padding: '12px 0', borderBottom: '1px solid var(--border, #F5F5F5)' }}>
+                <div className="wl-item" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                  <div className="wl-item-left">
+                    <div className="wl-item-dot" />
+                    <div className="wl-item-info">
+                      <span className="wl-item-name">{item.name}</span>
+                      <div className="wl-item-qty">Qty: {item.quantity}</div>
+                    </div>
+                  </div>
+                  <span className="wl-item-price">₹{item.price * item.quantity}</span>
                 </div>
+                {fullItem && (
+                  <CompanionRecs recommendations={fullItem.recommendations} itemsById={menuItems} excludeIds={excludeIds} onAdd={addCompanion} />
+                )}
               </div>
-              <span className="wl-item-price">₹{item.price * item.quantity}</span>
-            </div>
-          ))}
+            );
+          })}
 
           <div className="wl-total-bar">
             <span className="wl-total-label">Estimated Total</span>

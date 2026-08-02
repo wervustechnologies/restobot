@@ -378,7 +378,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
     }, 'None of these');
   };
 
-  // After a pick, suggest associated items (chat chain) up to 2 rounds, then beverage.
+  // After a pick, suggest associated items (chat chain) up to 2 rounds, then summary.
   const chainOrBeverage = async (mData, ctx, round) => {
     setStep('results');
     const last = ctx.picks[ctx.picks.length - 1];
@@ -395,7 +395,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
     } catch { /* keep empty */ }
 
     if (suggestions.length === 0) {
-      await beverageOrSummary(mData, ctx);
+      await showSummary(ctx);
       return;
     }
     if (message) await botSay(message, 400);
@@ -406,39 +406,9 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
       setFlow(prev => ({ ...prev, picks }));
       if (onAddToCart) onAddToCart(dish);
       if (canChain) await chainOrBeverage(mData, { ...ctx, picks }, round + 1);
-      else await beverageOrSummary(mData, { ...ctx, picks });
+      else await showSummary({ ...ctx, picks });
     }, null, async (skipId) => {
       lockCards(skipId, '__skip'); userSay('No thanks');
-      await beverageOrSummary(mData, ctx);
-    }, 'No thanks');
-  };
-
-  const beverageOrSummary = async (mData, ctx) => {
-    setStep('results');
-    let bevs = []; let text = '';
-    try {
-      const r = await fetch(`${API_BASE_URL}/chat/evaluate`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          restaurant_id: restaurantId,
-          selections: ctx.picks.reduce((acc, d, i) => { acc[i] = d; return acc; }, {})
-        })
-      });
-      const d = await r.json();
-      bevs = d.suggestions || [];
-      text = d.suggestion_text || '';
-    } catch { /* keep empty */ }
-
-    if (bevs.length === 0) { await showSummary(ctx); return; }
-    await botSay(text || 'How about a drink to go with that? 🥤', 400);
-    showCards(bevs, async (dish, cardId) => {
-      lockCards(cardId, dish.name); userSay(`✓ Add ${dish.name}`);
-      const picks = [...ctx.picks, dish];
-      setFlow(prev => ({ ...prev, picks }));
-      if (onAddToCart) onAddToCart(dish);
-      await showSummary({ ...ctx, picks });
-    }, null, async (skipId) => {
-      lockCards(skipId, '__skip'); userSay('No drink, thanks');
       await showSummary(ctx);
     }, 'No thanks');
   };

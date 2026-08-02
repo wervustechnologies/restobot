@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from firebase_client import get_db
 from limiter import limiter, LIMIT_AI, LIMIT_PUBLIC_READ
+from rec_utils import normalize_recs
 
 menu_bp = Blueprint('menu', __name__)
 
@@ -25,6 +26,11 @@ def get_menu(restaurant_id):
     cats.sort(key=lambda x: x.get('display_order', 0))
     
     items = format_list(res_data.get('items'))
+    # Flatten any legacy {food_items, beverages} recommendations into a single
+    # map so the customer-facing surfaces (chat + wishlist) can resolve
+    # companions uniformly.
+    for item in items:
+        item['recommendations'] = normalize_recs(item.get('recommendations'))
 
     # Controlled vocabularies surfaced to the AI chat so it can render pickable
     # options client-side. Cuisines are optional (chat cuisine step only shows

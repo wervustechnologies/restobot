@@ -47,8 +47,9 @@ export default function AdminMenuManager() {
   const [showMainCatForm, setShowMainCatForm] = useState(false);
   const [editItemId, setEditItemId] = useState(null);
   const { token } = useAuth();
-  const [pendingRec, setPendingRec] = useState({ food_items: '', beverages: '' });
-  const [recTypeFilter, setRecTypeFilter] = useState({ food_items: 'all', beverages: 'all' });
+  const [pendingRec, setPendingRec] = useState('');
+  const [recMainCatFilter, setRecMainCatFilter] = useState('all');
+  const [recSubCatFilter, setRecSubCatFilter] = useState('all');
 
   const [menuLoading, setMenuLoading] = useState(true);
   const [sidebarSearch, setSidebarSearch] = useState('');
@@ -69,7 +70,7 @@ export default function AdminMenuManager() {
     is_enabled: true, priority: 'medium'
   };
   const [newItem, setNewItem] = useState(initialItemState);
-  const [itemRecs, setItemRecs] = useState({ food_items: {}, beverages: {} });
+  const [itemRecs, setItemRecs] = useState({});
 
   const fetchData = async () => {
     setMenuLoading(true);
@@ -195,7 +196,10 @@ export default function AdminMenuManager() {
     const mcid = mainCatId || cat?.main_category_id || activeMainCategory;
     setNewItem({ ...initialItemState, category_id: cid || '', main_category_id: mcid || '' });
     setEditItemId(null);
-    setItemRecs({ food_items: {}, beverages: {} });
+    setItemRecs({});
+    setPendingRec('');
+    setRecMainCatFilter('all');
+    setRecSubCatFilter('all');
     setFormStep(1);
     setShowItemForm(true);
   };
@@ -261,7 +265,10 @@ export default function AdminMenuManager() {
     setNewItem(initialItemState);
     setEditItemId(null);
     setShowItemForm(false);
-    setItemRecs({ food_items: {}, beverages: {} });
+    setItemRecs({});
+    setPendingRec('');
+    setRecMainCatFilter('all');
+    setRecSubCatFilter('all');
     setFormStep(1);
   };
 
@@ -273,9 +280,12 @@ export default function AdminMenuManager() {
     setEditItemId(item.id);
     setFormStep(1);
     setShowItemForm(true);
+    setPendingRec('');
+    setRecMainCatFilter('all');
+    setRecSubCatFilter('all');
     fetch(`${API_BASE_URL}/admin/items/${item.id}/recommendations`, {
       headers: { 'Authorization': `Bearer ${token}` }
-    }).then(r => r.json()).then(data => setItemRecs(data));
+    }).then(r => r.json()).then(data => setItemRecs(data || {}));
   };
 
   const handleToggleItem = async (item) => {
@@ -999,18 +1009,16 @@ export default function AdminMenuManager() {
                   {/* Associated Recommendations */}
                   <div className="section-divider" style={{ margin: '8px 0' }} />
                   <div className="section-header">AI Chat Assistant Recommendations</div>
-                  <p style={{ fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 12 }}>Items suggested by the AI waiter when this dish is ordered.</p>
+                  <p style={{ fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 12 }}>Items the AI waiter suggests, and shown as "others love to buy together" on the wishlist.</p>
 
-                  {['food_items', 'beverages'].map(type => {
-                    const label = type === 'food_items' ? 'Food Items' : 'Beverages';
-                    const recs = itemRecs[type] || {};
-                    const otherType = type === 'food_items' ? 'beverages' : 'food_items';
-                    const isBevSection = type === 'beverages';
-                    const beverageMainIds = new Set((mainCategories || []).filter(mc => /beverage|drink|juice/i.test(mc.name || '')).map(mc => mc.id));
-                    const beverageCatIds = new Set((categories || []).filter(c => beverageMainIds.has(c.main_category_id)).map(c => c.id));
+                  {(() => {
+                    const recs = itemRecs || {};
+                    // Subcategories belonging to the selected main category filter
+                    const subCatsForFilter = (categories || []).filter(c =>
+                      recMainCatFilter === 'all' || c.main_category_id === recMainCatFilter
+                    );
                     return (
-                      <div key={type} style={{ marginBottom: 12 }}>
-                        <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>{label}</label>
+                      <div style={{ marginBottom: 12 }}>
                         {Object.keys(recs).length > 0 && (
                           <div style={{ marginBottom: 6 }}>
                             {Object.entries(recs).map(([recId, recData]) => {
@@ -1020,45 +1028,55 @@ export default function AdminMenuManager() {
                                 <div key={recId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
                                   <img src={item.image_url} style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover', background: 'var(--input-bg)', flexShrink: 0 }} />
                                   <span style={{ flex: 1, fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
-                                  <select value={recData.priority} onChange={e => setItemRecs(prev => ({ ...prev, [type]: { ...prev[type], [recId]: { priority: e.target.value } } }))}
+                                  <select value={recData.priority} onChange={e => setItemRecs(prev => ({ ...prev, [recId]: { priority: e.target.value } }))}
                                     style={{ background: 'var(--input-bg)', border: 'none', padding: '3px 6px', borderRadius: 6, fontSize: 11 }}>
                                     <option value="high">High</option>
                                     <option value="medium">Med</option>
                                     <option value="low">Low</option>
                                   </select>
                                   <button type="button" onClick={() => {
-                                    const updated = { ...itemRecs[type] };
+                                    const updated = { ...itemRecs };
                                     delete updated[recId];
-                                    setItemRecs(prev => ({ ...prev, [type]: updated }));
+                                    setItemRecs(updated);
                                   }} style={{ background: 'none', border: 'none', color: '#FF4B4B', cursor: 'pointer', fontSize: 13, padding: 2 }}>✕</button>
                                 </div>
                               );
                             })}
                           </div>
                         )}
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', marginTop: 4 }}>
-                          {type === 'food_items' && (
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', marginTop: 4, flexWrap: 'wrap' }}>
                           <div>
-                            <select value={recTypeFilter[type]} onChange={e => setRecTypeFilter(prev => ({ ...prev, [type]: e.target.value }))}
+                            <select value={recMainCatFilter} onChange={e => { setRecMainCatFilter(e.target.value); setRecSubCatFilter('all'); }}
                               style={{ background: 'var(--input-bg)', border: 'none', padding: '8px 6px', borderRadius: 8, fontSize: 11 }}>
-                              <option value="all">All</option>
-                              <option value="veg">Veg</option>
-                              <option value="non-veg">Non-Veg</option>
-                              <option value="mixed">Mixed</option>
+                              <option value="all">All Main Categories</option>
+                              {(mainCategories || []).map(mc => (
+                                <option key={mc.id} value={mc.id}>{mc.name}</option>
+                              ))}
                             </select>
                           </div>
-                          )}
-                          <div style={{ flex: 1 }}>
-                            <select value={pendingRec[type] || ''} onChange={e => {
+                          <div>
+                            <select value={recSubCatFilter} onChange={e => setRecSubCatFilter(e.target.value)}
+                              style={{ background: 'var(--input-bg)', border: 'none', padding: '8px 6px', borderRadius: 8, fontSize: 11 }}>
+                              <option value="all">All Subcategories</option>
+                              {subCatsForFilter.map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div style={{ flex: '1 1 140px', minWidth: 140 }}>
+                            <select value={pendingRec} onChange={e => {
                               const id = e.target.value;
                               if (id) {
-                                setItemRecs(prev => ({ ...prev, [type]: { ...prev[type], [id]: { priority: 'medium' } } }));
-                                setPendingRec(prev => ({ ...prev, [type]: '' }));
+                                setItemRecs(prev => ({ ...prev, [id]: { priority: 'medium' } }));
+                                setPendingRec('');
                               }
                             }}
                               style={{ width: '100%', background: 'var(--input-bg)', border: 'none', padding: '8px 10px', borderRadius: 8, fontSize: 12 }}>
-                              <option value="">+ Add recommended {label.slice(0, -1).toLowerCase()}...</option>
-                              {items.filter(i => i.id !== editItemId && !recs[i.id] && !(itemRecs[otherType] || {})[i.id] && (recTypeFilter[type] === 'all' || i.item_type === recTypeFilter[type]) && (isBevSection ? beverageCatIds.has(i.category_id) : !beverageCatIds.has(i.category_id))).map(i => (
+                              <option value="">+ Add recommended item...</option>
+                              {items.filter(i => i.id !== editItemId && !recs[i.id] &&
+                                (recMainCatFilter === 'all' || i.main_category_id === recMainCatFilter) &&
+                                (recSubCatFilter === 'all' || i.category_id === recSubCatFilter)
+                              ).map(i => (
                                 <option key={i.id} value={i.id}>{i.name}</option>
                               ))}
                             </select>
@@ -1066,7 +1084,7 @@ export default function AdminMenuManager() {
                         </div>
                       </div>
                     );
-                  })}
+                  })()}
                 </>
               )}
 
