@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../../apiConfig';
 import { useInvalidation } from '../../hooks/useInvalidation';
@@ -17,6 +17,62 @@ export default function WaiterHome() {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const waiterRid = localStorage.getItem('waiter_rid');
+
+  // ── New-order alert: sound + popup ──
+  const seenOrderIds = useRef(new Set());
+  const firstLoadDone = useRef(false);
+  const audioCtxRef = useRef(null);
+  const [orderAlert, setOrderAlert] = useState(null);
+
+  const playNewOrderSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!audioCtxRef.current) audioCtxRef.current = new AudioCtx();
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+      const now = ctx.currentTime;
+      // Two-tone ascending "ding"
+      [[880, 0], [1320, 0.18]].forEach(([freq, start]) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, now + start);
+        gain.gain.exponentialRampToValueAtTime(0.3, now + start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + start + 0.35);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now + start);
+        osc.stop(now + start + 0.36);
+      });
+    } catch { /* audio unavailable */ }
+  };
+
+  // Unlock audio on the first user gesture (browser autoplay policy).
+  useEffect(() => {
+    const unlock = () => {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx && !audioCtxRef.current) audioCtxRef.current = new AudioCtx();
+        if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') audioCtxRef.current.resume();
+      } catch { /* ignore */ }
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+    window.addEventListener('pointerdown', unlock);
+    window.addEventListener('keydown', unlock);
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, []);
+
+  // Auto-dismiss the new-order banner.
+  useEffect(() => {
+    if (!orderAlert) return;
+    const t = setTimeout(() => setOrderAlert(null), 8000);
+    return () => clearTimeout(t);
+  }, [orderAlert]);
 
   useEffect(() => {
     const token = localStorage.getItem('waiter_token');
@@ -38,6 +94,27 @@ export default function WaiterHome() {
       });
       const data = await res.json();
       setTables(data);
+
+      // ── New-order detection (sound + popup) ──
+      const list = Array.isArray(data) ? data : [];
+      const ids = list.flatMap(t => (t.orders || []).map(o => o.id));
+      if (!firstLoadDone.current) {
+        // First load: record existing orders without alerting.
+        ids.forEach(id => seenOrderIds.current.add(id));
+        firstLoadDone.current = true;
+      } else {
+        const fresh = [];
+        list.forEach(t => (t.orders || []).forEach(o => {
+          if (!seenOrderIds.current.has(o.id) && o.status === 'pending') {
+            fresh.push({ table: t.table_number, order: o });
+          }
+        }));
+        ids.forEach(id => seenOrderIds.current.add(id));
+        if (fresh.length > 0) {
+          playNewOrderSound();
+          setOrderAlert({ id: Date.now(), fresh });
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch tables:', err);
     }
@@ -319,6 +396,22 @@ export default function WaiterHome() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      {orderAlert && (
+        <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 10000, width: '90%', maxWidth: 420, background: 'linear-gradient(135deg, #FF6B35, #E85A20)', color: '#FFF', borderRadius: 14, padding: '14px 16px', boxShadow: '0 12px 30px rgba(255,107,53,0.45)', animation: 'pulse 1.5s ease-in-out infinite' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <strong style={{ fontSize: 15, fontWeight: 900 }}>🔔 New Order!</strong>
+            <button onClick={() => setOrderAlert(null)} style={{ background: 'rgba(255,255,255,0.25)', border: 'none', color: '#FFF', borderRadius: 8, padding: '4px 10px', fontWeight: 800, cursor: 'pointer' }}>Dismiss</button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {orderAlert.fresh.map((f, i) => (
+              <div key={i} style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 8, padding: '8px 10px' }}>
+                <div style={{ fontSize: 13, fontWeight: 800 }}>Table {f.table}</div>
+                <div style={{ fontSize: 12, opacity: 0.95 }}>{(f.order.items || []).map(it => `${it.quantity}x ${it.name}`).join(', ') || 'New order'}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <style>{`
         @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.7 } }
         .waiter-modal {
