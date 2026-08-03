@@ -306,6 +306,25 @@ def test_suggest_returns_all_recommendations_no_cap(client, db):
     assert names[0] == "N0"
 
 
+def test_suggest_admin_recs_ignore_diet(client, db):
+    # Owner-curated companions are shown regardless of the guest's diet — a
+    # non-veg guest buying a main should still see a curated veg side.
+    db.seed("restaurants/r1", {
+        "items": {
+            "cur": {"name": "Biryani", "recommendations": {
+                "side": {"priority": "high"}, "curry": {"priority": "medium"}}},
+            "side": {"name": "Raita", "is_enabled": True, "item_type": "veg"},
+            "curry": {"name": "Curry", "is_enabled": True, "item_type": "non-veg"},
+        }
+    })
+    body = client.post("/api/chat/suggest", json={
+        "restaurant_id": "r1", "current_item": {"id": "cur", "name": "Biryani"},
+        "diet": "non-veg",
+    }).get_json()
+    names = sorted(s["name"] for s in body["suggestions"])
+    assert names == ["Curry", "Raita"]  # both, including the veg side
+
+
 def test_suggest_fallback_taste_overlap(client, db):
     # Fallback scoring rewards shared tastes (list contains match).
     db.seed("restaurants/r1", {

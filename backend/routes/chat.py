@@ -137,7 +137,9 @@ def suggest_item():
             if match:
                 priority_score = {'high': 3, 'medium': 2, 'low': 1}.get(rec_data.get('priority', 'medium'), 2)
                 candidates.append({**match, 'score': priority_score})
-        candidates = _filter_by_diet(candidates, diet)
+        # Owner-curated "buy together" picks are shown as-is (no diet gate): a
+        # non-veg guest may well pair a main with a veg side (raita, salad), and
+        # the plan specifies all admin-defined recommendations display.
         candidates.sort(key=lambda x: x.get('score', 0), reverse=True)
         if candidates:
             return jsonify({
