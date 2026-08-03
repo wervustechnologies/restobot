@@ -134,6 +134,23 @@ def test_discover_cuisine_others_bucket(client, db):
     assert names == ["Plain"]
 
 
+def test_discover_cuisine_any_is_no_filter(client, db):
+    # The chat's "Any" cuisine choice sends cuisine='any'. It must NOT be
+    # treated as a literal cuisine name — items with no cuisine must still match.
+    db.seed("restaurants/r1", {
+        "items": {
+            "a": {"name": "A", "category_id": "c1", "main_category_id": "mc1",
+                  "item_type": "non-veg", "main_ingredient": "Chicken",
+                  "cuisine": "", "taste": ["spicy"], "priority": "high"},
+        },
+    })
+    body = client.post("/api/chat/discover", json={
+        "restaurant_id": "r1", "diet": "non-veg", "cuisine": "any",
+        "main_category_id": "mc1", "subcategory_id": "c1",
+        "ingredient": "Chicken", "taste": "spicy"
+    }).get_json()
+    assert [s["name"] for s in body["suggestions"]] == ["A"]
+
 def test_discover_veg_restaurant_forces_veg(client, db):
     db.seed("restaurants/r1", {
         "restaurant_type": "veg",

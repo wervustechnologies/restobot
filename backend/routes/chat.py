@@ -60,6 +60,9 @@ def discover_items():
     active_items = [i for i in items if i.get('is_enabled') is not False]
 
     cuisine_norm = cuisine.lower()
+    # 'any' (the chat's "Any" option) and '' both mean no cuisine filter.
+    if cuisine_norm == 'any':
+        cuisine_norm = ''
     ingredient_norm = ingredient.lower()
     taste_filter = taste if taste and taste != 'any' else ''
 
