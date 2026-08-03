@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from firebase_client import get_db
 from auth_utils import token_required
-from rec_utils import normalize_recs
+from rec_utils import normalize_recs, normalize_taste
 import uuid
 import socket
 
@@ -148,13 +148,53 @@ def delete_cuisine(id):
     return jsonify({'message': 'Cuisine deleted'}), 200
 
 
+# --- Tastes (optional per-restaurant flavour vocabulary) ---
+@admin_bp.route('/admin/tastes', methods=['GET'])
+@token_required
+def get_tastes():
+    db_ref = get_db()
+    tastes = db_ref.child(f'restaurants/{request.restaurant_id}/tastes').get()
+    t_list = format_list(tastes)
+    t_list.sort(key=lambda x: x.get('display_order', 0))
+    return jsonify(t_list), 200
+
+@admin_bp.route('/admin/tastes', methods=['POST'])
+@token_required
+def add_taste():
+    db_ref = get_db()
+    data = request.get_json()
+    if data.get('emoji') is None:
+        data['emoji'] = ''
+    t_ref = db_ref.child(f'restaurants/{request.restaurant_id}/tastes').push(data)
+    return jsonify({'id': t_ref.key, **data}), 201
+
+@admin_bp.route('/admin/tastes/<id>', methods=['PUT'])
+@token_required
+def update_taste(id):
+    db_ref = get_db()
+    data = request.get_json()
+    db_ref.child(f'restaurants/{request.restaurant_id}/tastes/{id}').update(data)
+    return jsonify({'message': 'Taste updated', 'id': id, 'data': data}), 200
+
+@admin_bp.route('/admin/tastes/<id>', methods=['DELETE'])
+@token_required
+def delete_taste(id):
+    db_ref = get_db()
+    db_ref.child(f'restaurants/{request.restaurant_id}/tastes/{id}').delete()
+    return jsonify({'message': 'Taste deleted'}), 200
+
+
 # --- Items ---
 @admin_bp.route('/admin/items', methods=['GET'])
 @token_required
 def get_items():
     db_ref = get_db()
     items = db_ref.child(f'restaurants/{request.restaurant_id}/items').get()
-    return jsonify(format_list(items)), 200
+    item_list = format_list(items)
+    # Read-only normalization: legacy single-string taste -> one-element list.
+    for it in item_list:
+        it['taste'] = normalize_taste(it.get('taste'))
+    return jsonify(item_list), 200
 
 @admin_bp.route('/admin/items', methods=['POST'])
 @token_required

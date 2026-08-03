@@ -1,16 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { API_BASE_URL } from '../apiConfig';
 
-const TASTE_OPTIONS = [
-  { label: '🌶️ Spicy', val: 'spicy' },
-  { label: '🍯 Sweet', val: 'sweet' },
-  { label: '🧂 Savoury', val: 'savoury' },
-  { label: '🍋 Tangy', val: 'tangy' },
-  { label: '🍇 Sour', val: 'sour' },
-  { label: '🥨 Salty', val: 'salty' },
-  { label: '🥛 Creamy', val: 'creamy' },
-];
-
 // Inject styles once
 const CSS = `
 .copt{background:#fff;border:0.5px solid #ddd;border-radius:20px;padding:7px 14px;font-size:12px;cursor:pointer;color:#333;transition:background 0.15s, border-color 0.15s;white-space:nowrap;font-family:inherit;display:flex;align-items:center;gap:5px}
@@ -33,7 +23,6 @@ const CSS = `
 .ctag-veg{background:#e1f5ee;color:#085041}
 .ctag-nov{background:#fce8e8;color:#7a1111}
 .ctag-mix{background:#fef3e0;color:#7a4a06}
-.ctag-sp{background:#faece7;color:#712b13}
 .ctyping{display:flex;gap:3px;align-items:center;padding:4px 0}
 .ctyping span{width:6px;height:6px;border-radius:50%;background:#ccc;display:inline-block;animation:cb 1.2s infinite}
 .ctyping span:nth-child(2){animation-delay:.2s}
@@ -204,11 +193,10 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
   const lockCards = (id, selName) => setItems(prev => prev.map(x => x.id === id ? { ...x, dis: true, selName } : x));
 
   // ── Flow ──────────────────────────────────────────────────────────────────
-  // Context object flows through the chain by value: { diet, cuisine, subcategory,
-  // subName, ingredient, taste, picks: [dish,...] }. Picks accumulate as the user
-  // accepts suggestions; onAddToCart fires for each pick immediately.
-  const allCats = (mData) => (mData?.main_categories || []).flatMap(mc => mc.categories || []);
-
+  // Context object flows through the chain by value: { diet, cuisine,
+  // main_category_id, subcategory, subName, ingredient, taste, picks: [dish,...] }.
+  // Picks accumulate as the user accepts suggestions; onAddToCart fires for each
+  // pick immediately.
   const dietOk = (item, diet) => {
     if (diet === 'veg') return item.item_type === 'veg' || item.item_type === 'mixed';
     if (diet === 'non-veg') return item.item_type === 'non-veg' || item.item_type === 'mixed';
@@ -217,10 +205,20 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
   const cuisineOk = (item, cuisine) => (!cuisine || cuisine === 'any') ? true : item.cuisine === cuisine;
 
   const ingredientOptionsFor = (mData, ctx) => {
-    const cat = allCats(mData).find(c => c.id === ctx.subcategory);
+    // Candidate items in the chosen subcategory passing diet + cuisine.
+    const mc = (mData?.main_categories || []).find(m => m.id === ctx.main_category_id);
+    const cat = (mc?.categories || []).find(c => c.id === ctx.subcategory);
     const matched = (cat?.items || []).filter(i => i.is_enabled !== false && dietOk(i, ctx.diet) && cuisineOk(i, ctx.cuisine));
+    // Intersection of the owner-managed ingredients collection with the distinct
+    // main_ingredient values actually present in this subcategory. Guarantees the
+    // chat never offers an ingredient that would yield zero results.
+    const managed = (mData?.ingredients || []).map(i => i.name);
     const present = [];
-    matched.forEach(i => { if (i.main_ingredient && !present.includes(i.main_ingredient)) present.push(i.main_ingredient); });
+    matched.forEach(i => {
+      if (i.main_ingredient && managed.includes(i.main_ingredient) && !present.includes(i.main_ingredient)) {
+        present.push(i.main_ingredient);
+      }
+    });
     return present;
   };
 
@@ -255,7 +253,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
     if (cuisines.length) {
       await askCuisine(mData, ctx);
     } else {
-      await askSubcategory(mData, ctx);
+      await askMainCategory(mData, ctx);
     }
   };
 
@@ -267,22 +265,66 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
     opts.push({ label: '🤷 Any', val: 'any' });
     showOpts(opts, async (o, id) => {
       lockOpts(id, o.val); userSay(o.label);
-      await askSubcategory(mData, { ...ctx, cuisine: o.val });
+      await askMainCategory(mData, { ...ctx, cuisine: o.val });
     }, async (id) => {
       lockOpts(id, '__back'); userSay('⬅️ Back');
       await startFlow(mData, resName);
     });
   };
 
+  // Eligible main categories: those having >=1 subcategory with >=1 item that
+  // passes the current diet (+cuisine) filter.
+  const eligibleMainCats = (mData, ctx) =>
+    (mData?.main_categories || []).filter(mc => {
+      const subs = (mc.categories || []).filter(cat =>
+        (cat.items || []).some(i => i.is_enabled !== false && dietOk(i, ctx.diet) && cuisineOk(i, ctx.cuisine))
+      );
+      return subs.length > 0;
+    });
+
+  const askMainCategory = async (mData, ctx) => {
+    setStep('main_category');
+    const mcs = eligibleMainCats(mData, ctx);
+    if (mcs.length === 0) {
+      await botSay("I couldn't find dishes for those preferences. Let's start over. 😕", 300);
+      showOpts([{ label: '🔄 Start Over', val: 'restart' }], () => restart());
+      return;
+    }
+    // Exactly one eligible main category -> auto-select and advance silently.
+    if (mcs.length === 1) {
+      const mc = mcs[0];
+      await askSubcategory(mData, { ...ctx, main_category_id: mc.id });
+      return;
+    }
+    await botSay('📂 Which <b>category</b> are you in the mood for?', 400);
+    showOpts(mcs.map(mc => ({ label: mc.name, val: mc.id, name: mc.name })), async (o, id) => {
+      lockOpts(id, o.val); userSay(o.name);
+      await askSubcategory(mData, { ...ctx, main_category_id: o.val });
+    }, async (id) => {
+      lockOpts(id, '__back'); userSay('⬅️ Back');
+      const cuisines = mData?.cuisines || [];
+      if (cuisines.length) await askCuisine(mData, ctx);
+      else await startFlow(mData, resName);
+    });
+  };
+
   const askSubcategory = async (mData, ctx) => {
     setStep('subcategory');
-    const subs = allCats(mData).filter(cat => {
-      const items = (cat.items || []).filter(i => i.is_enabled !== false && dietOk(i, ctx.diet) && cuisineOk(i, ctx.cuisine));
-      return items.length > 0;
+    const mc = (mData?.main_categories || []).find(m => m.id === ctx.main_category_id);
+    const subsAll = mc?.categories || [];
+    const subs = subsAll.filter(cat => {
+      const its = (cat.items || []).filter(i => i.is_enabled !== false && dietOk(i, ctx.diet) && cuisineOk(i, ctx.cuisine));
+      return its.length > 0;
     });
     if (subs.length === 0) {
       await botSay("I couldn't find dishes for those preferences. Let's start over. 😕", 300);
       showOpts([{ label: '🔄 Start Over', val: 'restart' }], () => restart());
+      return;
+    }
+    // Exactly one eligible subcategory -> auto-select and advance silently.
+    if (subs.length === 1) {
+      const s = subs[0];
+      await askIngredient(mData, { ...ctx, subcategory: s.id, subName: s.name });
       return;
     }
     await botSay('🍽️ What <b>type of dish</b> are you in the mood for?', 400);
@@ -291,9 +333,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
       await askIngredient(mData, { ...ctx, subcategory: o.val, subName: o.name });
     }, async (id) => {
       lockOpts(id, '__back'); userSay('⬅️ Back');
-      const cuisines = mData?.cuisines || [];
-      if (cuisines.length) await askCuisine(mData, ctx);
-      else await startFlow(mData, resName);
+      await askMainCategory(mData, ctx);
     });
   };
 
@@ -318,11 +358,22 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
   };
 
   const askTaste = async (mData, ctx) => {
+    const tastes = mData?.tastes || [];
+    if (tastes.length === 0) {
+      // Owner hasn't defined tastes -> skip; no taste filter sent.
+      await runDiscover(mData, { ...ctx, taste: '' });
+      return;
+    }
     setStep('taste');
     await botSay('👅 What <b>flavour</b> are you craving?', 400);
-    showOpts(TASTE_OPTIONS, async (o, id) => {
+    const opts = tastes.map(t => ({ label: t.emoji ? `${t.emoji} ${t.name}` : t.name, val: t.name }));
+    opts.push({ label: '🤷 Any', val: 'any' });
+    showOpts(opts, async (o, id) => {
       lockOpts(id, o.val); userSay(o.label);
-      await runDiscover(mData, { ...ctx, taste: o.val });
+      // "Any" disables the taste filter (empty string). Single pick -> backend
+      // keeps items whose taste list CONTAINS it.
+      const taste = o.val === 'any' ? '' : o.val;
+      await runDiscover(mData, { ...ctx, taste });
     }, async (id) => {
       lockOpts(id, '__back'); userSay('⬅️ Back');
       await askIngredient(mData, ctx);
@@ -341,9 +392,10 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
           restaurant_id: restaurantId,
           diet: ctx.diet,
           cuisine: ctx.cuisine || '',
+          main_category_id: ctx.main_category_id || '',
           subcategory_id: ctx.subcategory,
           ingredient: ctx.ingredient || 'any',
-          taste: ctx.taste
+          taste: ctx.taste || ''
         })
       });
       const data = await res.json();
@@ -359,7 +411,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
       ], (o, id) => {
         lockOpts(id, o.val);
         if (o.val === 'restart') restart();
-        else askTaste(mData, { ...ctx, taste: undefined });
+        else askTaste(mData, { ...ctx, taste: '' });
       });
       return;
     }
@@ -374,7 +426,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
     }, null, async (skipId) => {
       lockCards(skipId, '__skip'); userSay('None of these');
       showOpts([{ label: '🔄 Start Over', val: 'restart' }, { label: '⬅️ Change Flavour', val: 'back' }],
-        (o, id) => { lockOpts(id, o.val); if (o.val === 'restart') restart(); else askTaste(mData, { ...ctx, taste: undefined }); });
+        (o, id) => { lockOpts(id, o.val); if (o.val === 'restart') restart(); else askTaste(mData, { ...ctx, taste: '' }); });
     }, 'None of these');
   };
 
@@ -447,7 +499,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
   const stepList = () => {
     const list = ['diet'];
     if ((menuData?.cuisines || []).length) list.push('cuisine');
-    list.push('subcategory', 'ingredient', 'taste', 'results', 'summary');
+    list.push('main_category', 'subcategory', 'ingredient', 'taste', 'results', 'summary');
     return list;
   };
   const stepIdx = stepList().indexOf(step);
@@ -455,8 +507,9 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
 
   const getStepLabel = () => {
     const map = {
-      diet: 'Food Type', cuisine: 'Cuisine', subcategory: 'Dish Type',
-      ingredient: 'Ingredient', taste: 'Flavour', results: 'Suggestions', summary: 'Your Picks'
+      diet: 'Food Type', cuisine: 'Cuisine', main_category: 'Category',
+      subcategory: 'Dish Type', ingredient: 'Ingredient', taste: 'Flavour',
+      results: 'Suggestions', summary: 'Your Picks'
     };
     return map[step] || '';
   };
@@ -504,7 +557,6 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
                   <span className={`ctag ${d.item_type === 'veg' ? 'ctag-veg' : d.item_type === 'non-veg' ? 'ctag-nov' : 'ctag-mix'}`}>
                     {d.item_type === 'veg' ? 'Veg' : d.item_type === 'non-veg' ? 'Non-Veg' : 'Mixed'}
                   </span>
-                  {d.spice_level >= 3 && <span className="ctag ctag-sp">🌶️ Spicy</span>}
                 </div>
               </div>
             </div>

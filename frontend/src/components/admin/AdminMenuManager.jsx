@@ -32,12 +32,48 @@ function PillRadio({ label, options, value, onChange, hint }) {
   );
 }
 
+/* ─── Multi-Select Toggle Pills Component ─── */
+function PillMulti({ label, options, values, onChange, hint }) {
+  const selected = Array.isArray(values) ? values : [];
+  const toggle = (val) => {
+    const next = selected.includes(val)
+      ? selected.filter(v => v !== val)
+      : [...selected, val];
+    onChange(next);
+  };
+  return (
+    <div className="field-group">
+      <label className="field-label">{label}</label>
+      <div className="pill-radio-group">
+        {options.length === 0 && (
+          <span className="field-hint" style={{ margin: 0 }}>No options yet.</span>
+        )}
+        {options.map(opt => {
+          const isActive = selected.includes(opt.value);
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => toggle(opt.value)}
+              className={`pill-radio ${isActive ? 'active' : ''}`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+      {hint && <span className="field-hint">{hint}</span>}
+    </div>
+  );
+}
+
 export default function AdminMenuManager() {
   const [mainCategories, setMainCategories] = useState([]);
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
   const [ingredients, setIngredients] = useState([]);
   const [cuisines, setCuisines] = useState([]);
+  const [tastes, setTastes] = useState([]);
   
   const [activeMainCategory, setActiveMainCategory] = useState(null);
   const [activeCategory, setActiveCategory] = useState(null);
@@ -55,17 +91,19 @@ export default function AdminMenuManager() {
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [formStep, setFormStep] = useState(1);
 
-  // Menu Setup (ingredients + cuisines) management
+  // Menu Setup (ingredients + cuisines + tastes) management
   const [showSetupForm, setShowSetupForm] = useState(false);
   const [newIngredientName, setNewIngredientName] = useState('');
   const [newCuisineName, setNewCuisineName] = useState('');
+  const [newTasteName, setNewTasteName] = useState('');
+  const [newTasteEmoji, setNewTasteEmoji] = useState('');
 
   const [newMainCat, setNewMainCat] = useState({ name: '', display_order: 0 });
   const [newCat, setNewCat] = useState({ name: '', display_order: 0, main_category_id: '' });
   
   const initialItemState = {
     name: '', description: '', price: 0, image_url: '', 
-    item_type: 'veg', spice_level: 3, taste: 'spicy', heaviness: 'medium', category_id: '', main_category_id: '',
+    item_type: 'veg', taste: [], heaviness: 'medium', category_id: '', main_category_id: '',
     main_ingredient: '', cuisine: '',
     is_enabled: true, priority: 'medium'
   };
@@ -74,18 +112,20 @@ export default function AdminMenuManager() {
 
   const fetchData = async () => {
     setMenuLoading(true);
-    const [mainCatRes, catRes, itemRes, ingRes, cuiRes] = await Promise.all([
+    const [mainCatRes, catRes, itemRes, ingRes, cuiRes, tasteRes] = await Promise.all([
       fetch(`${API_BASE_URL}/admin/main_categories`, { headers: { 'Authorization': `Bearer ${token}` } }),
       fetch(`${API_BASE_URL}/admin/categories`, { headers: { 'Authorization': `Bearer ${token}` } }),
       fetch(`${API_BASE_URL}/admin/items`, { headers: { 'Authorization': `Bearer ${token}` } }),
       fetch(`${API_BASE_URL}/admin/ingredients`, { headers: { 'Authorization': `Bearer ${token}` } }),
-      fetch(`${API_BASE_URL}/admin/cuisines`, { headers: { 'Authorization': `Bearer ${token}` } })
+      fetch(`${API_BASE_URL}/admin/cuisines`, { headers: { 'Authorization': `Bearer ${token}` } }),
+      fetch(`${API_BASE_URL}/admin/tastes`, { headers: { 'Authorization': `Bearer ${token}` } })
     ]);
     const mainCatData = await mainCatRes.json();
     const catData = await catRes.json();
     const itemData = await itemRes.json();
     const ingData = await ingRes.json();
     const cuiData = await cuiRes.json();
+    const tasteData = await tasteRes.json();
     
     if (catData.some(c => !c.main_category_id)) {
       mainCatData.push({ id: 'legacy-other', name: 'Other' });
@@ -96,6 +136,7 @@ export default function AdminMenuManager() {
     setItems(itemData);
     setIngredients(Array.isArray(ingData) ? ingData : []);
     setCuisines(Array.isArray(cuiData) ? cuiData : []);
+    setTastes(Array.isArray(tasteData) ? tasteData : []);
     
     if (!activeMainCategory && mainCatData.length > 0) {
       setActiveMainCategory(mainCatData[0].id);
@@ -173,6 +214,27 @@ export default function AdminMenuManager() {
 
   const handleDeleteCuisine = async (id) => {
     await fetch(`${API_BASE_URL}/admin/cuisines/${id}`, {
+      method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
+    });
+    fetchData();
+  };
+
+  const handleAddTaste = async (e) => {
+    e.preventDefault();
+    const name = newTasteName.trim();
+    if (!name) return;
+    await fetch(`${API_BASE_URL}/admin/tastes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ name, display_order: tastes.length, emoji: newTasteEmoji.trim() })
+    });
+    setNewTasteName('');
+    setNewTasteEmoji('');
+    fetchData();
+  };
+
+  const handleDeleteTaste = async (id) => {
+    await fetch(`${API_BASE_URL}/admin/tastes/${id}`, {
       method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
     });
     fetchData();
@@ -273,9 +335,14 @@ export default function AdminMenuManager() {
   };
 
   const handleEditClick = (item) => {
+    const rawTaste = item.taste;
+    const tasteList = Array.isArray(rawTaste)
+      ? rawTaste
+      : (rawTaste ? [rawTaste] : []);
     setNewItem({
       ...initialItemState,
-      ...item
+      ...item,
+      taste: tasteList
     });
     setEditItemId(item.id);
     setFormStep(1);
@@ -941,17 +1008,6 @@ export default function AdminMenuManager() {
 
                   <div className="form-grid-2">
                     <PillRadio
-                      label="Spice Level"
-                      value={newItem.spice_level || 3}
-                      onChange={v => setNewItem({ ...newItem, spice_level: v })}
-                      options={[
-                        { value: 1, label: 'Mild' },
-                        { value: 3, label: 'Medium' },
-                        { value: 5, label: 'Hot' }
-                      ]}
-                    />
-
-                    <PillRadio
                       label="Heaviness"
                       value={newItem.heaviness}
                       onChange={v => setNewItem({ ...newItem, heaviness: v })}
@@ -963,19 +1019,17 @@ export default function AdminMenuManager() {
                     />
                   </div>
 
-                  <PillRadio
+                  <PillMulti
                     label="Taste Profile"
-                    value={newItem.taste || 'spicy'}
-                    onChange={v => setNewItem({ ...newItem, taste: v })}
-                    options={[
-                      { value: 'spicy', label: 'Spicy' },
-                      { value: 'sweet', label: 'Sweet' },
-                      { value: 'savoury', label: 'Savoury' },
-                      { value: 'tangy', label: 'Tangy' },
-                      { value: 'sour', label: 'Sour' },
-                      { value: 'salty', label: 'Salty' },
-                      { value: 'creamy', label: 'Creamy' }
-                    ]}
+                    values={newItem.taste || []}
+                    onChange={vals => setNewItem({ ...newItem, taste: vals })}
+                    options={tastes.map(t => ({
+                      value: t.name,
+                      label: t.emoji ? `${t.emoji} ${t.name}` : t.name
+                    }))}
+                    hint={tastes.length === 0
+                      ? "Add tastes under “Menu Setup” to enable flavour filtering in the chat"
+                      : "Pick one or more; the chat lets customers filter by any matching flavour"}
                   />
                 </>
               )}
@@ -1172,6 +1226,32 @@ export default function AdminMenuManager() {
                   <button type="submit" className="btn-primary" style={{ padding: '10px 16px', fontSize: 13 }}>Add</button>
                 </form>
               </div>
+            </div>
+
+            {/* Tastes */}
+            <div className="field-box" style={{ marginTop: 12 }}>
+              <div className="section-header" style={{ margin: '0 0 4px' }}>Tastes (optional)</div>
+              <span className="field-hint" style={{ display: 'block', marginBottom: 8 }}>Multi-select flavour tags shown on items; the chat shows a flavour filter only when this list has entries.</span>
+              <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 10 }}>
+                {tastes.length === 0 && (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '6px 0' }}>No tastes yet.</div>
+                )}
+                {tastes.map(t => (
+                  <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{t.emoji ? `${t.emoji} ${t.name}` : t.name}</span>
+                    <button type="button" onClick={() => handleDeleteTaste(t.id)} style={{ background: 'none', border: 'none', color: '#FF4B4B', cursor: 'pointer', fontSize: 13 }}>✕</button>
+                  </div>
+                ))}
+              </div>
+              <form onSubmit={handleAddTaste} style={{ display: 'flex', gap: 6 }}>
+                <input type="text" placeholder="Add taste (e.g. Spicy)…" value={newTasteName}
+                  onChange={e => setNewTasteName(e.target.value)}
+                  style={{ flex: 1, background: 'var(--input-bg)', border: 'none', padding: '10px 12px', borderRadius: 10, fontSize: 13 }} />
+                <input type="text" placeholder="Emoji" value={newTasteEmoji}
+                  onChange={e => setNewTasteEmoji(e.target.value)}
+                  style={{ width: 70, background: 'var(--input-bg)', border: 'none', padding: '10px 12px', borderRadius: 10, fontSize: 13, textAlign: 'center' }} />
+                <button type="submit" className="btn-primary" style={{ padding: '10px 16px', fontSize: 13 }}>Add</button>
+              </form>
             </div>
 
             <button type="button" className="btn-primary" style={{ width: '100%', marginTop: 16 }}

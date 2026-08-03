@@ -21,3 +21,18 @@ def normalize_recs(recs):
                     flat[rec_id] = rec_data
         return flat
     return recs
+
+
+def normalize_taste(taste):
+    """Normalize an item's ``taste`` field to a list of name-strings.
+
+    Legacy items stored a single string (e.g. ``"spicy"``); newer items store a
+    list (e.g. ``["spicy", "sweet"]``). This is a read-only normalization — the
+    stored value is never written back — so existing data keeps working without
+    a migration. Missing/None becomes ``[]``.
+    """
+    if taste is None:
+        return []
+    if isinstance(taste, list):
+        return [str(t) for t in taste if t is not None and str(t) != ""]
+    return [str(taste)] if str(taste) != "" else []

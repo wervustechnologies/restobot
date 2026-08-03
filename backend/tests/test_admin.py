@@ -98,6 +98,44 @@ def test_add_and_delete_cuisine(client, auth_headers, db):
     assert db.read(f"restaurants/r1/cuisines/{cid}") is None
 
 
+# ------------------------------- tastes -------------------------------
+def test_tastes_sorted(client, db, auth_headers):
+    db.seed("restaurants/r1/tastes", {
+        "a": {"name": "spicy", "display_order": 2, "emoji": "🌶️"},
+        "b": {"name": "sweet", "display_order": 1, "emoji": "🍯"},
+    })
+    resp = client.get("/api/admin/tastes", headers=auth_headers)
+    body = resp.get_json()
+    assert [t["name"] for t in body] == ["sweet", "spicy"]
+    assert body[0]["emoji"] == "🍯"
+
+
+def test_add_update_delete_taste(client, auth_headers, db):
+    resp = client.post("/api/admin/tastes", json={"name": "Tangy", "display_order": 1}, headers=auth_headers)
+    assert resp.status_code == 201
+    body = resp.get_json()
+    tid = body["id"]
+    # emoji defaults to empty string when omitted
+    assert body["emoji"] == ""
+    assert db.read(f"restaurants/r1/tastes/{tid}")["name"] == "Tangy"
+
+    assert client.put(f"/api/admin/tastes/{tid}", json={"emoji": "🍋"}, headers=auth_headers).status_code == 200
+    assert db.read(f"restaurants/r1/tastes/{tid}")["emoji"] == "🍋"
+
+    assert client.delete(f"/api/admin/tastes/{tid}", headers=auth_headers).status_code == 200
+    assert db.read(f"restaurants/r1/tastes/{tid}") is None
+
+
+def test_add_taste_with_emoji(client, auth_headers, db):
+    resp = client.post("/api/admin/tastes",
+                       json={"name": "creamy", "display_order": 0, "emoji": "🥛"},
+                       headers=auth_headers)
+    assert resp.status_code == 201
+    tid = resp.get_json()["id"]
+    stored = db.read(f"restaurants/r1/tastes/{tid}")
+    assert stored == {"name": "creamy", "display_order": 0, "emoji": "🥛"}
+
+
 # -------------------------------- items -------------------------------
 def test_get_items(client, db, auth_headers):
     db.seed("restaurants/r1/items", {"i1": {"name": "Item1", "price": 5}})
@@ -109,6 +147,20 @@ def test_get_items_empty_returns_empty_list(client, auth_headers):
     resp = client.get("/api/admin/items", headers=auth_headers)
     assert resp.status_code == 200
     assert resp.get_json() == []
+
+
+def test_get_items_normalizes_taste(client, db, auth_headers):
+    # Read-only: legacy string -> [string], list kept, missing -> [].
+    db.seed("restaurants/r1/items", {
+        "legacy": {"name": "L", "taste": "spicy"},
+        "multi": {"name": "M", "taste": ["spicy", "sweet"]},
+        "plain": {"name": "P"},
+    })
+    body = client.get("/api/admin/items", headers=auth_headers).get_json()
+    by_name = {i["name"]: i for i in body}
+    assert by_name["L"]["taste"] == ["spicy"]
+    assert by_name["M"]["taste"] == ["spicy", "sweet"]
+    assert by_name["P"]["taste"] == []
 
 
 def test_add_item(client, auth_headers):
