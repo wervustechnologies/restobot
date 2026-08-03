@@ -63,6 +63,7 @@ def test_get_menu_empty_collections(client, db):
     assert body["restaurant"]["restaurant_type"] == "mixed"
     assert body["ingredients"] == []
     assert body["cuisines"] == []
+    assert body["tastes"] == []
 
 
 def test_get_menu_returns_vocab_and_type(client, db):
@@ -71,11 +72,33 @@ def test_get_menu_returns_vocab_and_type(client, db):
         "ingredients": {"a": {"name": "Mushroom", "display_order": 2},
                         "b": {"name": "Paneer", "display_order": 1}},
         "cuisines": {"k": {"name": "Kerala", "display_order": 1}},
+        "tastes": {"t1": {"name": "spicy", "display_order": 1, "emoji": "🌶️"},
+                   "t0": {"name": "sweet", "display_order": 0, "emoji": "🍯"}},
     })
     body = client.get("/api/menu/r1").get_json()
     assert body["restaurant"]["restaurant_type"] == "veg"
     assert [i["name"] for i in body["ingredients"]] == ["Paneer", "Mushroom"]
     assert [c["name"] for c in body["cuisines"]] == ["Kerala"]
+    assert [t["name"] for t in body["tastes"]] == ["sweet", "spicy"]
+
+
+def test_get_menu_normalizes_item_taste(client, db):
+    # Read-only normalization: legacy string -> one-element list; missing -> [].
+    db.seed("restaurants/r1", {
+        "main_categories": {"mc1": {"name": "M", "display_order": 0}},
+        "categories": {"c1": {"name": "C", "main_category_id": "mc1", "display_order": 0}},
+        "items": {
+            "legacy": {"name": "L", "category_id": "c1", "taste": "spicy"},
+            "multi": {"name": "M2", "category_id": "c1", "taste": ["spicy", "sweet"]},
+            "none": {"name": "N", "category_id": "c1"},
+        },
+    })
+    body = client.get("/api/menu/r1").get_json()
+    items = {i["name"]: i for i in
+             body["main_categories"][0]["categories"][0]["items"]}
+    assert items["L"]["taste"] == ["spicy"]
+    assert items["M2"]["taste"] == ["spicy", "sweet"]
+    assert items["N"]["taste"] == []
 
 
 # --------------------------- recommend ---------------------------------
@@ -92,11 +115,12 @@ def test_recommend_scoring(client, db):
     resp = client.post("/api/menu/r1/recommend", json=prefs)
     assert resp.status_code == 200
     recs = resp.get_json()
-    assert len(recs) == 3
-    # A matches type(+5), spice<=1(+3), heaviness(+2), bestseller(+2) = 12 -> top
+    # No cap: all items returned (spice_level no longer contributes to score).
+    assert len(recs) == 4
+    # A matches type(+5), heaviness(+2), bestseller(+2) = 9 -> top
     assert recs[0]["name"] == "A"
-    assert recs[0]["match_score"] == 12
-    # C has spice diff 2 -> no spice point; type+5, heaviness+2 = 7
+    assert recs[0]["match_score"] == 9
+    # C: type+5, heaviness+2 = 7 (no spice point anymore)
     c = next(r for r in recs if r["name"] == "C")
     assert c["match_score"] == 7
 
@@ -111,7 +135,8 @@ def test_recommend_missing_defaults(client, db):
     assert recs[0]["name"] == "A"
 
 
-def test_recommend_returns_top_three(client, db):
+def test_recommend_returns_all_no_cap(client, db):
+    # Cap removed: every eligible item is returned (previously top-3).
     db.seed("restaurants/r1", {
         "items": {
             f"i{n}": {"name": f"N{n}", "item_type": "veg", "spice_level": 3, "heaviness": "light"}
@@ -119,4 +144,4 @@ def test_recommend_returns_top_three(client, db):
         }
     })
     recs = client.post("/api/menu/r1/recommend", json={"item_type": "veg", "spice_level": 3, "heaviness": "light"}).get_json()
-    assert len(recs) == 3
+    assert len(recs) == 6

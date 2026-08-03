@@ -35,7 +35,6 @@ export default function CompanionRecs({ recommendations = {}, itemsById = {}, ex
     .map(([id, recData]) => ({ item: itemsById[id], priority: (recData || {}).priority }))
     .filter(({ item }) => item && item.is_enabled !== false && !exclude.has(item.id))
     .sort((a, b) => (PRIORITY_RANK[a.priority] ?? 3) - (PRIORITY_RANK[b.priority] ?? 3))
-    .slice(0, 3)
     .map(c => c.item);
 
   if (companions.length === 0) return null;

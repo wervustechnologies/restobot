@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from firebase_client import get_db
 from limiter import limiter, LIMIT_AI, LIMIT_PUBLIC_READ
-from rec_utils import normalize_recs
+from rec_utils import normalize_recs, normalize_taste
 
 menu_bp = Blueprint('menu', __name__)
 
@@ -28,9 +28,11 @@ def get_menu(restaurant_id):
     items = format_list(res_data.get('items'))
     # Flatten any legacy {food_items, beverages} recommendations into a single
     # map so the customer-facing surfaces (chat + wishlist) can resolve
-    # companions uniformly.
+    # companions uniformly. Also normalize each item's `taste` to a list
+    # (read-only: legacy single strings become one-element lists).
     for item in items:
         item['recommendations'] = normalize_recs(item.get('recommendations'))
+        item['taste'] = normalize_taste(item.get('taste'))
 
     # Controlled vocabularies surfaced to the AI chat so it can render pickable
     # options client-side. Cuisines are optional (chat cuisine step only shows
@@ -39,6 +41,8 @@ def get_menu(restaurant_id):
     ingredients.sort(key=lambda x: x.get('display_order', 0))
     cuisines = format_list(res_data.get('cuisines'))
     cuisines.sort(key=lambda x: x.get('display_order', 0))
+    tastes = format_list(res_data.get('tastes'))
+    tastes.sort(key=lambda x: x.get('display_order', 0))
     
     main_categories = []
     for mc in main_cats:
@@ -98,6 +102,7 @@ def get_menu(restaurant_id):
         },
         'ingredients': ingredients,
         'cuisines': cuisines,
+        'tastes': tastes,
         'main_categories': main_categories
     }), 200
 
@@ -115,14 +120,11 @@ def recommend_items(restaurant_id):
         score = 0
         if item.get('item_type') == prefs.get('item_type'):
             score += 5
-        pref_spice = prefs.get('spice_level', 3)
-        if abs(item.get('spice_level', 3) - pref_spice) <= 1:
-            score += 3
         if item.get('heaviness') == prefs.get('heaviness'):
             score += 2
         if item.get('is_bestseller'):
             score += 2
         scored_items.append({**item, 'match_score': score})
-        
-    recommendations = sorted(scored_items, key=lambda x: x['match_score'], reverse=True)[:3]
+
+    recommendations = sorted(scored_items, key=lambda x: x['match_score'], reverse=True)
     return jsonify(recommendations), 200

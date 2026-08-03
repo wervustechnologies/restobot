@@ -41,8 +41,80 @@ def test_discover_filters_and_scores(client, db):
         "ingredient": "Chicken", "taste": "spicy"
     }).get_json()
     names = [s["name"] for s in body["suggestions"]]
-    assert names == ["A", "C"]  # 'a' (high+bestseller+spicy) beats 'c'
-    assert "top" in body["message"]
+    # No top-N cap: all matching items returned, sorted by priority (A high, C medium).
+    assert names == ["A", "C"]
+    assert body["message"]  # non-empty success message
+
+
+def test_discover_returns_all_no_cap(client, db):
+    # Five spicy chicken non-veg items must ALL come back (priority order).
+    db.seed("restaurants/r1", {
+        "items": {f"i{n}": {"name": f"N{n}", "category_id": "c1", "item_type": "non-veg",
+                            "main_ingredient": "Chicken", "taste": "spicy",
+                            "priority": "low" if n == 0 else "high"}
+                  for n in range(5)},
+    })
+    body = client.post("/api/chat/discover", json={
+        "restaurant_id": "r1", "diet": "non-veg", "subcategory_id": "c1",
+        "ingredient": "Chicken", "taste": "spicy"
+    }).get_json()
+    names = [s["name"] for s in body["suggestions"]]
+    assert len(names) == 5
+    # priority high sorts before low (N1..N4 high, N0 low)
+    assert names[-1] == "N0"
+
+
+def test_discover_main_category_filter(client, db):
+    db.seed("restaurants/r1", {
+        "items": {
+            "a": {"name": "A", "category_id": "c1", "main_category_id": "mc1",
+                  "item_type": "veg", "main_ingredient": "Paneer", "taste": "spicy"},
+            "b": {"name": "B", "category_id": "c2", "main_category_id": "mc2",
+                  "item_type": "veg", "main_ingredient": "Paneer", "taste": "spicy"},
+        },
+    })
+    body = client.post("/api/chat/discover", json={
+        "restaurant_id": "r1", "diet": "veg", "main_category_id": "mc1",
+        "subcategory_id": "c1", "ingredient": "any", "taste": "spicy"
+    }).get_json()
+    assert [s["name"] for s in body["suggestions"]] == ["A"]
+
+
+def test_discover_taste_contains_match(client, db):
+    # v2 semantics: taste is multi-select on items, single-select contains filter.
+    db.seed("restaurants/r1", {
+        "items": {
+            "multi": {"name": "Multi", "category_id": "c1", "item_type": "veg",
+                      "main_ingredient": "Paneer", "taste": ["spicy", "sweet"]},
+            "legacy": {"name": "Legacy", "category_id": "c1", "item_type": "veg",
+                       "main_ingredient": "Paneer", "taste": "spicy"},  # legacy string
+            "nomatch": {"name": "NoMatch", "category_id": "c1", "item_type": "veg",
+                        "main_ingredient": "Paneer", "taste": ["sour"]},
+        },
+    })
+    # picking 'spicy' keeps items whose taste list contains it (case-insensitive)
+    body = client.post("/api/chat/discover", json={
+        "restaurant_id": "r1", "diet": "veg", "subcategory_id": "c1",
+        "ingredient": "any", "taste": "SPICY"
+    }).get_json()
+    names = sorted(s["name"] for s in body["suggestions"])
+    assert names == ["Legacy", "Multi"]  # both contain 'spicy'; NoMatch excluded
+
+
+def test_discover_empty_taste_is_no_filter(client, db):
+    db.seed("restaurants/r1", {
+        "items": {
+            "a": {"name": "A", "category_id": "c1", "item_type": "veg",
+                  "main_ingredient": "Paneer", "taste": ["spicy"]},
+            "b": {"name": "B", "category_id": "c1", "item_type": "veg",
+                  "main_ingredient": "Paneer", "taste": ["sweet"]},
+        },
+    })
+    body = client.post("/api/chat/discover", json={
+        "restaurant_id": "r1", "diet": "veg", "subcategory_id": "c1",
+        "ingredient": "any", "taste": ""
+    }).get_json()
+    assert sorted(s["name"] for s in body["suggestions"]) == ["A", "B"]
 
 
 def test_discover_cuisine_others_bucket(client, db):
@@ -198,3 +270,45 @@ def test_suggest_no_match_returns_empty(client, db):
     }).get_json()
     assert body["suggestions"] == []
     assert body["message"] == ""
+
+
+def test_suggest_returns_all_recommendations_no_cap(client, db):
+    # More than 3 admin-defined companions must all come back (cap removed).
+    recs = {f"i{n}": {"priority": "low"} for n in range(5)}
+    recs["i0"] = {"priority": "high"}
+    items = {"cur": {"name": "Curry", "recommendations": recs}}
+    for n in range(5):
+        items[f"i{n}"] = {"name": f"N{n}", "is_enabled": True}
+    db.seed("restaurants/r1", {"items": items})
+    body = client.post("/api/chat/suggest", json={
+        "restaurant_id": "r1", "current_item": {"id": "cur", "name": "Curry"},
+    }).get_json()
+    names = [s["name"] for s in body["suggestions"]]
+    assert len(names) == 5
+    # sorted by priority: the high-priority one first
+    assert names[0] == "N0"
+
+
+def test_suggest_fallback_taste_overlap(client, db):
+    # Fallback scoring rewards shared tastes (list contains match).
+    db.seed("restaurants/r1", {
+        "categories": {"c1": {"id": "c1"}},
+        "items": {
+            "cur": {"name": "Curry", "category_id": "c1", "item_type": "non-veg",
+                    "taste": ["spicy", "sweet"], "priority": "medium"},
+            "share": {"name": "Share", "category_id": "c1", "item_type": "non-veg",
+                      "taste": ["spicy"], "priority": "medium"},      # +1 taste overlap
+            "diff": {"name": "Diff", "category_id": "c1", "item_type": "non-veg",
+                     "taste": ["sour"], "priority": "medium"},
+        },
+    })
+    body = client.post("/api/chat/suggest", json={
+        "restaurant_id": "r1",
+        "current_item": {"id": "cur", "name": "Curry", "category_id": "c1",
+                         "item_type": "non-veg", "taste": ["spicy", "sweet"]},
+    }).get_json()
+    by_name = {s["name"]: s for s in body["suggestions"]}
+    # Share gets medium(2)+taste(1)=3; Diff gets medium(2) only
+    assert by_name["Share"]["score"] == 3
+    assert by_name["Diff"]["score"] == 2
+    assert body["suggestions"][0]["name"] == "Share"

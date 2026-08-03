@@ -84,7 +84,9 @@ def test_create_restaurant_rejects_bad_type(client, db, auth_headers):
     assert resp.status_code == 400
 
 
-def test_create_restaurant_seeds_type_and_ingredients(client, db, auth_headers):
+def test_create_restaurant_does_not_seed_ingredients(client, db, auth_headers):
+    # Auto-seed of default ingredients was removed; owners add their own
+    # ingredient vocabulary via the Menu Setup panel.
     resp = client.post("/api/superadmin/create-restaurant", json={
         "restaurant_name": "Veg House", "owner_name": "Owner", "email": "veg@x.com",
         "password": "secret", "restaurant_type": "veg",
@@ -92,10 +94,7 @@ def test_create_restaurant_seeds_type_and_ingredients(client, db, auth_headers):
     assert resp.status_code == 201
     rid = resp.get_json()["rid"]
     assert db.read(f"restaurants/{rid}/restaurant_type") == "veg"
-    ingredients = db.read(f"restaurants/{rid}/ingredients") or {}
-    names = sorted(i["name"] for i in ingredients.values())
-    assert "Paneer" in names and "Mushroom" in names
-    assert "Chicken" not in names  # veg set has no meat
+    assert (db.read(f"restaurants/{rid}/ingredients") or {}) == {}
 
 
 def test_list_restaurants_returns_type(client, db, auth_headers):

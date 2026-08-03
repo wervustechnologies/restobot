@@ -4,7 +4,6 @@ import time
 from firebase_client import get_db
 from auth_utils import generate_token, token_required
 from limiter import limiter, LIMIT_AUTH
-from default_ingredients import build_default_ingredients
 
 superadmin_bp = Blueprint('superadmin', __name__)
 
@@ -89,12 +88,6 @@ def create_restaurant_admin():
         'created_at': time.time()
     })
     rid = res_ref.key
-
-    # Seed a default main-ingredient list (tailored to restaurant_type) so the
-    # menu admin can tag items immediately without typing each ingredient.
-    ingredients_ref = db_ref.child(f'restaurants/{rid}/ingredients')
-    for entry in build_default_ingredients(restaurant_type):
-        ingredients_ref.push(entry)
 
     hashed_pw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     db_ref.child('users').push({
