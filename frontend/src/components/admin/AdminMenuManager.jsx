@@ -67,6 +67,16 @@ function PillMulti({ label, options, values, onChange, hint }) {
   );
 }
 
+/* ─── Excel Logo Icon (green tile with white X) ─── */
+function ExcelIcon({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="3" fill="#ffffff" />
+      <path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="#217346" strokeWidth="2.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export default function AdminMenuManager() {
   const [mainCategories, setMainCategories] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -82,6 +92,8 @@ export default function AdminMenuManager() {
   const [showCatForm, setShowCatForm] = useState(false);
   const [showMainCatForm, setShowMainCatForm] = useState(false);
   const [editItemId, setEditItemId] = useState(null);
+  const [editMainCatId, setEditMainCatId] = useState(null);
+  const [editCatId, setEditCatId] = useState(null);
   const { token } = useAuth();
   const [pendingRec, setPendingRec] = useState('');
   const [recMainCatFilter, setRecMainCatFilter] = useState('all');
@@ -97,6 +109,12 @@ export default function AdminMenuManager() {
   const [newCuisineName, setNewCuisineName] = useState('');
   const [newTasteName, setNewTasteName] = useState('');
   const [newTasteEmoji, setNewTasteEmoji] = useState('');
+
+  // Excel import
+  const [showImportForm, setShowImportForm] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importReport, setImportReport] = useState(null);
 
   const [newMainCat, setNewMainCat] = useState({ name: '', display_order: 0 });
   const [newCat, setNewCat] = useState({ name: '', display_order: 0, main_category_id: '' });
@@ -152,8 +170,80 @@ export default function AdminMenuManager() {
     fetchData();
   }, [token]);
 
+  // ── Excel template download + import ──
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/menu/template`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'menu-import-template.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      Swal.fire({ title: 'Error', text: 'Could not download the template.', icon: 'error' });
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) {
+      Swal.fire({ title: 'Choose a file', text: 'Please select an Excel file first.', icon: 'warning', timer: 2000, showConfirmButton: false });
+      return;
+    }
+    setImporting(true);
+    setImportReport(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', importFile);
+      const res = await fetch(`${API_BASE_URL}/admin/menu/import`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: fd
+      });
+      const data = await res.json();
+      // 200 (partial/full success) and 400 (everything failed) both carry the
+      // report. Only non-report payloads (bad file / missing columns) are hard
+      // errors here.
+      if (data && (typeof data.total === 'number')) {
+        setImportReport(data);
+        fetchData();
+      } else {
+        Swal.fire({ title: 'Import failed', text: data.error || 'Could not import the file.', icon: 'error' });
+      }
+    } catch (e) {
+      Swal.fire({ title: 'Import failed', text: 'Network error while importing.', icon: 'error' });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const closeImportForm = () => {
+    setShowImportForm(false);
+    setImportFile(null);
+    setImportReport(null);
+  };
+
   const handleAddMainCategory = async (e) => {
     e.preventDefault();
+    if (editMainCatId) {
+      await fetch(`${API_BASE_URL}/admin/main_categories/${editMainCatId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name: newMainCat.name })
+      });
+      setNewMainCat({ name: '', display_order: mainCategories.length + 1 });
+      setEditMainCatId(null);
+      setShowMainCatForm(false);
+      Swal.fire({ title: 'Success!', text: 'Category updated successfully', icon: 'success', timer: 1500, showConfirmButton: false });
+      fetchData();
+      return;
+    }
     await fetch(`${API_BASE_URL}/admin/main_categories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -167,6 +257,19 @@ export default function AdminMenuManager() {
 
   const handleAddCategory = async (e) => {
     e.preventDefault();
+    if (editCatId) {
+      await fetch(`${API_BASE_URL}/admin/categories/${editCatId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name: newCat.name })
+      });
+      setNewCat({ name: '', display_order: categories.length + 1, main_category_id: '' });
+      setEditCatId(null);
+      setShowCatForm(false);
+      Swal.fire({ title: 'Success!', text: 'Sub Category updated successfully', icon: 'success', timer: 1500, showConfirmButton: false });
+      fetchData();
+      return;
+    }
     await fetch(`${API_BASE_URL}/admin/categories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -176,6 +279,28 @@ export default function AdminMenuManager() {
     setShowCatForm(false);
     Swal.fire({ title: 'Success!', text: 'Sub Category added successfully', icon: 'success', timer: 1500, showConfirmButton: false });
     fetchData();
+  };
+
+  const openEditMainCat = (mc) => {
+    setNewMainCat({ name: mc.name, display_order: mc.display_order || 0 });
+    setEditMainCatId(mc.id);
+    setShowMainCatForm(true);
+  };
+
+  const openEditCat = (cat) => {
+    setNewCat({ name: cat.name, main_category_id: cat.main_category_id || '', display_order: cat.display_order || 0 });
+    setEditCatId(cat.id);
+    setShowCatForm(true);
+  };
+
+  const closeMainCatForm = () => {
+    setEditMainCatId(null);
+    setShowMainCatForm(false);
+  };
+
+  const closeCatForm = () => {
+    setEditCatId(null);
+    setShowCatForm(false);
   };
 
   // ── Ingredients & Cuisines management ──
@@ -386,10 +511,29 @@ export default function AdminMenuManager() {
         .menu-manager-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
         .menu-manager-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .menu-manager-actions button { font-size: 13px; padding: 10px 14px; }
+
+        /* ── Excel-themed green buttons (template / import) ── */
+        .btn-excel {
+          display: inline-flex; align-items: center; gap: 7px;
+          background: #217346; color: #ffffff;
+          border: 1px solid #1b5e38;
+          font-size: 13px; font-weight: 800; letter-spacing: 0.1px;
+          padding: 10px 14px; border-radius: 10px;
+          cursor: pointer; transition: all 0.15s ease;
+          box-shadow: 0 2px 6px rgba(33, 115, 70, 0.28);
+        }
+        .btn-excel:hover {
+          background: #1b5e38; color: #ffffff;
+          box-shadow: 0 5px 14px rgba(33, 115, 70, 0.38);
+          transform: translateY(-1px);
+        }
+        .btn-excel:active { transform: translateY(0); box-shadow: 0 2px 5px rgba(33, 115, 70, 0.28); }
+        .btn-excel svg { flex-shrink: 0; }
         .menu-layout { display: flex; gap: 20px; flex-direction: row; }
         .menu-sidebar { width: 280px; flex-shrink: 0; }
         .menu-items-panel { flex: 1; min-width: 0; }
         .item-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+        .item-row-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .modal-overlay {
           position: fixed;
           top: 0; left: 0; right: 0; bottom: 0;
@@ -586,9 +730,12 @@ export default function AdminMenuManager() {
           <div className="menu-manager-header">
             <div className="skeleton skeleton-text lg" style={{ width: 200 }} />
             <div className="menu-manager-actions">
-              <div className="skeleton skeleton-rect" style={{ width: 120, height: 38 }} />
-              <div className="skeleton skeleton-rect" style={{ width: 120, height: 38 }} />
               <div className="skeleton skeleton-rect" style={{ width: 110, height: 38 }} />
+              <div className="skeleton skeleton-rect" style={{ width: 120, height: 38 }} />
+              <div className="skeleton skeleton-rect" style={{ width: 130, height: 38 }} />
+              <div className="skeleton skeleton-rect" style={{ width: 110, height: 38 }} />
+              <div className="skeleton skeleton-rect" style={{ width: 120, height: 38 }} />
+              <div className="skeleton skeleton-rect" style={{ width: 120, height: 38 }} />
             </div>
           </div>
 
@@ -638,6 +785,8 @@ export default function AdminMenuManager() {
         <h1 style={{ fontSize: 26, fontWeight: 900, margin: 0 }}>Menu Manager</h1>
         <div className="menu-manager-actions">
           <button className="btn-outline" onClick={() => setShowSetupForm(true)}>Menu Setup</button>
+          <button className="btn-excel" onClick={handleDownloadTemplate}><ExcelIcon /> Template</button>
+          <button className="btn-excel" onClick={() => setShowImportForm(true)}><ExcelIcon /> Import Excel</button>
           <button className="btn-outline" onClick={() => setShowMainCatForm(true)}>+ Category</button>
           <button className="btn-outline" onClick={() => setShowCatForm(true)}>+ Sub Category</button>
           <button className="btn-primary" onClick={() => openAddItemForm()}>+ Food Item</button>
@@ -661,9 +810,23 @@ export default function AdminMenuManager() {
               fontWeight: 800,
               boxShadow: activeMainCategory === mc.id ? '0 4px 15px rgba(255,107,53,0.3)' : 'none',
               transition: 'all 0.2s',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8
             }}>
-            {mc.name}
+            <span>{mc.name}</span>
+            {mc.id !== 'legacy-other' && (
+              <span
+                role="button"
+                title="Rename category"
+                onClick={(e) => { e.stopPropagation(); openEditMainCat(mc); }}
+                onMouseDown={(e) => e.stopPropagation()}
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: 6, opacity: 0.6, cursor: 'pointer', background: 'rgba(0,0,0,0.05)' }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -724,7 +887,18 @@ export default function AdminMenuManager() {
                         className={`sidebar-cat-item ${activeCategory === cat.id ? 'active' : ''}`}
                       >
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.name}</span>
-                        <span className="cat-count">{catItemCount}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                          <span
+                            role="button"
+                            title="Rename subcategory"
+                            onClick={(e) => { e.stopPropagation(); openEditCat(cat); }}
+                            className="cat-count"
+                            style={{ cursor: 'pointer', background: 'transparent' }}
+                          >
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                          </span>
+                          <span className="cat-count">{catItemCount}</span>
+                        </span>
                       </div>
                       {/* Inline + Add Item button under each subcategory */}
                       {activeCategory === cat.id && (
@@ -777,9 +951,18 @@ export default function AdminMenuManager() {
                     <div style={{ fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {item.name} {!item.is_enabled && <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: 12 }}>(Off)</span>}
                     </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 3 }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 3, flexWrap: 'wrap', rowGap: 4 }}>
                       <span style={{ fontSize: 13, color: '#FF6B35', fontWeight: 700 }}>₹{item.price}</span>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: item.item_type === 'veg' ? '#1DB954' : item.item_type === 'non-veg' ? '#E53935' : '#F59E0B' }} />
+                      {(Array.isArray(item.taste) ? item.taste : []).map(t => {
+                        const vocab = tastes.find(v => v.name === t);
+                        const emoji = vocab?.emoji;
+                        return (
+                          <span key={t} style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: '#FFF4EE', color: '#B5531E', fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                            {emoji && <span>{emoji}</span>}{t}
+                          </span>
+                        );
+                      })}
                       <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: item.priority === 'high' ? '#FFEBEB' : item.priority === 'low' ? '#EBF5FF' : '#F5F5F5', color: item.priority === 'high' ? '#FF4B4B' : item.priority === 'low' ? '#3498DB' : '#888', fontWeight: 800, textTransform: 'uppercase' }}>{item.priority || 'med'}</span>
                     </div>
                   </div>
@@ -803,15 +986,15 @@ export default function AdminMenuManager() {
 
       {/* ═══ Main Category Modal ═══ */}
       {showMainCatForm && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowMainCatForm(false)}>
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeMainCatForm()}>
           <div className="modal-card">
-            <h3 style={{ fontSize: 22, fontWeight: 900 }}>New Category</h3>
+            <h3 style={{ fontSize: 22, fontWeight: 900 }}>{editMainCatId ? 'Edit Category' : 'New Category'}</h3>
             <form onSubmit={handleAddMainCategory} style={{ display: 'flex', flexDirection: 'column', gap: 15, marginTop: 20 }}>
               <input type="text" placeholder="Name (e.g. Food, Beverages, Desserts)" required style={{ background: '#F5F5F5' }}
-                onChange={e => setNewMainCat({ ...newMainCat, name: e.target.value })} />
+                value={newMainCat.name} onChange={e => setNewMainCat({ ...newMainCat, name: e.target.value })} />
               <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={() => setShowMainCatForm(false)}>Cancel</button>
-                <button type="submit" className="btn-primary" style={{ flex: 1 }}>Add</button>
+                <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={closeMainCatForm}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }}>{editMainCatId ? 'Save' : 'Add'}</button>
               </div>
             </form>
           </div>
@@ -820,20 +1003,21 @@ export default function AdminMenuManager() {
 
       {/* ═══ Sub Category Modal ═══ */}
       {showCatForm && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowCatForm(false)}>
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeCatForm()}>
           <div className="modal-card">
-            <h3 style={{ fontSize: 22, fontWeight: 900 }}>New Sub Category</h3>
+            <h3 style={{ fontSize: 22, fontWeight: 900 }}>{editCatId ? 'Edit Sub Category' : 'New Sub Category'}</h3>
             <form onSubmit={handleAddCategory} style={{ display: 'flex', flexDirection: 'column', gap: 15, marginTop: 20 }}>
-              <select required style={{ background: '#F5F5F5', padding: 15, borderRadius: 12, border: 'none' }}
+              <select required disabled={!!editCatId} style={{ background: '#F5F5F5', padding: 15, borderRadius: 12, border: 'none' }}
                 value={newCat.main_category_id} onChange={e => setNewCat({ ...newCat, main_category_id: e.target.value })}>
                 <option value="">Select Main Category</option>
                 {mainCategories.filter(mc => mc.id !== 'legacy-other').map(mc => <option key={mc.id} value={mc.id}>{mc.name}</option>)}
               </select>
+              {editCatId && <span className="field-hint">Only the name is editable.</span>}
               <input type="text" placeholder="Name (e.g. Pizza, Curries, Coffee)" required style={{ background: '#F5F5F5' }}
-                onChange={e => setNewCat({ ...newCat, name: e.target.value })} />
+                value={newCat.name} onChange={e => setNewCat({ ...newCat, name: e.target.value })} />
               <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={() => setShowCatForm(false)}>Cancel</button>
-                <button type="submit" className="btn-primary" style={{ flex: 1 }}>Add</button>
+                <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={closeCatForm}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }}>{editCatId ? 'Save' : 'Add'}</button>
               </div>
             </form>
           </div>
@@ -1256,6 +1440,80 @@ export default function AdminMenuManager() {
 
             <button type="button" className="btn-primary" style={{ width: '100%', marginTop: 16 }}
               onClick={() => setShowSetupForm(false)}>Done</button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Import from Excel Modal ═══ */}
+      {showImportForm && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeImportForm()}>
+          <div className="modal-card">
+            <div className="modal-head">
+              <h3 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>Import Menu from Excel</h3>
+              <button type="button" className="modal-close" onClick={closeImportForm} aria-label="Close">✕</button>
+            </div>
+
+            {!importReport ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16 }}>
+                <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                  Download the template (it comes as a ZIP with a step-by-step instruction guide), fill in your items, then upload the .xlsx here. Categories, ingredients, cuisines and tastes are created automatically when they don't already exist. Duplicate item names fail individually without blocking the rest.
+                </p>
+                <button type="button" className="btn-excel" onClick={handleDownloadTemplate} style={{ alignSelf: 'flex-start' }}>
+                  <ExcelIcon /> Download blank template
+                </button>
+                <label style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '18px 14px', borderRadius: 12, border: '1.5px dashed var(--border)',
+                  cursor: 'pointer', background: 'var(--surface-alt)', fontSize: 13, fontWeight: 600,
+                  color: importFile ? 'var(--text)' : 'var(--text-muted)'
+                }}>
+                  {importFile ? `📄 ${importFile.name}` : 'Choose Excel file (.xlsx or .zip)'}
+                  <input type="file" accept=".xlsx,.xls,.zip" onChange={e => setImportFile(e.target.files[0] || null)} style={{ display: 'none' }} />
+                </label>
+                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                  <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={closeImportForm}>Cancel</button>
+                  <button type="button" className="btn-primary" style={{ flex: 1, opacity: importing ? 0.6 : 1 }} disabled={importing} onClick={handleImport}>
+                    {importing ? 'Importing…' : 'Import'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+                  <div style={{ flex: 1, background: 'rgba(29,185,84,0.08)', border: '1px solid rgba(29,185,84,0.22)', borderRadius: 12, padding: '14px 16px' }}>
+                    <div style={{ fontSize: 26, fontWeight: 900, color: '#1DB954' }}>{importReport.added}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Added</div>
+                  </div>
+                  <div style={{ flex: 1, background: 'rgba(255,75,75,0.06)', border: '1px solid rgba(255,75,75,0.2)', borderRadius: 12, padding: '14px 16px' }}>
+                    <div style={{ fontSize: 26, fontWeight: 900, color: '#FF4B4B' }}>{importReport.failed}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Failed</div>
+                  </div>
+                </div>
+
+                {importReport.failed > 0 && (
+                  <div>
+                    <div className="section-header" style={{ marginTop: 0 }}>Failed rows</div>
+                    <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 10 }} className="hide-scroll">
+                      {importReport.failures.map((f, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '9px 12px', borderBottom: '1px solid var(--border)', fontSize: 12.5 }}>
+                          <span style={{ fontWeight: 700, color: 'var(--text-muted)', minWidth: 46 }}>Row {f.row}</span>
+                          <span style={{ flex: 1, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name || '(empty)'}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#FF4B4B', background: 'rgba(255,75,75,0.08)', padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>{f.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {importReport.added > 0 && importReport.failed === 0 && (
+                  <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 4 }}>
+                    All {importReport.added} items were added successfully.
+                  </p>
+                )}
+
+                <button type="button" className="btn-primary" style={{ width: '100%', marginTop: 16 }} onClick={closeImportForm}>Done</button>
+              </div>
+            )}
           </div>
         </div>
       )}
