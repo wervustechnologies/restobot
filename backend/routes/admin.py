@@ -46,6 +46,14 @@ def add_main_category():
     mc_ref = db_ref.child(f'restaurants/{request.restaurant_id}/main_categories').push(data)
     return jsonify({'id': mc_ref.key, **data}), 201
 
+@admin_bp.route('/admin/main_categories/<id>', methods=['PUT'])
+@token_required
+def update_main_category(id):
+    db_ref = get_db()
+    data = request.get_json()
+    db_ref.child(f'restaurants/{request.restaurant_id}/main_categories/{id}').update(data)
+    return jsonify({'message': 'Main Category updated', 'id': id, 'data': data}), 200
+
 @admin_bp.route('/admin/main_categories/<id>', methods=['DELETE'])
 @token_required
 def delete_main_category(id):
@@ -72,6 +80,14 @@ def add_category():
     data = request.get_json()
     cat_ref = db_ref.child(f'restaurants/{request.restaurant_id}/categories').push(data)
     return jsonify({'id': cat_ref.key, **data}), 201
+
+@admin_bp.route('/admin/categories/<id>', methods=['PUT'])
+@token_required
+def update_category(id):
+    db_ref = get_db()
+    data = request.get_json()
+    db_ref.child(f'restaurants/{request.restaurant_id}/categories/{id}').update(data)
+    return jsonify({'message': 'Category updated', 'id': id, 'data': data}), 200
 
 @admin_bp.route('/admin/categories/<id>', methods=['DELETE'])
 @token_required

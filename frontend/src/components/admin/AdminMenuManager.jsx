@@ -82,6 +82,8 @@ export default function AdminMenuManager() {
   const [showCatForm, setShowCatForm] = useState(false);
   const [showMainCatForm, setShowMainCatForm] = useState(false);
   const [editItemId, setEditItemId] = useState(null);
+  const [editMainCatId, setEditMainCatId] = useState(null);
+  const [editCatId, setEditCatId] = useState(null);
   const { token } = useAuth();
   const [pendingRec, setPendingRec] = useState('');
   const [recMainCatFilter, setRecMainCatFilter] = useState('all');
@@ -154,6 +156,19 @@ export default function AdminMenuManager() {
 
   const handleAddMainCategory = async (e) => {
     e.preventDefault();
+    if (editMainCatId) {
+      await fetch(`${API_BASE_URL}/admin/main_categories/${editMainCatId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name: newMainCat.name })
+      });
+      setNewMainCat({ name: '', display_order: mainCategories.length + 1 });
+      setEditMainCatId(null);
+      setShowMainCatForm(false);
+      Swal.fire({ title: 'Success!', text: 'Category updated successfully', icon: 'success', timer: 1500, showConfirmButton: false });
+      fetchData();
+      return;
+    }
     await fetch(`${API_BASE_URL}/admin/main_categories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -167,6 +182,19 @@ export default function AdminMenuManager() {
 
   const handleAddCategory = async (e) => {
     e.preventDefault();
+    if (editCatId) {
+      await fetch(`${API_BASE_URL}/admin/categories/${editCatId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name: newCat.name })
+      });
+      setNewCat({ name: '', display_order: categories.length + 1, main_category_id: '' });
+      setEditCatId(null);
+      setShowCatForm(false);
+      Swal.fire({ title: 'Success!', text: 'Sub Category updated successfully', icon: 'success', timer: 1500, showConfirmButton: false });
+      fetchData();
+      return;
+    }
     await fetch(`${API_BASE_URL}/admin/categories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -176,6 +204,28 @@ export default function AdminMenuManager() {
     setShowCatForm(false);
     Swal.fire({ title: 'Success!', text: 'Sub Category added successfully', icon: 'success', timer: 1500, showConfirmButton: false });
     fetchData();
+  };
+
+  const openEditMainCat = (mc) => {
+    setNewMainCat({ name: mc.name, display_order: mc.display_order || 0 });
+    setEditMainCatId(mc.id);
+    setShowMainCatForm(true);
+  };
+
+  const openEditCat = (cat) => {
+    setNewCat({ name: cat.name, main_category_id: cat.main_category_id || '', display_order: cat.display_order || 0 });
+    setEditCatId(cat.id);
+    setShowCatForm(true);
+  };
+
+  const closeMainCatForm = () => {
+    setEditMainCatId(null);
+    setShowMainCatForm(false);
+  };
+
+  const closeCatForm = () => {
+    setEditCatId(null);
+    setShowCatForm(false);
   };
 
   // ── Ingredients & Cuisines management ──
@@ -390,6 +440,7 @@ export default function AdminMenuManager() {
         .menu-sidebar { width: 280px; flex-shrink: 0; }
         .menu-items-panel { flex: 1; min-width: 0; }
         .item-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+        .item-row-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .modal-overlay {
           position: fixed;
           top: 0; left: 0; right: 0; bottom: 0;
@@ -661,9 +712,23 @@ export default function AdminMenuManager() {
               fontWeight: 800,
               boxShadow: activeMainCategory === mc.id ? '0 4px 15px rgba(255,107,53,0.3)' : 'none',
               transition: 'all 0.2s',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8
             }}>
-            {mc.name}
+            <span>{mc.name}</span>
+            {mc.id !== 'legacy-other' && (
+              <span
+                role="button"
+                title="Rename category"
+                onClick={(e) => { e.stopPropagation(); openEditMainCat(mc); }}
+                onMouseDown={(e) => e.stopPropagation()}
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: 6, opacity: 0.6, cursor: 'pointer', background: 'rgba(0,0,0,0.05)' }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -724,7 +789,18 @@ export default function AdminMenuManager() {
                         className={`sidebar-cat-item ${activeCategory === cat.id ? 'active' : ''}`}
                       >
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.name}</span>
-                        <span className="cat-count">{catItemCount}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                          <span
+                            role="button"
+                            title="Rename subcategory"
+                            onClick={(e) => { e.stopPropagation(); openEditCat(cat); }}
+                            className="cat-count"
+                            style={{ cursor: 'pointer', background: 'transparent' }}
+                          >
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                          </span>
+                          <span className="cat-count">{catItemCount}</span>
+                        </span>
                       </div>
                       {/* Inline + Add Item button under each subcategory */}
                       {activeCategory === cat.id && (
@@ -777,9 +853,18 @@ export default function AdminMenuManager() {
                     <div style={{ fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {item.name} {!item.is_enabled && <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: 12 }}>(Off)</span>}
                     </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 3 }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 3, flexWrap: 'wrap', rowGap: 4 }}>
                       <span style={{ fontSize: 13, color: '#FF6B35', fontWeight: 700 }}>₹{item.price}</span>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: item.item_type === 'veg' ? '#1DB954' : item.item_type === 'non-veg' ? '#E53935' : '#F59E0B' }} />
+                      {(Array.isArray(item.taste) ? item.taste : []).map(t => {
+                        const vocab = tastes.find(v => v.name === t);
+                        const emoji = vocab?.emoji;
+                        return (
+                          <span key={t} style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: '#FFF4EE', color: '#B5531E', fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                            {emoji && <span>{emoji}</span>}{t}
+                          </span>
+                        );
+                      })}
                       <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: item.priority === 'high' ? '#FFEBEB' : item.priority === 'low' ? '#EBF5FF' : '#F5F5F5', color: item.priority === 'high' ? '#FF4B4B' : item.priority === 'low' ? '#3498DB' : '#888', fontWeight: 800, textTransform: 'uppercase' }}>{item.priority || 'med'}</span>
                     </div>
                   </div>
@@ -803,15 +888,15 @@ export default function AdminMenuManager() {
 
       {/* ═══ Main Category Modal ═══ */}
       {showMainCatForm && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowMainCatForm(false)}>
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeMainCatForm()}>
           <div className="modal-card">
-            <h3 style={{ fontSize: 22, fontWeight: 900 }}>New Category</h3>
+            <h3 style={{ fontSize: 22, fontWeight: 900 }}>{editMainCatId ? 'Edit Category' : 'New Category'}</h3>
             <form onSubmit={handleAddMainCategory} style={{ display: 'flex', flexDirection: 'column', gap: 15, marginTop: 20 }}>
               <input type="text" placeholder="Name (e.g. Food, Beverages, Desserts)" required style={{ background: '#F5F5F5' }}
-                onChange={e => setNewMainCat({ ...newMainCat, name: e.target.value })} />
+                value={newMainCat.name} onChange={e => setNewMainCat({ ...newMainCat, name: e.target.value })} />
               <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={() => setShowMainCatForm(false)}>Cancel</button>
-                <button type="submit" className="btn-primary" style={{ flex: 1 }}>Add</button>
+                <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={closeMainCatForm}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }}>{editMainCatId ? 'Save' : 'Add'}</button>
               </div>
             </form>
           </div>
@@ -820,20 +905,21 @@ export default function AdminMenuManager() {
 
       {/* ═══ Sub Category Modal ═══ */}
       {showCatForm && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowCatForm(false)}>
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeCatForm()}>
           <div className="modal-card">
-            <h3 style={{ fontSize: 22, fontWeight: 900 }}>New Sub Category</h3>
+            <h3 style={{ fontSize: 22, fontWeight: 900 }}>{editCatId ? 'Edit Sub Category' : 'New Sub Category'}</h3>
             <form onSubmit={handleAddCategory} style={{ display: 'flex', flexDirection: 'column', gap: 15, marginTop: 20 }}>
-              <select required style={{ background: '#F5F5F5', padding: 15, borderRadius: 12, border: 'none' }}
+              <select required disabled={!!editCatId} style={{ background: '#F5F5F5', padding: 15, borderRadius: 12, border: 'none' }}
                 value={newCat.main_category_id} onChange={e => setNewCat({ ...newCat, main_category_id: e.target.value })}>
                 <option value="">Select Main Category</option>
                 {mainCategories.filter(mc => mc.id !== 'legacy-other').map(mc => <option key={mc.id} value={mc.id}>{mc.name}</option>)}
               </select>
+              {editCatId && <span className="field-hint">Only the name is editable.</span>}
               <input type="text" placeholder="Name (e.g. Pizza, Curries, Coffee)" required style={{ background: '#F5F5F5' }}
-                onChange={e => setNewCat({ ...newCat, name: e.target.value })} />
+                value={newCat.name} onChange={e => setNewCat({ ...newCat, name: e.target.value })} />
               <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={() => setShowCatForm(false)}>Cancel</button>
-                <button type="submit" className="btn-primary" style={{ flex: 1 }}>Add</button>
+                <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={closeCatForm}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }}>{editCatId ? 'Save' : 'Add'}</button>
               </div>
             </form>
           </div>
