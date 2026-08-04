@@ -1,7 +1,8 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 from firebase_client import get_db
 from auth_utils import token_required
 from rec_utils import normalize_recs, normalize_taste
+from menu_import import build_import_package, import_workbook, workbook_from_upload, MenuImportError
 import uuid
 import socket
 
@@ -251,6 +252,45 @@ def update_item_recommendations(id):
     data = request.get_json()
     db_ref.child(f'restaurants/{request.restaurant_id}/items/{id}/recommendations').set(data)
     return jsonify({'message': 'Recommendations updated'}), 200
+
+# --- Menu Excel Import ---
+@admin_bp.route('/admin/menu/template', methods=['GET'])
+@token_required
+def download_menu_template():
+    # Bundle the blank template + an instruction guide into one ZIP so the user
+    # gets both files in a single download.
+    package = build_import_package()
+    return send_file(
+        package,
+        as_attachment=True,
+        download_name='menu-import-template.zip',
+        mimetype='application/zip',
+    ), 200
+
+@admin_bp.route('/admin/menu/import', methods=['POST'])
+@token_required
+def import_menu():
+    db_ref = get_db()
+    file = request.files.get('file')
+    if not file or not file.filename:
+        return jsonify({'error': 'No file uploaded. Please choose an .xlsx file.'}), 400
+    try:
+        wb = workbook_from_upload(file)
+    except MenuImportError:
+        return jsonify({'error': 'Could not read the file. Upload the .xlsx from the template (a .zip is also accepted).'}), 400
+
+    try:
+        report = import_workbook(db_ref, request.restaurant_id, wb)
+    except MenuImportError as e:
+        return jsonify({'error': str(e)}), 400
+
+    if report['total'] == 0:
+        return jsonify({'error': 'No data rows found in the file.'}), 400
+    if report['added'] == 0:
+        # Everything failed -> 4xx, but still return the report so the UI can
+        # show exactly which rows failed.
+        return jsonify(report), 400
+    return jsonify(report), 200
 
 # --- Tables ---
 @admin_bp.route('/admin/tables', methods=['GET'])
