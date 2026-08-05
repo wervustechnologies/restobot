@@ -5,6 +5,28 @@ import { useInvalidation } from '../../hooks/useInvalidation';
 import { useTheme } from '../../context/ThemeContext';
 import Swal from 'sweetalert2';
 
+function playTone(ctx, master, now, freq, start, peak, dur, type = 'triangle') {
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.0001, now + start);
+  gain.gain.exponentialRampToValueAtTime(peak, now + start + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
+  const osc = ctx.createOscillator();
+  osc.type = type;
+  osc.frequency.value = freq;
+  osc.connect(gain);
+  const shimmer = ctx.createOscillator();
+  shimmer.type = 'sine';
+  shimmer.frequency.value = freq * 2;
+  const shimmerGain = ctx.createGain();
+  shimmerGain.gain.value = 0.4;
+  shimmer.connect(shimmerGain).connect(gain);
+  gain.connect(master);
+  osc.start(now + start);
+  osc.stop(now + start + dur + 0.02);
+  shimmer.start(now + start);
+  shimmer.stop(now + start + dur + 0.02);
+}
+
 export default function WaiterHome() {
   const [tables, setTables] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,11 +40,13 @@ export default function WaiterHome() {
   const navigate = useNavigate();
   const waiterRid = localStorage.getItem('waiter_rid');
 
-  // ── New-order alert: sound + popup ──
+  // ── New-order & call-waiter alerts: sound + popup ──
   const seenOrderIds = useRef(new Set());
   const firstLoadDone = useRef(false);
   const audioCtxRef = useRef(null);
   const [orderAlert, setOrderAlert] = useState(null);
+  const seenCallKeys = useRef(new Set());
+  const [callAlert, setCallAlert] = useState(null);
 
   const playNewOrderSound = () => {
     try {
@@ -32,18 +56,30 @@ export default function WaiterHome() {
       const ctx = audioCtxRef.current;
       if (ctx.state === 'suspended') ctx.resume();
       const now = ctx.currentTime;
-      // Two-tone ascending "ding"
-      [[880, 0], [1320, 0.18]].forEach(([freq, start]) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.0001, now + start);
-        gain.gain.exponentialRampToValueAtTime(0.3, now + start + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + start + 0.35);
-        osc.connect(gain).connect(ctx.destination);
-        osc.start(now + start);
-        osc.stop(now + start + 0.36);
+      const master = ctx.createGain();
+      master.gain.value = 0.9;
+      master.connect(ctx.destination);
+      // Rising major-triad chime: C5 -> E5 -> G5
+      [523.25, 659.25, 783.99].forEach((freq, i) => {
+        playTone(ctx, master, now, freq, i * 0.13, 0.42, 0.5);
+      });
+    } catch { /* audio unavailable */ }
+  };
+
+  const playCallWaiterSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!audioCtxRef.current) audioCtxRef.current = new AudioCtx();
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+      const now = ctx.currentTime;
+      const master = ctx.createGain();
+      master.gain.value = 0.9;
+      master.connect(ctx.destination);
+      // Insistent repeated single-pitch pulse (D5) x3
+      [0, 0.18, 0.36].forEach((start) => {
+        playTone(ctx, master, now, 587.33, start, 0.4, 0.13);
       });
     } catch { /* audio unavailable */ }
   };
@@ -74,6 +110,13 @@ export default function WaiterHome() {
     return () => clearTimeout(t);
   }, [orderAlert]);
 
+  // Auto-dismiss the call-waiter banner.
+  useEffect(() => {
+    if (!callAlert) return;
+    const t = setTimeout(() => setCallAlert(null), 8000);
+    return () => clearTimeout(t);
+  }, [callAlert]);
+
   useEffect(() => {
     const token = localStorage.getItem('waiter_token');
     const user = JSON.parse(localStorage.getItem('waiter_user'));
@@ -95,12 +138,16 @@ export default function WaiterHome() {
       const data = await res.json();
       setTables(data);
 
-      // ── New-order detection (sound + popup) ──
+      // ── New-order & call-waiter detection (sound + popup) ──
       const list = Array.isArray(data) ? data : [];
       const ids = list.flatMap(t => (t.orders || []).map(o => o.id));
+      const callKeys = list
+        .filter(t => t.call_waiter && t.call_waiter_at != null)
+        .map(t => `${t.table_id}::${t.call_waiter_at}`);
       if (!firstLoadDone.current) {
-        // First load: record existing orders without alerting.
+        // First load: record existing orders/calls without alerting.
         ids.forEach(id => seenOrderIds.current.add(id));
+        callKeys.forEach(k => seenCallKeys.current.add(k));
         firstLoadDone.current = true;
       } else {
         const fresh = [];
@@ -110,9 +157,25 @@ export default function WaiterHome() {
           }
         }));
         ids.forEach(id => seenOrderIds.current.add(id));
+
+        const freshCalls = [];
+        list.forEach(t => {
+          if (t.call_waiter && t.call_waiter_at != null) {
+            const key = `${t.table_id}::${t.call_waiter_at}`;
+            if (!seenCallKeys.current.has(key)) {
+              freshCalls.push({ table: t.table_number });
+              seenCallKeys.current.add(key);
+            }
+          }
+        });
+
         if (fresh.length > 0) {
           playNewOrderSound();
           setOrderAlert({ id: Date.now(), fresh });
+        }
+        if (freshCalls.length > 0) {
+          playCallWaiterSound();
+          setCallAlert({ id: Date.now(), calls: freshCalls });
         }
       }
     } catch (err) {
@@ -396,20 +459,39 @@ export default function WaiterHome() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      {orderAlert && (
-        <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 10000, width: '90%', maxWidth: 420, background: 'linear-gradient(135deg, #FF6B35, #E85A20)', color: '#FFF', borderRadius: 14, padding: '14px 16px', boxShadow: '0 12px 30px rgba(255,107,53,0.45)', animation: 'pulse 1.5s ease-in-out infinite' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <strong style={{ fontSize: 15, fontWeight: 900 }}>🔔 New Order!</strong>
-            <button onClick={() => setOrderAlert(null)} style={{ background: 'rgba(255,255,255,0.25)', border: 'none', color: '#FFF', borderRadius: 8, padding: '4px 10px', fontWeight: 800, cursor: 'pointer' }}>Dismiss</button>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {orderAlert.fresh.map((f, i) => (
-              <div key={i} style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 8, padding: '8px 10px' }}>
-                <div style={{ fontSize: 13, fontWeight: 800 }}>Table {f.table}</div>
-                <div style={{ fontSize: 12, opacity: 0.95 }}>{(f.order.items || []).map(it => `${it.quantity}x ${it.name}`).join(', ') || 'New order'}</div>
+      {(orderAlert || callAlert) && (
+        <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 10000, display: 'flex', flexDirection: 'column', gap: 10, width: '90%', maxWidth: 420 }}>
+          {orderAlert && (
+            <div style={{ background: 'linear-gradient(135deg, #FF6B35, #E85A20)', color: '#FFF', borderRadius: 14, padding: '14px 16px', boxShadow: '0 12px 30px rgba(255,107,53,0.45)', animation: 'pulse 1.5s ease-in-out infinite' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <strong style={{ fontSize: 15, fontWeight: 900 }}>🔔 New Order!</strong>
+                <button onClick={() => setOrderAlert(null)} style={{ background: 'rgba(255,255,255,0.25)', border: 'none', color: '#FFF', borderRadius: 8, padding: '4px 10px', fontWeight: 800, cursor: 'pointer' }}>Dismiss</button>
               </div>
-            ))}
-          </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {orderAlert.fresh.map((f, i) => (
+                  <div key={i} style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 8, padding: '8px 10px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 800 }}>Table {f.table}</div>
+                    <div style={{ fontSize: 12, opacity: 0.95 }}>{(f.order.items || []).map(it => `${it.quantity}x ${it.name}`).join(', ') || 'New order'}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {callAlert && (
+            <div style={{ background: 'linear-gradient(135deg, #FFB300, #FF8F00)', color: '#FFF', borderRadius: 14, padding: '14px 16px', boxShadow: '0 12px 30px rgba(255,143,0,0.45)', animation: 'pulse 1.5s ease-in-out infinite' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <strong style={{ fontSize: 15, fontWeight: 900 }}>🔔 Waiter Called!</strong>
+                <button onClick={() => setCallAlert(null)} style={{ background: 'rgba(255,255,255,0.25)', border: 'none', color: '#FFF', borderRadius: 8, padding: '4px 10px', fontWeight: 800, cursor: 'pointer' }}>Dismiss</button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {callAlert.calls.map((c, i) => (
+                  <div key={i} style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 8, padding: '8px 10px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 800 }}>Table {c.table} is calling</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
       <style>{`
