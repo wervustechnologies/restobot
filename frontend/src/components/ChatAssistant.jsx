@@ -191,6 +191,8 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
 
   const lockOpts = (id, selVal) => setItems(prev => prev.map(x => x.id === id ? { ...x, dis: true, selVal } : x));
   const lockCards = (id, selName) => setItems(prev => prev.map(x => x.id === id ? { ...x, dis: true, selName } : x));
+  const setDiscoverTaste = (itemId, taste) => setItems(prev => prev.map(x => x.id === itemId ? { ...x, selectedTaste: taste } : x));
+  const tasteList = (d) => { const t = d && d.taste; return Array.isArray(t) ? t : (t ? [t] : []); };
 
   // ── Flow ──────────────────────────────────────────────────────────────────
   // Context object flows through the chain by value: { diet, cuisine,
@@ -341,7 +343,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
     const present = ingredientOptionsFor(mData, ctx);
     if (present.length === 0) {
       // No ingredient data for this selection -> skip the step.
-      await askTaste(mData, { ...ctx, ingredient: 'any' });
+      await runDiscover(mData, { ...ctx, ingredient: 'any' });
       return;
     }
     setStep('ingredient');
@@ -350,33 +352,10 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
     opts.push({ label: '🤷 Any', val: 'any' });
     showOpts(opts, async (o, id) => {
       lockOpts(id, o.val); userSay(o.label);
-      await askTaste(mData, { ...ctx, ingredient: o.val });
+      await runDiscover(mData, { ...ctx, ingredient: o.val });
     }, async (id) => {
       lockOpts(id, '__back'); userSay('⬅️ Back');
       await askSubcategory(mData, ctx);
-    });
-  };
-
-  const askTaste = async (mData, ctx) => {
-    const tastes = mData?.tastes || [];
-    if (tastes.length === 0) {
-      // Owner hasn't defined tastes -> skip; no taste filter sent.
-      await runDiscover(mData, { ...ctx, taste: '' });
-      return;
-    }
-    setStep('taste');
-    await botSay('👅 What <b>flavour</b> are you craving?', 400);
-    const opts = tastes.map(t => ({ label: t.emoji ? `${t.emoji} ${t.name}` : t.name, val: t.name }));
-    opts.push({ label: '🤷 Any', val: 'any' });
-    showOpts(opts, async (o, id) => {
-      lockOpts(id, o.val); userSay(o.label);
-      // "Any" disables the taste filter (empty string). Single pick -> backend
-      // keeps items whose taste list CONTAINS it.
-      const taste = o.val === 'any' ? '' : o.val;
-      await runDiscover(mData, { ...ctx, taste });
-    }, async (id) => {
-      lockOpts(id, '__back'); userSay('⬅️ Back');
-      await askIngredient(mData, ctx);
     });
   };
 
@@ -395,7 +374,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
           main_category_id: ctx.main_category_id || '',
           subcategory_id: ctx.subcategory,
           ingredient: ctx.ingredient || 'any',
-          taste: ctx.taste || ''
+          taste: ''
         })
       });
       const data = await res.json();
@@ -404,30 +383,58 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
     } catch { /* keep empty */ }
 
     if (suggestions.length === 0) {
-      await botSay(message || "Hmm, no exact match. Try a different flavour or ingredient?", 400);
+      await botSay(message || "Hmm, no exact match. Try a different ingredient?", 400);
       showOpts([
         { label: '🔄 Start Over', val: 'restart' },
-        { label: '⬅️ Change Flavour', val: 'back' }
+        { label: '⬅️ Change Ingredient', val: 'back' }
       ], (o, id) => {
         lockOpts(id, o.val);
         if (o.val === 'restart') restart();
-        else askTaste(mData, { ...ctx, taste: '' });
+        else askIngredient(mData, ctx);
       });
       return;
     }
 
     await botSay(message, 400);
-    showCards(suggestions, async (dish, cardId) => {
-      lockCards(cardId, dish.name); userSay(`✓ ${dish.name}`);
-      const picks = [...ctx.picks, dish];
-      setFlow(prev => ({ ...prev, picks }));
-      if (onAddToCart) onAddToCart(dish);
-      await chainOrBeverage(mData, { ...ctx, picks }, 0);
-    }, null, async (skipId) => {
-      lockCards(skipId, '__skip'); userSay('None of these');
-      showOpts([{ label: '🔄 Start Over', val: 'restart' }, { label: '⬅️ Change Flavour', val: 'back' }],
-        (o, id) => { lockOpts(id, o.val); if (o.val === 'restart') restart(); else askTaste(mData, { ...ctx, taste: '' }); });
-    }, 'None of these');
+
+    const presentNames = [];
+    suggestions.forEach(d => {
+      tasteList(d).forEach(t => {
+        const tn = (t || '').toLowerCase();
+        if (tn && !presentNames.includes(tn)) presentNames.push(tn);
+      });
+    });
+    const tasteChips = [];
+    (mData?.tastes || []).forEach(t => {
+      if (presentNames.includes((t.name || '').toLowerCase())) {
+        tasteChips.push({ name: t.name, emoji: t.emoji, label: t.emoji ? `${t.emoji} ${t.name}` : t.name });
+      }
+    });
+    presentNames.forEach(tn => {
+      if (!tasteChips.some(c => c.name.toLowerCase() === tn)) {
+        tasteChips.push({ name: tn, emoji: '', label: tn });
+      }
+    });
+
+    push({
+      type: 'discover',
+      allDishes: suggestions,
+      tasteChips,
+      selectedTaste: '',
+      onPick: async (dish, cardId) => {
+        lockCards(cardId, dish.name); userSay(`✓ ${dish.name}`);
+        const picks = [...ctx.picks, dish];
+        setFlow(prev => ({ ...prev, picks }));
+        if (onAddToCart) onAddToCart(dish);
+        await chainOrBeverage(mData, { ...ctx, picks }, 0);
+      },
+      onSkip: async (skipId) => {
+        lockCards(skipId, '__skip'); userSay('None of these');
+        showOpts([{ label: '🔄 Start Over', val: 'restart' }, { label: '⬅️ Change Ingredient', val: 'back' }],
+          (o, id) => { lockOpts(id, o.val); if (o.val === 'restart') restart(); else askIngredient(mData, ctx); });
+      },
+      id: Date.now()
+    });
   };
 
   // After a pick, suggest associated items (chat chain) up to 2 rounds, then summary.
@@ -499,7 +506,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
   const stepList = () => {
     const list = ['diet'];
     if ((menuData?.cuisines || []).length) list.push('cuisine');
-    list.push('main_category', 'subcategory', 'ingredient', 'taste', 'results', 'summary');
+    list.push('main_category', 'subcategory', 'ingredient', 'results', 'summary');
     return list;
   };
   const stepIdx = stepList().indexOf(step);
@@ -508,7 +515,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
   const getStepLabel = () => {
     const map = {
       diet: 'Food Type', cuisine: 'Cuisine', main_category: 'Category',
-      subcategory: 'Dish Type', ingredient: 'Ingredient', taste: 'Flavour',
+      subcategory: 'Dish Type', ingredient: 'Ingredient',
       results: 'Suggestions', summary: 'Your Picks'
     };
     return map[step] || '';
@@ -570,6 +577,62 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
         )}
       </div>
     );
+
+    if (item.type === 'discover') {
+      const sel = (item.selectedTaste || '').toLowerCase();
+      const dishes = sel
+        ? item.allDishes.filter(d => tasteList(d).some(t => (t || '').toLowerCase() === sel))
+        : item.allDishes;
+      return (
+        <div key={item.id} style={{ paddingLeft: 34 }}>
+          {item.tasteChips && item.tasteChips.length > 0 && (
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: '#999', marginBottom: 5 }}>👅 Filter by flavour:</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <button
+                  className={`copt ${item.selectedTaste === '' ? 'sel' : ''} ${item.dis ? 'dis' : ''}`}
+                  onClick={() => !item.dis && setDiscoverTaste(item.id, '')}>All</button>
+                {item.tasteChips.map((c, i) => (
+                  <button key={i}
+                    className={`copt ${item.selectedTaste === c.name ? 'sel' : ''} ${item.dis ? 'dis' : ''}`}
+                    onClick={() => !item.dis && setDiscoverTaste(item.id, c.name)}>{c.label}</button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            {dishes.map((d, i) => (
+              <div key={i}
+                className={`dcard ${item.selName === d.name ? 'chosen' : ''} ${item.dis ? 'dis' : ''}`}
+                onClick={() => !item.dis && item.onPick(d, item.id)}>
+                <div className="dcard-img-wrap">
+                  {d.image_url ? (
+                    <img src={d.image_url} alt={d.name} className="dcard-img" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
+                  ) : null}
+                  <div className="dcard-icon" style={{ display: d.image_url ? 'none' : 'block' }}>🍽️</div>
+                </div>
+                <div className="dcard-info">
+                  <div className="dcard-title">{d.name}</div>
+                  {d.description && <div className="dcard-desc">{d.description}</div>}
+                  <div className="dcard-tags">
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#c05c28', marginRight: 4 }}>₹{d.price}</span>
+                    {d.is_bestseller && <span className="ctag ctag-pop">🔥 Popular</span>}
+                    <span className={`ctag ${d.item_type === 'veg' ? 'ctag-veg' : d.item_type === 'non-veg' ? 'ctag-nov' : 'ctag-mix'}`}>
+                      {d.item_type === 'veg' ? 'Veg' : d.item_type === 'non-veg' ? 'Non-Veg' : 'Mixed'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {item.onSkip && (
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <button onClick={() => !item.dis && item.onSkip(item.id)} className={`copt ${item.dis ? 'dis' : ''}`}>None of these</button>
+            </div>
+          )}
+        </div>
+      );
+    }
 
     if (item.type === 'summary') {
       const picks = item.ctx?.picks || [];

@@ -658,7 +658,7 @@ function WishlistDrawer({ items, total, onAdd, onRemove, onClose, onSave, isModi
             <span style={{ fontSize: 26, fontWeight: 900, color: '#FF6B35' }}>₹{total.toFixed(0)}</span>
           </div>
           <button onClick={handleAction} className="btn-primary" style={{ width: '100%', padding: '20px', fontSize: 18 }}>
-            {showViewOnly ? 'View My List ✨' : 'Save to My List ✨'}
+            {showViewOnly ? 'View My List ✨' : 'Click to Order'}
           </button>
         </div>
       </div>
