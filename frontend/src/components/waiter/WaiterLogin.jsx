@@ -26,6 +26,7 @@ export default function WaiterLogin() {
         localStorage.setItem('waiter_token', data.token);
         localStorage.setItem('waiter_user', JSON.stringify(data.user));
         localStorage.setItem('waiter_rid', data.restaurant_id);
+        localStorage.setItem('waiter_refresh_token', data.refresh_token);
         navigate('/waiter/home');
       } else {
         setError(data.message || 'Login failed');

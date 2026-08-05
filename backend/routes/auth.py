@@ -2,8 +2,17 @@ from flask import Blueprint, request, jsonify
 import bcrypt
 import time
 from firebase_client import get_db
-from auth_utils import generate_token, token_required
+from auth_utils import (
+    generate_token,
+    generate_access_token,
+    token_required,
+    create_refresh_token,
+    rotate_refresh_token,
+    revoke_refresh_token,
+    RefreshTokenReuseError,
+)
 from limiter import limiter, LIMIT_AUTH
+from settings import settings
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -34,12 +43,14 @@ def login():
     
     if bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
         token = generate_token(user_id, user['restaurant_id'])
-        
+        refresh_raw, _ = create_refresh_token(user_id, user['restaurant_id'], is_superadmin=False)
+
         # Get restaurant info
         res = db_ref.child(f"restaurants/{user['restaurant_id']}").get()
-        
+
         return jsonify({
             'token': token,
+            'refresh_token': refresh_raw,
             'restaurant_id': user['restaurant_id'],
             'user': {
                 'email': email,
@@ -144,9 +155,11 @@ def waiter_login():
 
     if bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
         token = generate_token(user_id, user['restaurant_id'])
+        refresh_raw, _ = create_refresh_token(user_id, user['restaurant_id'], is_superadmin=False)
 
         return jsonify({
             'token': token,
+            'refresh_token': refresh_raw,
             'restaurant_id': user['restaurant_id'],
             'user': {
                 'id': user_id,
@@ -157,3 +170,35 @@ def waiter_login():
         }), 200
     else:
         return jsonify({'message': 'Invalid credentials'}), 401
+
+
+@auth_bp.route('/auth/refresh', methods=['POST'])
+@limiter.limit(LIMIT_AUTH)
+def refresh():
+    data = request.get_json() or {}
+    raw = data.get('refresh_token')
+    if not raw:
+        return jsonify({'message': 'Refresh token required'}), 400
+    try:
+        rotated = rotate_refresh_token(raw)
+    except RefreshTokenReuseError:
+        return jsonify({'message': 'Invalid or expired refresh token'}), 401
+    if not rotated:
+        return jsonify({'message': 'Invalid or expired refresh token'}), 401
+    new_raw, rec = rotated
+    access = generate_access_token(rec['user_id'], rec['restaurant_id'], rec.get('is_superadmin', False))
+    return jsonify({
+        'token': access,
+        'refresh_token': new_raw,
+        'expires_in': settings.access_token_expires_minutes * 60,
+    }), 200
+
+
+@auth_bp.route('/auth/logout', methods=['POST'])
+@token_required
+def logout():
+    data = request.get_json() or {}
+    raw = data.get('refresh_token')
+    if raw:
+        revoke_refresh_token(raw)
+    return jsonify({'message': 'Logged out'}), 200

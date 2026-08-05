@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 import bcrypt
 import time
 from firebase_client import get_db
-from auth_utils import generate_token, token_required
+from auth_utils import generate_token, token_required, create_refresh_token
 from limiter import limiter, LIMIT_AUTH
 
 superadmin_bp = Blueprint('superadmin', __name__)
@@ -24,8 +24,10 @@ def login():
     
     if bcrypt.checkpw(password.encode('utf-8'), SUPERADMIN_HASH):
         token = generate_token('superadmin_id', 'all', is_superadmin=True)
+        refresh_raw, _ = create_refresh_token('superadmin_id', 'all', is_superadmin=True)
         return jsonify({
             'token': token,
+            'refresh_token': refresh_raw,
             'role': 'superadmin'
         }), 200
     

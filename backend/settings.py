@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     firebase_database_url: str = ""
     allowed_origins: str = ""
 
+    access_token_expires_minutes: int = 15
+    refresh_token_expires_days: int = 30
+
     ratelimit_storage_uri: str = "memory://"
     ratelimit_default: str = "200 per minute"
     ratelimit_auth: str = "10 per minute"
