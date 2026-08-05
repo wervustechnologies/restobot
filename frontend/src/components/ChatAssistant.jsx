@@ -192,6 +192,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
   const lockOpts = (id, selVal) => setItems(prev => prev.map(x => x.id === id ? { ...x, dis: true, selVal } : x));
   const lockCards = (id, selName) => setItems(prev => prev.map(x => x.id === id ? { ...x, dis: true, selName } : x));
   const setDiscoverTaste = (itemId, taste) => setItems(prev => prev.map(x => x.id === itemId ? { ...x, selectedTaste: taste } : x));
+  const tasteList = (d) => { const t = d && d.taste; return Array.isArray(t) ? t : (t ? [t] : []); };
 
   // ── Flow ──────────────────────────────────────────────────────────────────
   // Context object flows through the chain by value: { diet, cuisine,
@@ -398,7 +399,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
 
     const presentNames = [];
     suggestions.forEach(d => {
-      (d.taste || []).forEach(t => {
+      tasteList(d).forEach(t => {
         const tn = (t || '').toLowerCase();
         if (tn && !presentNames.includes(tn)) presentNames.push(tn);
       });
@@ -580,7 +581,7 @@ export default function ChatAssistant({ restaurantId, initialMenuData, onAddToCa
     if (item.type === 'discover') {
       const sel = (item.selectedTaste || '').toLowerCase();
       const dishes = sel
-        ? item.allDishes.filter(d => (d.taste || []).some(t => (t || '').toLowerCase() === sel))
+        ? item.allDishes.filter(d => tasteList(d).some(t => (t || '').toLowerCase() === sel))
         : item.allDishes;
       return (
         <div key={item.id} style={{ paddingLeft: 34 }}>

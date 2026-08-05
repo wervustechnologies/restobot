@@ -58,6 +58,8 @@ def discover_items():
 
     items = format_list(res_data.get('items'))
     active_items = [i for i in items if i.get('is_enabled') is not False]
+    for it in active_items:
+        it['taste'] = normalize_taste(it.get('taste'))
 
     cuisine_norm = cuisine.lower()
     # 'any' (the chat's "Any" option) and '' both mean no cuisine filter.
@@ -125,6 +127,8 @@ def suggest_item():
 
     items = format_list(res_data.get('items'))
     active_items = [i for i in items if i.get('is_enabled') is not False]
+    for it in active_items:
+        it['taste'] = normalize_taste(it.get('taste'))
 
     current_id = str(current_item.get('id', ''))
 
