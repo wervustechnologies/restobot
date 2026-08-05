@@ -34,7 +34,7 @@ export default function AdminLayout() {
       {/* Mobile Top Bar */}
       <div className="mobile-nav-toggle">
         <div style={{ fontSize: 20, fontWeight: 900, color: '#FF6B35' }}>
-          RESTO<span style={{ color: 'var(--text)' }}>BOT</span>
+          Dish<span style={{ color: 'var(--text)' }}>lyst</span>
         </div>
         <button 
           onClick={() => setSidebarOpen(true)}
@@ -54,7 +54,7 @@ export default function AdminLayout() {
       <div className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 40 }}>
           <div style={{ fontSize: 22, fontWeight: 900, color: '#FF6B35', whiteSpace: 'nowrap' }}>
-            R<span className="sidebar-logo-text">ESTO<span style={{ color: 'var(--text)' }}>BOT</span></span>
+            D<span className="sidebar-logo-text">ish<span style={{ color: 'var(--text)' }}>lyst</span></span>
           </div>
           <button onClick={toggleTheme}
             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}

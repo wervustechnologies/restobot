@@ -88,7 +88,7 @@ export default function LandingPage() {
         opacity: 0.4
       }}>
         <span style={{ fontSize: '11px', letterSpacing: '4px', color: '#FFF', fontWeight: 800 }}>
-          RESTOBOT AI
+          DISHLYST AI
         </span>
       </div>
     </div>

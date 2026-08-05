@@ -42,7 +42,7 @@ export default function WaiterLogin() {
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <div style={{ fontSize: 50, marginBottom: 15 }}>🍽️</div>
           <h1 style={{ fontSize: 28, fontWeight: 900, color: '#1A1A1A', letterSpacing: '-1px' }}>
-            RESTO<span style={{ color: '#FF6B35' }}>BOT</span>
+            Dish<span style={{ color: '#FF6B35' }}>lyst</span>
           </h1>
           <p style={{ color: '#888', fontSize: 14, fontWeight: 600, marginTop: 8 }}>Waiter Portal</p>
         </div>

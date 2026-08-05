@@ -257,7 +257,7 @@ export default function QRLandingPage() {
         {/* Footer */}
         <div className="qr-landing__footer">
           <p className="qr-landing__powered">
-            Powered by <strong>Restobot</strong>
+            Powered by <strong>Dishlyst</strong>
           </p>
         </div>
       </div>
