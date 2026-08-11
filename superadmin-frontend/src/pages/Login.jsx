@@ -24,6 +24,9 @@ export default function Login() {
       
       if (res.ok) {
         localStorage.setItem('superadminToken', data.token);
+        if (data.refresh_token) {
+          localStorage.setItem('superadminRefreshToken', data.refresh_token);
+        }
         navigate('/dashboard');
       } else {
         setError(data.error || 'Login failed');

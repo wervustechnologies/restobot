@@ -29,6 +29,7 @@ export default function Dashboard() {
       });
       if (res.status === 401 || res.status === 403) {
         localStorage.removeItem('superadminToken');
+        localStorage.removeItem('superadminRefreshToken');
         navigate('/');
         return;
       }
@@ -55,7 +56,21 @@ export default function Dashboard() {
   }, []);
 
   const handleLogout = () => {
+    const token = localStorage.getItem('superadminToken');
+    const refreshToken = localStorage.getItem('superadminRefreshToken');
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+    if (token && refreshToken) {
+      fetch(`${API_BASE}/api/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      }).catch(() => {});
+    }
     localStorage.removeItem('superadminToken');
+    localStorage.removeItem('superadminRefreshToken');
     navigate('/');
   };
 

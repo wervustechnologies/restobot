@@ -362,9 +362,22 @@ export default function WaiterHome() {
   };
 
   const handleLogout = () => {
+    const token = localStorage.getItem('waiter_token');
+    const refreshToken = localStorage.getItem('waiter_refresh_token');
+    if (token && refreshToken) {
+      fetch(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      }).catch(() => {});
+    }
     localStorage.removeItem('waiter_token');
     localStorage.removeItem('waiter_user');
     localStorage.removeItem('waiter_rid');
+    localStorage.removeItem('waiter_refresh_token');
     navigate('/waiter/login');
   };
 

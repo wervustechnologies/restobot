@@ -23,7 +23,7 @@ export default function AdminLogin() {
       });
       const data = await res.json();
       if (res.ok) {
-        login(data.token, data.user);
+        login(data.token, data.user, data.refresh_token);
         navigate('/admin');
       } else {
         setError(data.message);
