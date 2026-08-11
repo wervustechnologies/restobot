@@ -55,6 +55,7 @@ def create_app():
     from routes.guests import guests_bp
     from routes.orders import orders_bp
     from routes.feedback import feedback_bp
+    from routes.health import health_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(admin_bp, url_prefix='/api')
@@ -67,5 +68,6 @@ def create_app():
     app.register_blueprint(guests_bp, url_prefix='/api')
     app.register_blueprint(orders_bp, url_prefix='/api')
     app.register_blueprint(feedback_bp, url_prefix='/api')
+    app.register_blueprint(health_bp, url_prefix='/api')
 
     return app
