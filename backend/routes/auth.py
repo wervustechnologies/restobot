@@ -55,7 +55,8 @@ def login():
             'user': {
                 'email': email,
                 'name': user['name'],
-                'restaurant_name': res.get('name')
+                'restaurant_name': res.get('name'),
+                'role': user.get('role', 'owner')
             }
         }), 200
     else:

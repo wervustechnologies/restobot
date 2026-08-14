@@ -199,6 +199,12 @@ class _Ref:
         if isinstance(parent, dict):
             parent.pop(self._parts[-1], None)
 
+    def transaction(self, fn):
+        current = self.get()
+        new_value = fn(current)
+        self.set(new_value)
+        return new_value
+
     def push(self, value):
         key = "-" + uuid.uuid4().hex[:20]
         _set_parts(self._tree, self._parts + [key], value)

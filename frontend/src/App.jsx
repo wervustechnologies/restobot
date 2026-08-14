@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { GuestProvider } from './context/GuestContext';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -25,12 +25,25 @@ import WaiterHome from './components/waiter/WaiterHome';
 
 import './index.css';
 
-// Smart root route: QR scans (?t=TOKEN) → MenuPage, direct visits → Admin Login
+// Smart root route: logged-in users → their dashboard, QR scans (?t=TOKEN) → MenuPage, direct visits → Admin Login
 function RootRoute() {
+  const { user } = useAuth();
   const location = window.location;
   const params = new URLSearchParams(location.search);
+
+  const waiterToken = localStorage.getItem('waiter_token');
+  const waiterUser = localStorage.getItem('waiter_user');
+
   if (params.get('t')) {
     return <QRLandingPage />;
+  }
+
+  if (user) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  if (waiterToken && waiterUser) {
+    return <Navigate to="/waiter/home" replace />;
   }
   return <Navigate to="/admin/login" replace />;
 }

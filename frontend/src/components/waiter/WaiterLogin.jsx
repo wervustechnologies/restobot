@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { API_BASE_URL } from '../../apiConfig';
 
 export default function WaiterLogin() {
@@ -8,6 +8,10 @@ export default function WaiterLogin() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  if (localStorage.getItem('waiter_token') && localStorage.getItem('waiter_user')) {
+    return <Navigate to="/waiter/home" replace />;
+  }
 
   const handleLogin = async (e) => {
     e.preventDefault();
