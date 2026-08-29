@@ -434,6 +434,87 @@ def test_bill_table_iterates_multiple_tables(client, db, auth_headers):
     assert db.read("restaurants/r1/tables/ta/table_number") == "1"
 
 
+# ========================= create_order (POS) =========================
+def _seed_petpooja_r1(db):
+    db.seed("restaurants/r1/pos_integration", {
+        "provider": "petpooja",
+        "credentials": {"app_key": "k", "app_secret": "s", "access_token": "tok123", "restID": "R99"},
+    })
+    db.seed("restaurants/r1/items/i1", {
+        "name": "Garlic Bread",
+        "price": 140,
+        "petpooja_mapping": {
+            "petpooja_id": "7765862",
+            "gst_liability": "vendor",
+            "cgst_percentage": 2.5,
+            "sgst_percentage": 2.5,
+        },
+    })
+
+
+def test_create_order_petpooja_provider_prints_and_persists(client, db, capsys):
+    _seed_petpooja_r1(db)
+    resp = client.post("/api/orders", json={
+        "restaurant_id": "r1",
+        "items": [{"id": "i1", "name": "Garlic Bread", "price": 140, "quantity": 1}],
+        "total_amount": 140,
+        "guest_id": "g1",
+        "user_name": "Sam",
+    })
+    assert resp.status_code == 201
+    body = resp.get_json()
+    assert body["success"] is True
+    assert body["order_id"]
+    # order still persisted locally (placeholder keeps native persistence)
+    assert db.read(f"restaurants/r1/orders/{body['order_id']}/status") == "pending"
+    out = capsys.readouterr().out
+    assert "[Petpooja] dine-in order payload:" in out
+    assert "'order_type': 'dinein'" in out
+    assert "'restID': 'R99'" in out
+    assert "'petpooja_id': '7765862'" in out
+    assert "tok123" in out  # credentials fetched + printed
+
+
+def test_waiter_create_order_petpooja_provider(client, db, auth_headers, capsys):
+    _seed_petpooja_r1(db)
+    resp = client.post("/api/orders/waiter-add", json={
+        "table_number": "5",
+        "items": [{"id": "i1", "name": "Garlic Bread", "price": 140, "quantity": 2}],
+        "guest_id": "g2",
+    }, headers=auth_headers)
+    assert resp.status_code == 201
+    body = resp.get_json()
+    assert body["order"]["total_amount"] == 280
+    assert db.read(f"restaurants/r1/orders/{body['order_id']}/table_number") == "5"
+    out = capsys.readouterr().out
+    assert "'order_type': 'dinein'" in out
+    assert "'table_number': '5'" in out
+
+
+def test_create_order_unknown_provider_falls_back_to_native(client, db, capsys):
+    db.seed("restaurants/r1/pos_integration", {"provider": "toast-4-u"})
+    resp = client.post("/api/orders", json={
+        "restaurant_id": "r1",
+        "items": [{"name": "A", "price": 1, "quantity": 1}],
+    })
+    assert resp.status_code == 201
+    assert "[Petpooja]" not in capsys.readouterr().out
+
+
+def test_create_order_petpooja_without_credentials_or_ids(client, db, capsys):
+    # Degraded config (provider set, credentials node missing) + items with no
+    # Dishlyst ids: order still flows through the petpooja handler gracefully.
+    db.seed("restaurants/r1/pos_integration", {"provider": "petpooja"})
+    resp = client.post("/api/orders", json={
+        "restaurant_id": "r1",
+        "items": [{"name": "A", "price": 1, "quantity": 1}],
+    })
+    assert resp.status_code == 201
+    out = capsys.readouterr().out
+    assert "'petpooja_id': None" in out
+    assert "credentials: {}" in out
+
+
 # ========================= bill_guest_at_table =======================
 def test_bill_guest_table_not_found(client, db, auth_headers):
     resp = client.put("/api/orders/table/1/bill-guest/g1", headers=auth_headers)

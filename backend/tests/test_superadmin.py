@@ -170,3 +170,100 @@ def test_delete_restaurant_cascades(client, db, auth_headers):
     # other restaurant untouched
     assert db.read("restaurants/r2/name") == "R2"
     assert db.read("users/u2/name") == "B"
+
+
+# ------------------------- pos_integration ----------------------------
+FULL_CREDS = {"app_key": "k", "app_secret": "s", "access_token": "t", "restID": "R99"}
+
+
+def test_create_restaurant_default_pos_native(client, db, auth_headers):
+    resp = client.post("/api/superadmin/create-restaurant", json={
+        "restaurant_name": "R", "owner_name": "O", "email": "pos1@x.com", "password": "p"
+    }, headers=auth_headers)
+    assert resp.status_code == 201
+    rid = resp.get_json()["rid"]
+    assert db.read(f"restaurants/{rid}/pos_integration") == {"provider": "native"}
+    assert resp.get_json()["pos_integration"] == {"provider": "native"}
+
+
+def test_create_restaurant_petpooja_full_creds(client, db, auth_headers):
+    resp = client.post("/api/superadmin/create-restaurant", json={
+        "restaurant_name": "R", "owner_name": "O", "email": "pos2@x.com", "password": "p",
+        "pos_integration": {"provider": "petpooja", "credentials": FULL_CREDS},
+    }, headers=auth_headers)
+    assert resp.status_code == 201
+    body = resp.get_json()
+    rid = body["rid"]
+    assert db.read(f"restaurants/{rid}/pos_integration") == {
+        "provider": "petpooja", "credentials": FULL_CREDS
+    }
+    assert body["pos_integration"] == {"provider": "petpooja", "credentials": FULL_CREDS}
+
+
+def test_create_restaurant_petpooja_partial_creds_filled_empty(client, db, auth_headers):
+    resp = client.post("/api/superadmin/create-restaurant", json={
+        "restaurant_name": "R", "owner_name": "O", "email": "pos3@x.com", "password": "p",
+        "pos_integration": {"provider": "petpooja", "credentials": {"app_key": "k"}},
+    }, headers=auth_headers)
+    assert resp.status_code == 201
+    rid = resp.get_json()["rid"]
+    node = db.read(f"restaurants/{rid}/pos_integration")
+    assert node["credentials"] == {"app_key": "k", "app_secret": "", "access_token": "", "restID": ""}
+
+
+def test_create_restaurant_invalid_pos_provider(client, db, auth_headers):
+    resp = client.post("/api/superadmin/create-restaurant", json={
+        "restaurant_name": "R", "owner_name": "O", "email": "pos4@x.com", "password": "p",
+        "pos_integration": {"provider": "toast"},
+    }, headers=auth_headers)
+    assert resp.status_code == 400
+    assert "Invalid pos_integration provider" in resp.get_json()["message"]
+
+
+def test_update_restaurant_pos_replaces_and_clears_creds(client, db, auth_headers):
+    db.seed("restaurants/r1", {
+        "name": "R",
+        "pos_integration": {"provider": "petpooja", "credentials": FULL_CREDS},
+    })
+    resp = client.put("/api/superadmin/restaurant/r1", json={
+        "restaurant_name": "R", "owner_name": "O", "email": "o@x.com",
+        "pos_integration": {"provider": "native"},
+    }, headers=auth_headers)
+    assert resp.status_code == 200
+    assert db.read("restaurants/r1/pos_integration") == {"provider": "native"}
+    assert resp.get_json()["pos_integration"] == {"provider": "native"}
+
+
+def test_update_restaurant_pos_untouched_when_absent(client, db, auth_headers):
+    db.seed("restaurants/r1", {
+        "name": "R",
+        "pos_integration": {"provider": "petpooja", "credentials": FULL_CREDS},
+    })
+    resp = client.put("/api/superadmin/restaurant/r1", json={
+        "restaurant_name": "R", "owner_name": "O", "email": "o@x.com"
+    }, headers=auth_headers)
+    assert resp.status_code == 200
+    assert resp.get_json()["pos_integration"] is None  # payload had no pos_integration
+    assert db.read("restaurants/r1/pos_integration") == {
+        "provider": "petpooja", "credentials": FULL_CREDS
+    }
+
+
+def test_update_restaurant_invalid_pos_provider(client, db, auth_headers):
+    db.seed("restaurants/r1", {"name": "R"})
+    resp = client.put("/api/superadmin/restaurant/r1", json={
+        "restaurant_name": "R", "owner_name": "O", "email": "o@x.com",
+        "pos_integration": {"provider": "nope"},
+    }, headers=auth_headers)
+    assert resp.status_code == 400
+
+
+def test_list_restaurants_returns_pos_integration(client, db, auth_headers):
+    db.seed("restaurants/r1", {
+        "name": "R1", "created_at": 1,
+        "pos_integration": {"provider": "petpooja", "credentials": FULL_CREDS},
+    })
+    db.seed("restaurants/r2", {"name": "R2", "created_at": 2})
+    rows = {r["rid"]: r for r in client.get("/api/superadmin/restaurants", headers=auth_headers).get_json()}
+    assert rows["r1"]["pos_integration"]["credentials"]["restID"] == "R99"
+    assert rows["r2"]["pos_integration"] == {"provider": "native"}

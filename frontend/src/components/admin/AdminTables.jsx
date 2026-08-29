@@ -9,6 +9,7 @@ export default function AdminTables() {
   const [newTableNum, setNewTableNum] = useState('');
   const [qrCodes, setQrCodes] = useState({});
   const [tablesLoading, setTablesLoading] = useState(true);
+  const [fetchingPos, setFetchingPos] = useState(false);
   const { token, user } = useAuth();
 
   const fetchData = async () => {
@@ -62,6 +63,42 @@ export default function AdminTables() {
       showConfirmButton: false
     });
     fetchData();
+  };
+
+  // ── Fetch tables from POS ──
+  const handleFetchTablesFromPos = async () => {
+    const confirm = await Swal.fire({
+      title: 'Fetch tables from Petpooja?',
+      text: 'Tables are linked by their Petpooja table ID; existing tables whose number matches keep their QR code. New tables get a QR code automatically. Orders will be sent with Petpooja\'s own table ID.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Fetch',
+      confirmButtonColor: '#FF6B35'
+    });
+    if (!confirm.isConfirmed) return;
+    setFetchingPos(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/tables/fetch-pos`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data && typeof data.total === 'number') {
+        Swal.fire({
+          title: 'Tables synced!',
+          html: `<b>${data.added}</b> added, <b>${data.updated}</b> linked/updated` +
+            (data.failed ? `, <b>${data.failed}</b> skipped` : ''),
+          icon: data.failed ? 'warning' : 'success'
+        });
+        fetchData();
+      } else {
+        Swal.fire({ title: 'Fetch failed', text: data?.error || 'Could not fetch tables from the POS.', icon: 'error' });
+      }
+    } catch {
+      Swal.fire({ title: 'Fetch failed', text: 'Network error while contacting the POS.', icon: 'error' });
+    } finally {
+      setFetchingPos(false);
+    }
   };
 
   const downloadQR = (tableId, tableNum) => {
@@ -145,11 +182,20 @@ export default function AdminTables() {
           <h1 style={{ fontSize: 32, fontWeight: 900, marginBottom: 5 }}>Table Manager</h1>
           <p style={{ color: '#666' }}>Generate and download QR codes for your tables.</p>
         </div>
-        <form onSubmit={handleAddTable} className="add-table-form">
-          <input type="text" placeholder="Table Name/Number" required className="btn-outline add-table-input"
-            value={newTableNum} onChange={e => setNewTableNum(e.target.value)} />
-          <button type="submit" className="btn-primary" style={{ whiteSpace: 'nowrap' }}>+ Add Table</button>
-        </form>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleFetchTablesFromPos}
+            disabled={fetchingPos}
+            className="btn-outline"
+            style={{ opacity: fetchingPos ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+            {fetchingPos ? 'Fetching…' : 'Fetch from Petpooja'}
+          </button>
+          <form onSubmit={handleAddTable} className="add-table-form">
+            <input type="text" placeholder="Table Name/Number" required className="btn-outline add-table-input"
+              value={newTableNum} onChange={e => setNewTableNum(e.target.value)} />
+            <button type="submit" className="btn-primary" style={{ whiteSpace: 'nowrap' }}>+ Add Table</button>
+          </form>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 25 }}>
@@ -158,7 +204,14 @@ export default function AdminTables() {
             <div style={{ position: 'absolute', top: 15, right: 15, background: 'rgba(255,107,53,0.1)', color: '#FF6B35', padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
               Active
             </div>
-            <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 5 }}>Table {table.table_number}</h3>
+            <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 5 }}>
+              Table {table.table_number}
+              {table.petpooja_mapping?.petpooja_table_id && (
+                <span title="Petpooja table ID sent with orders" style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, color: '#666', background: '#F5F5F5', padding: '2px 8px', borderRadius: 12, verticalAlign: 'middle' }}>
+                  PP #{table.petpooja_mapping.petpooja_table_id}
+                </span>
+              )}
+            </h3>
 
             {qrCodes[table.id] ? (
               <div style={{ background: '#FFF', padding: 15, borderRadius: 12, margin: '20px auto', display: 'inline-block', border: '1px solid #EEE' }}>

@@ -116,6 +116,9 @@ export default function AdminMenuManager() {
   const [importing, setImporting] = useState(false);
   const [importReport, setImportReport] = useState(null);
 
+  // POS menu sync
+  const [fetchingPos, setFetchingPos] = useState(false);
+
   const [newMainCat, setNewMainCat] = useState({ name: '', display_order: 0 });
   const [newCat, setNewCat] = useState({ name: '', display_order: 0, main_category_id: '' });
   
@@ -162,7 +165,7 @@ export default function AdminMenuManager() {
     if (!activeCategory && catData.length > 0) {
       setActiveCategory(catData[0].id);
     }
-    
+
     setMenuLoading(false);
   };
 
@@ -227,6 +230,38 @@ export default function AdminMenuManager() {
     setShowImportForm(false);
     setImportFile(null);
     setImportReport(null);
+  };
+
+  // ── Fetch menu from POS ──
+  const handleFetchFromPos = async () => {
+    const confirm = await Swal.fire({
+      title: 'Fetch menu from POS?',
+      text: 'Matching items are updated (price, name, availability, category); new POS items are added under "Petpooja Menu". Your local tweaks (taste, images, recommendations) are kept.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Fetch',
+      confirmButtonColor: '#FF6B35'
+    });
+    if (!confirm.isConfirmed) return;
+    setFetchingPos(true);
+    setImportReport(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/menu/fetch-pos`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data && typeof data.total === 'number') {
+        setImportReport(data);
+        fetchData();
+      } else {
+        Swal.fire({ title: 'Fetch failed', text: data?.error || 'Could not fetch the menu from the POS.', icon: 'error' });
+      }
+    } catch {
+      Swal.fire({ title: 'Fetch failed', text: 'Network error while contacting the POS.', icon: 'error' });
+    } finally {
+      setFetchingPos(false);
+    }
   };
 
   const handleAddMainCategory = async (e) => {
@@ -787,6 +822,9 @@ export default function AdminMenuManager() {
           <button className="btn-outline" onClick={() => setShowSetupForm(true)}>Menu Setup</button>
           <button className="btn-excel" onClick={handleDownloadTemplate}><ExcelIcon /> Template</button>
           <button className="btn-excel" onClick={() => setShowImportForm(true)}><ExcelIcon /> Import Excel</button>
+          <button className="btn-excel" onClick={handleFetchFromPos} disabled={fetchingPos} style={{ opacity: fetchingPos ? 0.6 : 1 }}>
+            <ExcelIcon /> {fetchingPos ? 'Fetching…' : 'Fetch from POS'}
+          </button>
           <button className="btn-outline" onClick={() => setShowMainCatForm(true)}>+ Category</button>
           <button className="btn-outline" onClick={() => setShowCatForm(true)}>+ Sub Category</button>
           <button className="btn-primary" onClick={() => openAddItemForm()}>+ Food Item</button>
@@ -1444,12 +1482,12 @@ export default function AdminMenuManager() {
         </div>
       )}
 
-      {/* ═══ Import from Excel Modal ═══ */}
-      {showImportForm && (
+      {/* ═══ Import from Excel / POS sync report Modal ═══ */}
+      {(showImportForm || importReport) && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeImportForm()}>
           <div className="modal-card">
             <div className="modal-head">
-              <h3 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>Import Menu from Excel</h3>
+              <h3 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>{importReport ? 'Menu Sync Report' : 'Import Menu from Excel'}</h3>
               <button type="button" className="modal-close" onClick={closeImportForm} aria-label="Close">✕</button>
             </div>
 
@@ -1484,6 +1522,12 @@ export default function AdminMenuManager() {
                     <div style={{ fontSize: 26, fontWeight: 900, color: '#1DB954' }}>{importReport.added}</div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Added</div>
                   </div>
+                  {typeof importReport.updated === 'number' && (
+                    <div style={{ flex: 1, background: 'rgba(33,150,243,0.08)', border: '1px solid rgba(33,150,243,0.22)', borderRadius: 12, padding: '14px 16px' }}>
+                      <div style={{ fontSize: 26, fontWeight: 900, color: '#2196F3' }}>{importReport.updated}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Updated</div>
+                    </div>
+                  )}
                   <div style={{ flex: 1, background: 'rgba(255,75,75,0.06)', border: '1px solid rgba(255,75,75,0.2)', borderRadius: 12, padding: '14px 16px' }}>
                     <div style={{ fontSize: 26, fontWeight: 900, color: '#FF4B4B' }}>{importReport.failed}</div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Failed</div>
@@ -1496,7 +1540,7 @@ export default function AdminMenuManager() {
                     <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 10 }} className="hide-scroll">
                       {importReport.failures.map((f, i) => (
                         <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '9px 12px', borderBottom: '1px solid var(--border)', fontSize: 12.5 }}>
-                          <span style={{ fontWeight: 700, color: 'var(--text-muted)', minWidth: 46 }}>Row {f.row}</span>
+                          <span style={{ fontWeight: 700, color: 'var(--text-muted)', minWidth: 46 }}>{f.row ? `Row ${f.row}` : `#${i + 1}`}</span>
                           <span style={{ flex: 1, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name || '(empty)'}</span>
                           <span style={{ fontSize: 11, fontWeight: 700, color: '#FF4B4B', background: 'rgba(255,75,75,0.08)', padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>{f.reason}</span>
                         </div>
@@ -1505,9 +1549,9 @@ export default function AdminMenuManager() {
                   </div>
                 )}
 
-                {importReport.added > 0 && importReport.failed === 0 && (
+                {importReport.failed === 0 && (importReport.added > 0 || importReport.updated > 0) && (
                   <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 4 }}>
-                    All {importReport.added} items were added successfully.
+                    {importReport.added} item{importReport.added !== 1 ? 's' : ''} added{typeof importReport.updated === 'number' && importReport.updated > 0 ? `, ${importReport.updated} updated` : ''} successfully.
                   </p>
                 )}
 

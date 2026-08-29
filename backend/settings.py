@@ -20,5 +20,9 @@ class Settings(BaseSettings):
     ratelimit_ai: str = "20 per minute"
     ratelimit_read: str = "60 per minute"
 
+    # Apiary mock for now — point at Petpooja's production URL when confirmed.
+    petpooja_api_base: str = "https://private-anon-0d6061890b-onlineorderingapisv210.apiary-mock.com"
+    petpooja_timeout_seconds: int = 15
+
 
 settings = Settings()

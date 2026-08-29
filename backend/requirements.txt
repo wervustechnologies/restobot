@@ -8,3 +8,4 @@ groq
 gunicorn
 Flask-Limiter
 openpyxl
+requests

@@ -4,6 +4,7 @@ import time as time_module
 from firebase_client import get_db, bump_rev
 from auth_utils import token_required
 from limiter import limiter, LIMIT_PUBLIC_WRITE
+from pos_adapters import route_order_to_pos
 
 orders_bp = Blueprint('orders', __name__)
 
@@ -52,13 +53,13 @@ def create_order():
         'claimed_at': None
     }
 
-    order_ref = db_ref.child(f'restaurants/{restaurant_id}/orders').push(order_data)
+    order_id, order_data = route_order_to_pos(db_ref, restaurant_id, order_data)
 
     if guest_id:
         db_ref.child(f'restaurants/{restaurant_id}/active_carts/{guest_id}').delete()
 
     bump_rev(restaurant_id, 'orders')
-    return jsonify({'success': True, 'order_id': order_ref.key, 'order': order_data}), 201
+    return jsonify({'success': True, 'order_id': order_id, 'order': order_data}), 201
 
 @orders_bp.route('/orders/waiter-add', methods=['POST'])
 @token_required
@@ -95,10 +96,10 @@ def waiter_create_order():
         'claimed_at': None
     }
 
-    order_ref = db_ref.child(f'restaurants/{restaurant_id}/orders').push(order_data)
+    order_id, order_data = route_order_to_pos(db_ref, restaurant_id, order_data)
 
     bump_rev(restaurant_id, 'orders')
-    return jsonify({'success': True, 'order_id': order_ref.key, 'order': order_data}), 201
+    return jsonify({'success': True, 'order_id': order_id, 'order': order_data}), 201
 
 @orders_bp.route('/orders/guest/<restaurant_id>/<guest_id>', methods=['GET'])
 @limiter.limit(LIMIT_PUBLIC_WRITE)

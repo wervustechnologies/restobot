@@ -6,6 +6,8 @@ source =
     limiter
     settings
     routes
+    pos_adapters
+    pos_providers
 branch = True
 
 [report]

@@ -1,6 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+const EMPTY_POS_INTEGRATION = {
+  provider: 'native',
+  credentials: { app_key: '', app_secret: '', access_token: '', restID: '' }
+};
+
+const PETPOOJA_CRED_FIELDS = [
+  { key: 'app_key', label: 'App Key' },
+  { key: 'app_secret', label: 'App Secret' },
+  { key: 'access_token', label: 'Access Token' },
+  { key: 'restID', label: 'Restaurant ID (restID)' }
+];
+
 export default function Dashboard() {
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,7 +23,17 @@ export default function Dashboard() {
   const [editingRestaurant, setEditingRestaurant] = useState(null);
   
   // Form state
-  const [formData, setFormData] = useState({ restaurant_name: '', owner_name: '', email: '', password: '', restaurant_type: 'mixed' });
+  const [formData, setFormData] = useState({
+    restaurant_name: '',
+    owner_name: '',
+    email: '',
+    password: '',
+    restaurant_type: 'mixed',
+    pos_integration: {
+      provider: 'native',
+      credentials: { ...EMPTY_POS_INTEGRATION.credentials }
+    }
+  });
   
   const navigate = useNavigate();
 
@@ -76,17 +98,30 @@ export default function Dashboard() {
 
   const openModal = (restaurant = null) => {
     if (restaurant) {
+      const pos = restaurant.pos_integration || {};
+      const creds = pos.credentials || {};
       setEditingRestaurant(restaurant);
-      setFormData({ 
-        restaurant_name: restaurant.name || '', 
-        owner_name: restaurant.admin?.name || '', 
-        email: restaurant.admin?.email || '', 
+      setFormData({
+        restaurant_name: restaurant.name || '',
+        owner_name: restaurant.admin?.name || '',
+        email: restaurant.admin?.email || '',
         password: '',
-        restaurant_type: restaurant.restaurant_type || 'mixed'
+        restaurant_type: restaurant.restaurant_type || 'mixed',
+        pos_integration: {
+          provider: pos.provider || 'native',
+          credentials: PETPOOJA_CRED_FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: creds[f.key] || '' }), {})
+        }
       });
     } else {
       setEditingRestaurant(null);
-      setFormData({ restaurant_name: '', owner_name: '', email: '', password: '', restaurant_type: 'mixed' });
+      setFormData({
+        restaurant_name: '',
+        owner_name: '',
+        email: '',
+        password: '',
+        restaurant_type: 'mixed',
+        pos_integration: { provider: 'native', credentials: { ...EMPTY_POS_INTEGRATION.credentials } }
+      });
     }
     setIsModalOpen(true);
   };
@@ -128,7 +163,7 @@ export default function Dashboard() {
         fetchRestaurants();
       } else {
         const data = await res.json();
-        alert(data.error || 'Operation failed');
+        alert(data.message || data.error || 'Operation failed');
       }
     } catch (err) {
       alert('Network error occurred');
@@ -196,6 +231,7 @@ export default function Dashboard() {
               <th>Name</th>
               <th>Type</th>
               <th>Email</th>
+              <th>POS</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -203,7 +239,7 @@ export default function Dashboard() {
           <tbody>
             {restaurants.length === 0 ? (
               <tr>
-                <td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                <td colSpan="7" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                   No restaurants found. Create one to get started.
                 </td>
               </tr>
@@ -218,6 +254,16 @@ export default function Dashboard() {
                     </span>
                   </td>
                   <td>{r.admin?.email || 'N/A'}</td>
+                  <td>
+                    <span
+                      className={`status-badge ${r.pos_integration?.provider === 'petpooja' ? 'status-active' : ''}`}
+                      title={r.pos_integration?.provider === 'petpooja'
+                        ? `Petpooja · restID: ${r.pos_integration?.credentials?.restID || '(not set)'}`
+                        : 'Orders handled by Dishlyst'}
+                    >
+                      {r.pos_integration?.provider === 'petpooja' ? 'Petpooja' : 'Native'}
+                    </span>
+                  </td>
                   <td>
                     <span 
                       className={`status-badge status-${r.status.toLowerCase()}`}
@@ -242,11 +288,12 @@ export default function Dashboard() {
 
       {isModalOpen && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-content glass-panel" style={{ padding: '2rem' }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem' }}>
+          <div className="modal-content glass-panel" onClick={e => e.stopPropagation()}>
+            <h2 className="modal-title">
               {editingRestaurant ? 'Edit Restaurant' : 'Create New Restaurant'}
             </h2>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} className="modal-form">
+              <div className="modal-form-body">
               <div className="input-group">
                 <label className="input-label">Restaurant Name</label>
                 <input 
@@ -269,6 +316,50 @@ export default function Dashboard() {
                   <option value="mixed">Mixed (Veg &amp; Non-Veg)</option>
                 </select>
               </div>
+              <div className="input-group">
+                <label className="input-label">Order Routing / POS Provider</label>
+                <select
+                  className="input-field"
+                  value={formData.pos_integration.provider}
+                  onChange={e => setFormData({
+                    ...formData,
+                    pos_integration: { ...formData.pos_integration, provider: e.target.value }
+                  })}
+                >
+                  <option value="native">Native (Dishlyst)</option>
+                  <option value="petpooja">Petpooja</option>
+                </select>
+              </div>
+              {formData.pos_integration.provider === 'petpooja' && (
+                <>
+                  <div className="input-group">
+                    <label className="input-label">Petpooja Credentials</label>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+                      Used to fetch the menu and push dine-in orders to Petpooja.
+                    </p>
+                  </div>
+                  {PETPOOJA_CRED_FIELDS.map(field => (
+                    <div className="input-group" key={field.key}>
+                      <label className="input-label">{field.label}</label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        value={formData.pos_integration.credentials[field.key]}
+                        onChange={e => setFormData({
+                          ...formData,
+                          pos_integration: {
+                            ...formData.pos_integration,
+                            credentials: {
+                              ...formData.pos_integration.credentials,
+                              [field.key]: e.target.value
+                            }
+                          }
+                        })}
+                      />
+                    </div>
+                  ))}
+                </>
+              )}
               <div className="input-group">
                 <label className="input-label">Owner Name</label>
                 <input 
@@ -299,7 +390,8 @@ export default function Dashboard() {
                   required={!editingRestaurant}
                 />
               </div>
-              <div className="flex-gap" style={{ marginTop: '2rem', justifyContent: 'flex-end' }}>
+              </div>
+              <div className="modal-actions">
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>Cancel</button>
                 <button type="submit" className="btn btn-primary">{editingRestaurant ? 'Save Changes' : 'Create Restaurant'}</button>
               </div>

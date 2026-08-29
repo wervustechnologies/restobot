@@ -9,6 +9,31 @@ superadmin_bp = Blueprint('superadmin', __name__)
 
 VALID_RESTAURANT_TYPES = ('veg', 'non-veg', 'mixed')
 
+VALID_POS_PROVIDERS = ('native', 'petpooja')
+PETPOOJA_CRED_FIELDS = ('app_key', 'app_secret', 'access_token', 'restID')
+
+
+def normalize_pos_integration(raw):
+    """Normalize the pos_integration node before it is stored.
+
+    None/empty -> {'provider': 'native'}. Petpooja -> provider plus the four
+    credential fields as strings (missing ones become ''). Any other provider
+    string raises ValueError (-> HTTP 400).
+    """
+    if not raw:
+        return {'provider': 'native'}
+    if not isinstance(raw, dict):
+        raise ValueError('Invalid pos_integration')
+    provider = (raw.get('provider') or 'native').strip().lower()
+    if provider not in VALID_POS_PROVIDERS:
+        raise ValueError('Invalid pos_integration provider')
+    if provider == 'petpooja':
+        creds_raw = raw.get('credentials')
+        creds_raw = creds_raw if isinstance(creds_raw, dict) else {}
+        credentials = {f: str(creds_raw.get(f) or '') for f in PETPOOJA_CRED_FIELDS}
+        return {'provider': 'petpooja', 'credentials': credentials}
+    return {'provider': 'native'}
+
 SUPERADMIN_EMAIL = "sanalshijilkk52@gmail.com"
 SUPERADMIN_HASH = b'$2b$12$cuCI8t7nwl2Ol3CER8vce.uZhgU9w922jT8inRmS17ra81ttI39Ne'
 
@@ -52,6 +77,7 @@ def list_restaurants():
             'name': rdata.get('name', ''),
             'restaurant_type': rdata.get('restaurant_type', 'mixed'),
             'created_at': rdata.get('created_at'),
+            'pos_integration': rdata.get('pos_integration') or {'provider': 'native'},
             'admin': {
                 'uid': admin.get('uid') if admin else None,
                 'name': admin.get('name', '') if admin else '',
@@ -84,10 +110,16 @@ def create_restaurant_admin():
     if exists:
         return jsonify({'message': 'Email already exists'}), 400
 
+    try:
+        pos_integration = normalize_pos_integration(data.get('pos_integration'))
+    except ValueError as e:
+        return jsonify({'message': str(e)}), 400
+
     res_ref = db_ref.child('restaurants').push({
         'name': res_name,
         'restaurant_type': restaurant_type,
-        'created_at': time.time()
+        'created_at': time.time(),
+        'pos_integration': pos_integration
     })
     rid = res_ref.key
 
@@ -104,7 +136,8 @@ def create_restaurant_admin():
     return jsonify({
         'message': 'Restaurant and Admin created successfully',
         'rid': rid,
-        'admin_password': password
+        'admin_password': password,
+        'pos_integration': pos_integration
     }), 201
 
 @superadmin_bp.route('/superadmin/restaurant/<rid>', methods=['PUT'])
@@ -129,7 +162,19 @@ def update_restaurant(rid):
             return jsonify({'message': 'Invalid restaurant_type'}), 400
         res_update['restaurant_type'] = restaurant_type
 
+    # Validate before writing so a bad payload never leaves a half-applied edit.
+    pos_integration = None
+    if 'pos_integration' in data:
+        try:
+            pos_integration = normalize_pos_integration(data.get('pos_integration'))
+        except ValueError as e:
+            return jsonify({'message': str(e)}), 400
+
     db_ref.child('restaurants').child(rid).update(res_update)
+
+    # Replace (not merge) so switching petpooja -> native clears stale credentials.
+    if pos_integration is not None:
+        db_ref.child('restaurants').child(rid).child('pos_integration').set(pos_integration)
 
     users = db_ref.child('users').get() or {}
     admin_uid = None
@@ -154,7 +199,13 @@ def update_restaurant(rid):
             'created_at': time.time()
         })
 
-    return jsonify({'message': 'Restaurant updated successfully'}), 200
+    return jsonify({
+        'message': 'Restaurant updated successfully',
+        # Echo the persisted node so the client can see exactly what was
+        # stored (None when the payload did not include pos_integration).
+        'pos_integration': db_ref.child('restaurants').child(rid).child('pos_integration').get()
+            if pos_integration is not None else None
+    }), 200
 
 @superadmin_bp.route('/superadmin/restaurant/<rid>', methods=['DELETE'])
 @token_required

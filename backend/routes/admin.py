@@ -1,8 +1,10 @@
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify, send_file, current_app
 from firebase_client import get_db
 from auth_utils import token_required
 from rec_utils import normalize_recs, normalize_taste
 from menu_import import build_import_package, import_workbook, workbook_from_upload, MenuImportError
+from pos_adapters import sync_menu_from_pos, sync_tables_from_pos
+from pos_providers.petpooja import PetpoojaApiError
 import uuid
 import socket
 
@@ -290,6 +292,37 @@ def import_menu():
         # Everything failed -> 4xx, but still return the report so the UI can
         # show exactly which rows failed.
         return jsonify(report), 400
+    return jsonify(report), 200
+
+# --- Menu Fetch from POS ---
+@admin_bp.route('/admin/menu/fetch-pos', methods=['POST'])
+@token_required
+def fetch_menu_from_pos():
+    db_ref = get_db()
+    try:
+        report = sync_menu_from_pos(db_ref, request.restaurant_id)
+    except ValueError as e:
+        # No POS configured / incomplete credentials.
+        return jsonify({'error': str(e)}), 400
+    except PetpoojaApiError as e:
+        # Petpooja unreachable or returned garbage — our side is fine, theirs is not.
+        current_app.logger.error('fetch-pos failed for restaurant %s: %s', request.restaurant_id, e)
+        return jsonify({'error': str(e)}), 502
+    return jsonify(report), 200
+
+# --- Tables Fetch from POS ---
+@admin_bp.route('/admin/tables/fetch-pos', methods=['POST'])
+@token_required
+def fetch_tables_from_pos():
+    db_ref = get_db()
+    try:
+        report = sync_tables_from_pos(db_ref, request.restaurant_id)
+    except ValueError as e:
+        # No POS configured / incomplete credentials.
+        return jsonify({'error': str(e)}), 400
+    except PetpoojaApiError as e:
+        current_app.logger.error('tables fetch-pos failed for restaurant %s: %s', request.restaurant_id, e)
+        return jsonify({'error': str(e)}), 502
     return jsonify(report), 200
 
 # --- Tables ---
