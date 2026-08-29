@@ -820,7 +820,6 @@ export default function AdminMenuManager() {
         <h1 style={{ fontSize: 26, fontWeight: 900, margin: 0 }}>Menu Manager</h1>
         <div className="menu-manager-actions">
           <button className="btn-outline" onClick={() => setShowSetupForm(true)}>Menu Setup</button>
-          <button className="btn-excel" onClick={handleDownloadTemplate}><ExcelIcon /> Template</button>
           <button className="btn-excel" onClick={() => setShowImportForm(true)}><ExcelIcon /> Import Excel</button>
           <button className="btn-excel" onClick={handleFetchFromPos} disabled={fetchingPos} style={{ opacity: fetchingPos ? 0.6 : 1 }}>
             <ExcelIcon /> {fetchingPos ? 'Fetching…' : 'Fetch from POS'}
