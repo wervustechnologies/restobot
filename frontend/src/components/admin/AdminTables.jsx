@@ -205,7 +205,7 @@ export default function AdminTables() {
               Active
             </div>
             <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 5 }}>
-              Table {table.table_number}
+              {table.table_number}
               {table.petpooja_mapping?.petpooja_table_id && (
                 <span title="Petpooja table ID sent with orders" style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, color: '#666', background: '#F5F5F5', padding: '2px 8px', borderRadius: 12, verticalAlign: 'middle' }}>
                   PP #{table.petpooja_mapping.petpooja_table_id}
